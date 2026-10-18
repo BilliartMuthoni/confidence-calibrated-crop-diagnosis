@@ -1,0 +1,10 @@
+class,maize_jhenaidah,maize_natore,potato_holeta,tomato_bd,total
+Corn_(maize)___Cercospora_leaf_spot Gray_leaf_spot,554,826,0,0,1380
+Corn_(maize)___Common_rust_,0,126,0,0,126
+Corn_(maize)___healthy,359,602,0,0,961
+Potato___Late_blight,0,0,67,0,67
+Potato___healthy,0,0,344,0,344
+Tomato___Bacterial_spot,0,0,0,97,97
+Tomato___Early_blight,0,0,0,447,447
+Tomato___Late_blight,0,0,0,92,92
+Tomato___healthy,0,0,0,307,307
