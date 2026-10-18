@@ -19,7 +19,23 @@ npm run dev               # http://localhost:5173
 ```
 
 The backend must allow this origin — `CORS_ORIGINS` in `sproutly-backend/.env`
-defaults to `http://localhost:5173`. The home page shows whether the backend is reachable.
+defaults to `http://localhost:5173`.
+
+Until the admin API exists the portal runs on **sample data** (`VITE_USE_SAMPLE_DATA`, on
+by default): made-up referrals, contacts, users and advice, with a banner on every page.
+The login page lists the sample accounts. Set it to `false` to use the backend.
+
+## Pages
+
+| Page | Admin | Extension officer |
+|---|---|---|
+| Sign in (password, then authenticator code; first sign-in sets the authenticator up) | yes | yes |
+| Overview: checks, share referred, waiting referrals, results, counties, confidence of referred cases | yes | - |
+| Referrals: queue and reply (officers see their own county only) | all counties | own county |
+| County contacts: shown to farmers on the app's Support contacts screen | edit | view |
+| Users: list, deactivate, create officer accounts | yes | - |
+| Advice library: cited excerpts, corrections saved as versions, retire not delete | edit | view |
+| Model settings (read-only) | yes | - |
 
 ## Scripts
 
@@ -38,6 +54,10 @@ src/
 ├── router.jsx        route table
 ├── index.css         Tailwind + theme colours
 ├── api/client.js     fetch wrapper: base URL, JSON, bearer token, errors
-├── components/       shared UI (AppLayout)
+├── api/admin.js      every call the portal makes (sample data or the backend)
+├── api/sampleData.js made-up data for sample mode
+├── auth/             signed-in session (sessionStorage, ends when the tab closes)
+├── components/       layout, route guard and shared UI
+├── lib/              formatting helpers and the data-loading hook
 └── pages/            one file per route
 ```

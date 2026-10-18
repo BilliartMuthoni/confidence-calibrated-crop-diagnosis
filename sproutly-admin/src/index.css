@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-/* Shared with the mobile app (sproutly-mobile/src/constants/Colors.js). */
+/* Shared with the mobile app (sproutly-mobile/src/constants/Colors.js and theme.js). */
 @theme {
   --color-forest-deep: #0b1a13;
   --color-forest-mid: #1b3d2f;
@@ -10,8 +10,13 @@
   --color-expert: #3a6ea5;
   --color-healthy: #2f7d4f;
   --color-surface: #f5f7f4;
+  --color-ink: #0b1a13;
+  --color-body: #1f2a24;
+  --color-muted: #5f6b65;
+  --color-faint: #8a9690;
+  --color-divider: #e2e7e3;
 }
 
 body {
-  @apply bg-surface text-gray-800 antialiased;
+  @apply bg-surface text-body antialiased;
 }
