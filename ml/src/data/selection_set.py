@@ -234,6 +234,35 @@ def folder_summary(table: pd.DataFrame) -> pd.DataFrame:
             .agg(images=("path", "size"), mapped_to=("class", "first")).reset_index())
 
 
+# ------------------------------------------------------------------------- saving
+
+# Same as image_dataset.CACHE_SHORT_SIDE: every photo is shrunk to this before the model
+# sees it, so saving the selection photos at this size changes nothing for the model and
+# keeps them small on Drive (full-size field photos filled the 15 GB Drive on 17 Oct).
+SAVED_SHORT_SIDE = 256
+
+
+def save_small(src: Path, dst: Path) -> None:
+    """Save a copy of src at dst with the shorter side at most SAVED_SHORT_SIDE pixels,
+    exactly as image_dataset caches every other split."""
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    with Image.open(src) as image:
+        image = image.convert("RGB")
+        scale = SAVED_SHORT_SIDE / min(image.size)
+        if scale < 1:
+            image = image.resize((round(image.width * scale), round(image.height * scale)), Image.BICUBIC)
+        image.save(dst, quality=95)
+
+
+def save_all_small(jobs: list[tuple[Path, Path]], workers: int = 16) -> None:
+    from concurrent.futures import ThreadPoolExecutor
+
+    from tqdm.auto import tqdm
+
+    with ThreadPoolExecutor(workers) as pool:
+        list(tqdm(pool.map(lambda job: save_small(*job), jobs), total=len(jobs), desc="Saving photos"))
+
+
 # ------------------------------------------------------------------------ duplicates
 
 # The seven other ways a photo can be turned or flipped; a turned copy is still a copy.
