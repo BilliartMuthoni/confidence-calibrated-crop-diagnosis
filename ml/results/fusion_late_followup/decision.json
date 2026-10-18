@@ -1,0 +1,29 @@
+{
+  "replace_current": true,
+  "winner": "bert_base + late",
+  "reason": "lowest log-loss with text among eligible setups (0.0192 vs 0.0282)",
+  "current": {
+    "name": "tfidf + concat",
+    "nll_mean": 0.028232,
+    "nll_sd": 0.002601,
+    "healthy_with_disease_text": 0.003268,
+    "healthy_with_same_crop_text": 0.003268,
+    "diseased_without_text_called_healthy": 0.004372
+  },
+  "resnet50_val_field": {
+    "images": 509,
+    "accuracy": 0.9960707269155207,
+    "macro_f1": 0.9948198477728202,
+    "ece": 0.005576869476520736,
+    "nll": 0.02896437793970108,
+    "mean_confidence": 0.991797685623169
+  },
+  "test_bias": {
+    "healthy_with_disease_text": 0.014150943396226415,
+    "healthy_with_same_crop_text": 0.014150943396226415,
+    "healthy_without_text": 0.014150943396226415,
+    "diseased_without_text_called_healthy": 0.0,
+    "diseased_called_healthy_by_resnet_alone": 0.0
+  },
+  "post_hoc_followup": true
+}
