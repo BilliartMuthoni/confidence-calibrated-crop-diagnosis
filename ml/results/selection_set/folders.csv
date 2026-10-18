@@ -1,0 +1,19 @@
+source,folder,label_reason,images,mapped_to
+maize_jhenaidah,Maize dataset/Fall_Armyworm,"excluded: a pest, not one of our classes",525,
+maize_jhenaidah,Maize dataset/Gray_Spot,mapped,555,Corn_(maize)___Cercospora_leaf_spot Gray_leaf_spot
+maize_jhenaidah,Maize dataset/Healthy,mapped,427,Corn_(maize)___healthy
+maize_jhenaidah,Maize dataset/Leaf_Blight,excluded: ambiguous: northern or southern leaf blight,489,
+maize_natore,Final corn dataset/Bacterial Leaf Streak,excluded: not one of our classes,190,
+maize_natore,Final corn dataset/Common_rust,mapped,129,Corn_(maize)___Common_rust_
+maize_natore,Final corn dataset/Gray_leaf_spot,mapped,1497,Corn_(maize)___Cercospora_leaf_spot Gray_leaf_spot
+maize_natore,Final corn dataset/Healthy,mapped,1038,Corn_(maize)___healthy
+maize_natore,Final corn dataset/Maize Chlorotic Mottle Virus,excluded: not one of our classes,89,
+potato_holeta,Local/Healthy,mapped,363,Potato___healthy
+potato_holeta,Local/Late Blight,mapped,67,Potato___Late_blight
+tomato_bd,Tomato Leaf Disease Classification Dataset/Tomato Dataset/Bacteiral Spot,mapped,117,Tomato___Bacterial_spot
+tomato_bd,Tomato Leaf Disease Classification Dataset/Tomato Dataset/Early Blight,mapped,524,Tomato___Early_blight
+tomato_bd,Tomato Leaf Disease Classification Dataset/Tomato Dataset/Healthy,mapped,380,Tomato___healthy
+tomato_bd,Tomato Leaf Disease Classification Dataset/Tomato Dataset/Late Blight,mapped,112,Tomato___Late_blight
+tomato_bd,Tomato Leaf Disease Classification Dataset/Tomato Dataset/Leaf Miner Flies,"excluded: a pest, not one of our classes",884,
+tomato_bd,Tomato Leaf Disease Classification Dataset/Tomato Dataset/Magnesium Deficiency,"excluded: a deficiency, not one of our classes",744,
+tomato_bd,Tomato Leaf Disease Classification Dataset/Tomato Dataset/Yellow Leaf Curl Virus,excluded: not one of our classes,234,

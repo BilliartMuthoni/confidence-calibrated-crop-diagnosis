@@ -1,0 +1,18 @@
+source,reason,images
+maize_jhenaidah,"excluded: a pest, not one of our classes",525
+maize_jhenaidah,excluded: ambiguous: northern or southern leaf blight,489
+maize_jhenaidah,kept,913
+maize_jhenaidah,near_duplicate_within_selection,69
+maize_natore,excluded: not one of our classes,279
+maize_natore,kept,1554
+maize_natore,near_duplicate_within_selection,1095
+maize_natore,near_duplicates_with_conflicting_labels,15
+potato_holeta,kept,411
+potato_holeta,near_duplicate_within_selection,19
+tomato_bd,"excluded: a deficiency, not one of our classes",744
+tomato_bd,"excluded: a pest, not one of our classes",884
+tomato_bd,excluded: not one of our classes,234
+tomato_bd,kept,943
+tomato_bd,near_duplicate_of_existing_photo,1
+tomato_bd,near_duplicate_within_selection,56
+tomato_bd,near_duplicates_with_conflicting_labels,133
