@@ -1,0 +1,13 @@
+{
+  "model": "resnet50",
+  "members": [
+    "resnet50"
+  ],
+  "method": "temperature",
+  "params": {
+    "temperature": 3.035635949813895
+  },
+  "threshold": 0.9446368922116677,
+  "fitted_on": "selection set (3821 photos, notebook 12)",
+  "confidence": "best class of the farmer's crop, 11-class probability, not rescaled"
+}
