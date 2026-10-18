@@ -2,7 +2,9 @@ import { createBrowserRouter } from 'react-router'
 
 import AppLayout from './components/AppLayout.jsx'
 import Guard from './components/Guard.jsx'
+import AccountPage from './pages/AccountPage.jsx'
 import AdvicePage from './pages/AdvicePage.jsx'
+import AuditPage from './pages/AuditPage.jsx'
 import ContactsPage from './pages/ContactsPage.jsx'
 import LoginPage from './pages/LoginPage.jsx'
 import ModelSettingsPage from './pages/ModelSettingsPage.jsx'
@@ -10,6 +12,7 @@ import NotFoundPage from './pages/NotFoundPage.jsx'
 import OverviewPage from './pages/OverviewPage.jsx'
 import ReferralDetailPage from './pages/ReferralDetailPage.jsx'
 import ReferralsPage from './pages/ReferralsPage.jsx'
+import SetPasswordPage from './pages/SetPasswordPage.jsx'
 import UsersPage from './pages/UsersPage.jsx'
 
 const ADMIN = ['admin']
@@ -17,6 +20,7 @@ const STAFF = ['admin', 'officer']
 
 export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
+  { path: '/set-password', element: <SetPasswordPage /> },
   {
     element: <Guard roles={STAFF}><AppLayout /></Guard>,
     children: [
@@ -27,6 +31,8 @@ export const router = createBrowserRouter([
       { path: 'users', element: <Guard roles={ADMIN}><UsersPage /></Guard> },
       { path: 'advice', element: <AdvicePage /> },
       { path: 'model', element: <Guard roles={ADMIN}><ModelSettingsPage /></Guard> },
+      { path: 'audit', element: <Guard roles={ADMIN}><AuditPage /></Guard> },
+      { path: 'account', element: <AccountPage /> },
       { path: '*', element: <NotFoundPage /> },
     ],
   },

@@ -21,21 +21,30 @@ npm run dev               # http://localhost:5173
 The backend must allow this origin — `CORS_ORIGINS` in `sproutly-backend/.env`
 defaults to `http://localhost:5173`.
 
-Until the admin API exists the portal runs on **sample data** (`VITE_USE_SAMPLE_DATA`, on
-by default): made-up referrals, contacts, users and advice, with a banner on every page.
-The login page lists the sample accounts. Set it to `false` to use the backend.
+There is no sign-up. The first administrator is created on the server (inside
+`sproutly-backend`, after `alembic upgrade head`):
+
+```bash
+python -m app.scripts.create_admin --email you@example.org --name "Your Name"
+```
+
+The password is typed at a hidden prompt; the authenticator app is set up at the first
+sign-in. Officers are created from the Users page, which gives a one-time link for them to
+choose a password (it points at `ADMIN_PORTAL_URL` in the backend's settings).
 
 ## Pages
 
 | Page | Admin | Extension officer |
 |---|---|---|
 | Sign in (password, then authenticator code; first sign-in sets the authenticator up) | yes | yes |
-| Overview: checks, share referred, waiting referrals, results, counties, confidence of referred cases | yes | - |
-| Referrals: queue and reply (officers see their own county only) | all counties | own county |
-| County contacts: shown to farmers on the app's Support contacts screen | edit | view |
-| Users: list, deactivate, create officer accounts | yes | - |
-| Advice library: cited excerpts, corrections saved as versions, retire not delete | edit | view |
-| Model settings (read-only) | yes | - |
+| Overview: checks, share referred, waiting and soon-expiring referrals, officer-model agreement, results, counties, confidence of referred cases | yes | - |
+| Referrals: claim a case, judge it from a fixed list before seeing the model's guess, reply with optional library advice (officers see their own county only) | all counties | own county |
+| County contacts: type, hours and last-checked date; shown to farmers on the app's Support contacts screen | edit | view |
+| Users: list, last sign-in, deactivate, reset password or authenticator, move an officer's county, create officer accounts | yes | - |
+| Advice library: cited excerpts, missing-advice check, corrections saved as versions, retire not delete | edit | view |
+| Model settings (read-only): each part with its notebook, results folder and commit | yes | - |
+| Audit log (read-only): who did what, when | yes | - |
+| My account: change password, move the authenticator to a new phone, backup codes, recent sign-ins | yes | yes |
 
 ## Scripts
 
@@ -54,9 +63,8 @@ src/
 ├── router.jsx        route table
 ├── index.css         Tailwind + theme colours
 ├── api/client.js     fetch wrapper: base URL, JSON, bearer token, errors
-├── api/admin.js      every call the portal makes (sample data or the backend)
-├── api/sampleData.js made-up data for sample mode
-├── auth/             signed-in session (sessionStorage, ends when the tab closes)
+├── api/admin.js      every call the portal makes to the backend
+├── auth/             signed-in session (sessionStorage, ends when the tab closes or after 30 idle minutes)
 ├── components/       layout, route guard and shared UI
 ├── lib/              formatting helpers and the data-loading hook
 └── pages/            one file per route

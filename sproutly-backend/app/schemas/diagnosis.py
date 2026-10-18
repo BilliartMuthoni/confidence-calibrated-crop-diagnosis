@@ -10,6 +10,8 @@ class Guidance(BaseModel):
     summary: str
     treatment: List[str]
     prevention: List[str]
+    # Where the advice comes from, when it is from the reviewed advice library.
+    sources: List[str] = []
 
 
 class DiagnosisResponse(BaseModel):
@@ -56,5 +58,8 @@ class DiagnosisListItem(BaseModel):
     confidence: float
     is_referred: bool
     created_at: datetime
+    # A county officer's reply to a referred case, shown as "Advice from a county officer".
+    officer_response: Optional[str] = None
+    responded_at: Optional[datetime] = None
 
     model_config = {"from_attributes": True}

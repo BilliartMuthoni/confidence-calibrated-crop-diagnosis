@@ -1,202 +1,189 @@
-// Every call the portal makes. With VITE_USE_SAMPLE_DATA (on unless set to "false") the
-// answers come from sampleData.js, so the pages work before the admin API exists; the
-// real calls below are the endpoints the backend will provide (issue: admin and officer API).
+// Every call the portal makes to the backend (sproutly-backend/app/routers/admin.py,
+// admin_content.py and auth.py). The backend checks the role, and an officer's county,
+// on every request; the portal only hides what a role cannot use.
 
-import { apiFetch, ApiError } from './client.js'
-import { SAMPLE_ACCOUNTS, SAMPLE_PASSWORD, sampleStore } from './sampleData.js'
+import { API_URL, apiFetch, ApiError } from './client.js'
 
-export const USE_SAMPLE_DATA = import.meta.env.VITE_USE_SAMPLE_DATA !== 'false'
-
-const store = sampleStore()
-const pause = (ms = 250) => new Promise((resolve) => setTimeout(resolve, ms))
-const nextId = (items) => Math.max(0, ...items.map((item) => item.id)) + 1
-const now = () => new Date().toISOString()
-
-function sampleUser(token) {
-  const email = token?.replace(/^sample:/, '')
-  const account = SAMPLE_ACCOUNTS[email]
-  if (!account) throw new ApiError(401, 'Please log in again.')
-  return { ...account, email }
-}
+const post = (body) => ({ method: 'POST', body: JSON.stringify(body) })
 
 // ------------------------------------------------------------------------- sign-in
 
-export async function login(email, password) {
-  if (!USE_SAMPLE_DATA) {
-    return apiFetch('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) })
-  }
-  await pause()
-  const account = SAMPLE_ACCOUNTS[email.trim().toLowerCase()]
-  if (!account || password !== SAMPLE_PASSWORD) throw new ApiError(401, 'Invalid credentials')
+export function login(email, password) {
+  return apiFetch('/auth/login', post({ email, password }))
+}
+
+// The portal's picture of who is signed in, from the backend's /auth/me.
+async function session(tokens) {
+  const me = await apiFetch('/auth/me', { token: tokens.access_token })
   return {
-    next_step: account.needsSetup ? 'setup' : 'verify',
-    mfa_token: `sample:${email.trim().toLowerCase()}`,
-    expires_in_minutes: 5,
-    setup: account.needsSetup ? { secret: 'SAMPLE SETUP KEY', qr_code: null } : null,
+    token: tokens.access_token,
+    user: { id: me.user_id, name: me.full_name || me.user_email, role: tokens.role, county: me.county, email: me.user_email },
   }
 }
 
 // Second step: the authenticator code. Returns the session (token + who is signed in).
 export async function submitCode(step, mfaToken, code) {
-  if (!USE_SAMPLE_DATA) {
-    const path = step === 'setup' ? '/auth/mfa/setup/confirm' : '/auth/mfa/verify'
-    const tokens = await apiFetch(path, { method: 'POST', body: JSON.stringify({ mfa_token: mfaToken, code }) })
-    const me = await apiFetch('/auth/me', { token: tokens.access_token })
-    return { token: tokens.access_token, user: { ...me, role: tokens.role } }
-  }
-  await pause()
-  if (!/^\d{6}$/.test(code)) throw new ApiError(400, 'Code must be the 6 digits shown in your authenticator app')
-  return { token: mfaToken, user: sampleUser(mfaToken) }
+  const path = step === 'setup' ? '/auth/mfa/setup/confirm' : '/auth/mfa/verify'
+  return session(await apiFetch(path, post({ mfa_token: mfaToken, code })))
+}
+
+// Second step with a backup code instead of the phone (each code works once).
+export async function submitBackupCode(mfaToken, code) {
+  return session(await apiFetch('/auth/mfa/backup', post({ mfa_token: mfaToken, code })))
+}
+
+// A staff member chooses a password from a one-time invite or reset link.
+export function setStaffPassword(linkToken, password) {
+  return apiFetch('/auth/staff/password', post({ token: linkToken, password }))
+}
+
+// ---------------------------------------------------------------------- my account
+
+export function getMyAccount(token) {
+  return apiFetch('/auth/account', { token })
+}
+
+export function changePassword(token, current, next) {
+  return apiFetch('/auth/password', { token, ...post({ current_password: current, new_password: next }) })
+}
+
+// Moving to a new phone: a code from the current app first, then scan a new key.
+export function startAuthenticatorReset(token, code) {
+  return apiFetch('/auth/mfa/reenrol/start', { token, ...post({ code }) })
+}
+
+export function confirmAuthenticatorReset(token, setupToken, code) {
+  return apiFetch('/auth/mfa/reenrol/confirm', { token, ...post({ setup_token: setupToken, code }) })
+}
+
+// New codes replace all old ones and are shown once; the server keeps only their hashes.
+export function makeBackupCodes(token, code) {
+  return apiFetch('/auth/backup-codes', { token, ...post({ code }) })
 }
 
 // ------------------------------------------------------------------------ overview
 
-export async function getOverview(token) {
-  if (!USE_SAMPLE_DATA) return apiFetch('/admin/overview', { token })
-  await pause()
-  const waiting = store.referrals.filter((r) => r.status === 'waiting').length
-  return { ...store.overview, waiting_referrals: waiting }
+export function getOverview(token) {
+  return apiFetch('/admin/overview', { token })
 }
 
 // ----------------------------------------------------------------------- referrals
 
-// Officers only ever receive their own county's cases; the backend enforces this too.
-export async function listReferrals(token, { status, county } = {}) {
-  if (!USE_SAMPLE_DATA) {
-    const query = new URLSearchParams(Object.entries({ status, county }).filter(([, v]) => v))
-    return apiFetch(`/admin/referrals?${query}`, { token })
-  }
-  await pause()
-  const user = sampleUser(token)
-  return store.referrals
-    .filter((r) => user.role === 'admin' || r.county === user.county)
-    .filter((r) => !status || r.status === status)
-    .filter((r) => !county || r.county === county)
-    .sort((a, b) => b.created_at.localeCompare(a.created_at))
+// "mine" = cases the signed-in person has claimed or answered.
+export function listReferrals(token, { status, county, mine } = {}) {
+  const query = new URLSearchParams(Object.entries({ status, county, mine: mine ? 'true' : '' }).filter(([, v]) => v))
+  return apiFetch(`/admin/referrals?${query}`, { token })
 }
 
-export async function getReferral(token, id) {
-  if (!USE_SAMPLE_DATA) return apiFetch(`/admin/referrals/${id}`, { token })
-  const found = (await listReferrals(token)).find((r) => r.id === Number(id))
-  if (!found) throw new ApiError(404, 'Referral not found')
-  return found
+export function getReferral(token, id) {
+  return apiFetch(`/admin/referrals/${id}`, { token })
 }
 
-export async function replyToReferral(token, id, { text, correctDisease }) {
-  if (!USE_SAMPLE_DATA) {
-    return apiFetch(`/admin/referrals/${id}/reply`, {
-      method: 'POST', token, body: JSON.stringify({ text, correct_disease: correctDisease || null }),
-    })
-  }
-  const referral = await getReferral(token, id)
-  if (referral.status !== 'waiting') throw new ApiError(400, 'This referral has already been answered or has expired')
-  referral.status = 'answered'
-  referral.reply = { text, correct_disease: correctDisease || null, officer: sampleUser(token).name, replied_at: now() }
-  return referral
+// Claiming stops two officers answering the same case.
+export function claimReferral(token, id) {
+  return apiFetch(`/admin/referrals/${id}/claim`, { token, method: 'POST' })
+}
+
+export function releaseReferral(token, id) {
+  return apiFetch(`/admin/referrals/${id}/release`, { token, method: 'POST' })
+}
+
+// The officer's own judgement is recorded first; only then does the backend send the
+// model's guess, and the judgement cannot change afterwards (keeps judgements independent).
+export function recordJudgement(token, id, judgement) {
+  return apiFetch(`/admin/referrals/${id}/judgement`, { token, ...post({ judgement }) })
+}
+
+export function replyToReferral(token, id, { text, judgement, adviceIds }) {
+  return apiFetch(`/admin/referrals/${id}/reply`, { token, ...post({ text, judgement, advice_ids: adviceIds }) })
+}
+
+// The farmer's photo as a local object URL (it needs the sign-in token, so a plain <img src> can't load it).
+export async function referralPhoto(token, id) {
+  const response = await fetch(`${API_URL}/admin/referrals/${id}/photo`, { headers: { Authorization: `Bearer ${token}` } })
+  if (!response.ok) throw new ApiError(response.status, 'The photo is no longer stored')
+  return URL.createObjectURL(await response.blob())
 }
 
 // ------------------------------------------------------------------------ contacts
 
-export async function listContacts(token) {
-  if (!USE_SAMPLE_DATA) return apiFetch('/admin/contacts', { token })
-  await pause()
-  return [...store.contacts].sort((a, b) => a.county.localeCompare(b.county) || a.name.localeCompare(b.name))
+export function listContacts(token) {
+  return apiFetch('/admin/contacts', { token })
 }
 
-export async function saveContact(token, contact) {
-  if (!USE_SAMPLE_DATA) {
-    const path = contact.id ? `/admin/contacts/${contact.id}` : '/admin/contacts'
-    return apiFetch(path, { method: contact.id ? 'PUT' : 'POST', token, body: JSON.stringify(contact) })
-  }
-  await pause()
-  if (contact.id) {
-    Object.assign(store.contacts.find((c) => c.id === contact.id), contact)
-    return contact
-  }
-  const created = { ...contact, id: nextId(store.contacts), active: true }
-  store.contacts.push(created)
-  return created
+// Saving a contact counts as checking it: whoever saves it has just looked at the details.
+export function saveContact(token, contact) {
+  const path = contact.id ? `/admin/contacts/${contact.id}` : '/admin/contacts'
+  return apiFetch(path, { method: contact.id ? 'PUT' : 'POST', token, body: JSON.stringify(contact) })
 }
 
-export async function setContactActive(token, id, active) {
-  if (!USE_SAMPLE_DATA) {
-    return apiFetch(`/admin/contacts/${id}/active`, { method: 'POST', token, body: JSON.stringify({ active }) })
-  }
-  await pause()
-  store.contacts.find((c) => c.id === id).active = active
+export function markContactChecked(token, id) {
+  return apiFetch(`/admin/contacts/${id}/checked`, { token, method: 'POST' })
+}
+
+export function setContactActive(token, id, active) {
+  return apiFetch(`/admin/contacts/${id}/active`, { token, ...post({ active }) })
 }
 
 // --------------------------------------------------------------------------- users
 
-export async function listUsers(token) {
-  if (!USE_SAMPLE_DATA) return apiFetch('/admin/users', { token })
-  await pause()
-  return [...store.users]
+export function listUsers(token) {
+  return apiFetch('/admin/users', { token })
 }
 
-export async function setUserActive(token, id, active) {
-  if (!USE_SAMPLE_DATA) {
-    return apiFetch(`/admin/users/${id}/active`, { method: 'POST', token, body: JSON.stringify({ active }) })
-  }
-  await pause()
-  store.users.find((u) => u.id === id).active = active
+export function setUserActive(token, id, active) {
+  return apiFetch(`/admin/users/${id}/active`, { token, ...post({ active }) })
 }
 
-// Officers never sign themselves up: the admin creates the account, and the officer sets
-// up the authenticator app at first login.
-export async function createOfficer(token, { name, email, county }) {
-  if (!USE_SAMPLE_DATA) {
-    return apiFetch('/admin/users/officers', { method: 'POST', token, body: JSON.stringify({ name, email, county }) })
-  }
-  await pause()
-  if (store.users.some((u) => u.contact === email)) throw new ApiError(400, 'An account with this email already exists')
-  const created = { id: nextId(store.users), name, contact: email, role: 'officer', county, mfa: false, active: true, created_at: now() }
-  store.users.push(created)
-  return created
+// There is no email service yet: these return a one-time link ({ link, expires_in_hours })
+// that the admin passes on to the staff member, who chooses a password with it.
+
+// The old password stops working; the staff member chooses a new one from the link.
+export function resetPassword(token, id) {
+  return apiFetch(`/admin/users/${id}/reset-password`, { token, method: 'POST' })
+}
+
+// For a lost phone: the authenticator AND the password are reset (otherwise anyone who knew
+// the password could set up their own authenticator); a new one is set up at the next sign-in.
+export function resetAuthenticator(token, id) {
+  return apiFetch(`/admin/users/${id}/reset-mfa`, { token, method: 'POST' })
+}
+
+export function setOfficerCounty(token, id, county) {
+  return apiFetch(`/admin/users/${id}/county`, { token, ...post({ county }) })
+}
+
+// Officers never sign themselves up: the admin creates the account and passes on the
+// returned one-time link; the officer chooses a password and sets up the authenticator app.
+export function createOfficer(token, { name, email, county }) {
+  return apiFetch('/admin/users/officers', { token, ...post({ name, email, county }) })
+}
+
+// --------------------------------------------------------------------------- audit
+
+export function listAudit(token) {
+  return apiFetch('/admin/audit', { token })
 }
 
 // -------------------------------------------------------------------------- advice
 
-export async function listAdvice(token) {
-  if (!USE_SAMPLE_DATA) return apiFetch('/admin/advice', { token })
-  await pause()
-  return [...store.advice]
+export function listAdvice(token) {
+  return apiFetch('/admin/advice', { token })
 }
 
-// A correction creates a new version; the old wording stays in the history, and each
-// diagnosis keeps the version the farmer was shown.
-export async function saveAdvice(token, entry, note) {
-  if (!USE_SAMPLE_DATA) {
-    const path = entry.id ? `/admin/advice/${entry.id}` : '/admin/advice'
-    return apiFetch(path, { method: entry.id ? 'PUT' : 'POST', token, body: JSON.stringify({ ...entry, note }) })
-  }
-  await pause()
-  const by = sampleUser(token).name
-  if (entry.id) {
-    const existing = store.advice.find((a) => a.id === entry.id)
-    const version = existing.version + 1
-    Object.assign(existing, entry, { version, history: [...existing.history, { version, at: now(), by, note }] })
-    return existing
-  }
-  const created = { ...entry, id: nextId(store.advice), version: 1, status: 'active', history: [{ version: 1, at: now(), by, note }] }
-  store.advice.push(created)
-  return created
+// A correction creates a new version; the old wording stays in the history, and a reply
+// keeps the version the farmer was shown.
+export function saveAdvice(token, entry, note) {
+  const path = entry.id ? `/admin/advice/${entry.id}` : '/admin/advice'
+  return apiFetch(path, { method: entry.id ? 'PUT' : 'POST', token, body: JSON.stringify({ ...entry, note }) })
 }
 
-export async function retireAdvice(token, id, note) {
-  if (!USE_SAMPLE_DATA) {
-    return apiFetch(`/admin/advice/${id}/retire`, { method: 'POST', token, body: JSON.stringify({ note }) })
-  }
-  await pause()
-  const entry = store.advice.find((a) => a.id === id)
-  entry.status = 'retired'
-  entry.history = [...entry.history, { version: entry.version, at: now(), by: sampleUser(token).name, note: `Retired: ${note}` }]
+export function retireAdvice(token, id, note) {
+  return apiFetch(`/admin/advice/${id}/retire`, { token, ...post({ note }) })
 }
 
 // --------------------------------------------------------------------------- model
 
-export async function getModelSettings(token) {
-  if (!USE_SAMPLE_DATA) return apiFetch('/admin/model', { token })
-  await pause()
-  return store.model
+export function getModelSettings(token) {
+  return apiFetch('/admin/model', { token })
 }

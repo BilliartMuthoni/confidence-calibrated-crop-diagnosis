@@ -9,6 +9,12 @@ Sprint 3 replaces this module with the ChromaDB knowledge base with citations.
 Keys are the model's class names (PlantVillage folder names).
 """
 
+from typing import Optional
+
+from sqlalchemy.orm import Session
+
+from app.models.advice import AdviceEntry, AdviceKind, AdviceStatus
+
 KNOWLEDGE_BASE = {
     "Corn_(maize)___Cercospora_leaf_spot Gray_leaf_spot": {
         "name": "Maize Gray Leaf Spot",
@@ -149,8 +155,24 @@ def display_name(class_name: str) -> str:
     return KNOWLEDGE_BASE.get(class_name, {}).get("name", class_name)
 
 
-def get_guidance(class_name: str):
+def get_guidance(class_name: str, db: Optional[Session] = None):
+    """Advice for one class. Once the advice library (managed in the admin portal, D16) has
+    active entries for the class, those are shown word for word with their sources; until
+    then the placeholder text above."""
     entry = KNOWLEDGE_BASE.get(class_name)
     if entry is None:
         return None
-    return {key: entry[key] for key in ("summary", "treatment", "prevention")}
+    guidance = {key: entry[key] for key in ("summary", "treatment", "prevention")}
+    guidance["sources"] = []
+    if db is not None:
+        library = (
+            db.query(AdviceEntry)
+            .filter(AdviceEntry.disease == class_name, AdviceEntry.status == AdviceStatus.active)
+            .order_by(AdviceEntry.advice_id)
+            .all()
+        )
+        if library:
+            for kind in AdviceKind:
+                guidance[kind.value] = [a.text for a in library if a.kind == kind]
+            guidance["sources"] = sorted({f"{a.source_title} ({a.licence}): {a.source_url}" for a in library})
+    return guidance

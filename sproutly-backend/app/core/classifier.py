@@ -21,7 +21,10 @@ usually with confidence, so the app shows the detected crop and lets the farmer
 correct it (POST /diagnose/{id}/crop); with the farmer's crop, PlantDoc accuracy
 rises from 28% to 40% (measured 14 Oct with ResNet-50's saved predictions).
 
-Confidence is not calibrated yet; temperature scaling comes in Sprint 4.
+Confidence is calibrated by temperature scaling (D6): the scores are divided by
+settings.temperature (3.04, fitted on unseen field photos in notebook 13) before softmax.
+This changes how sure the model says it is, never which class it picks, and the
+referral threshold (0.877, notebook 13b) was chosen on these calibrated values.
 """
 
 from dataclasses import dataclass
@@ -121,7 +124,7 @@ class _Model:
     @torch.inference_mode()
     def probabilities(self, image: Image.Image) -> torch.Tensor:
         batch = self.transform(image.convert("RGB")).unsqueeze(0)
-        return torch.softmax(self.network(batch), dim=1)[0]
+        return torch.softmax(self.network(batch) / settings.temperature, dim=1)[0]
 
 
 @lru_cache(maxsize=1)

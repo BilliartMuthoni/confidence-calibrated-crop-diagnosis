@@ -24,9 +24,52 @@ export const DISEASES = {
 }
 
 export const CROPS = { maize: 'Maize', tomato: 'Tomato', potato: 'Potato' }
+export const CROP_PREFIX = { maize: 'Corn_(maize)___', tomato: 'Tomato___', potato: 'Potato___' }
 
 export function diseaseName(className) {
   return DISEASES[className] ?? className
+}
+
+// An officer's judgement is one of the 11 classes or one of these, never free text, so it
+// can be compared with the model's guess and kept as a candidate label.
+export const JUDGEMENTS = {
+  other_disease: 'Another disease (not one Sproutly knows)',
+  cannot_tell: "Can't tell from the photo",
+  farm_visit: 'Needs a farm visit',
+}
+
+export function judgementName(value) {
+  return JUDGEMENTS[value] ?? diseaseName(value)
+}
+
+export const REFERRAL_STATUS = { new: 'new', in_review: 'in review', answered: 'answered', expired: 'expired' }
+
+export const CONTACT_KINDS = { office: 'Extension office', clinic: 'Plant clinic', agrovet: 'Agrovet', hotline: 'Hotline' }
+
+export const AUDIT_ACTIONS = {
+  sign_in: 'Signed in',
+  sign_in_failed: 'Failed sign-in',
+  password_change: 'Changed own password',
+  password_set: 'Chose a password from a link',
+  mfa_reenrol: 'Set up authenticator again',
+  backup_codes: 'Made new backup codes',
+  referral_claim: 'Claimed a referral',
+  referral_release: 'Released a referral',
+  referral_reply: 'Replied to a referral',
+  contact_add: 'Added a contact',
+  contact_edit: 'Edited a contact',
+  contact_checked: 'Checked a contact',
+  contact_hide: 'Hid a contact',
+  contact_show: 'Showed a contact',
+  user_create: 'Created an officer',
+  user_deactivate: 'Deactivated an account',
+  user_reactivate: 'Reactivated an account',
+  user_reset_password: 'Reset a password',
+  user_reset_mfa: 'Reset an authenticator',
+  user_county: 'Changed an officer\'s county',
+  advice_add: 'Added advice',
+  advice_correct: 'Corrected advice',
+  advice_retire: 'Retired advice',
 }
 
 // The API sends UTC times without a zone marker; read them as UTC (same rule as the mobile app).
@@ -48,6 +91,10 @@ export function timeAgo(value) {
   if (hours < 24) return `${hours} h ago`
   const days = Math.round(hours / 24)
   return days === 1 ? 'yesterday' : `${days} days ago`
+}
+
+export function daysSince(value) {
+  return Math.floor((Date.now() - parseUtc(value).getTime()) / 86400000)
 }
 
 export function daysLeft(value) {

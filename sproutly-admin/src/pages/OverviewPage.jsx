@@ -7,15 +7,15 @@ import { BarList, Card, ErrorBox, Loading, PageHeader } from '../components/ui.j
 import { diseaseName, percent } from '../lib/format.js'
 import { useLoad } from '../lib/useLoad.js'
 
-function Stat({ label, value, note, to }) {
+function Stat({ label, value, note, to, urgent = false }) {
   const body = (
-    <Card className={to ? 'transition hover:border-primary/40' : ''}>
+    <Card className={`h-full ${to ? 'transition hover:border-primary/40' : ''}`}>
       <p className="text-sm text-muted">{label}</p>
       <p className="mt-1 text-3xl font-bold tabular-nums text-ink">{value}</p>
-      {note && <p className="mt-1 text-xs text-faint">{note}</p>}
+      {note && <p className={`mt-1 text-xs ${urgent ? 'font-semibold text-attention' : 'text-faint'}`}>{note}</p>}
     </Card>
   )
-  return to ? <Link to={to}>{body}</Link> : body
+  return to ? <Link to={to} className="block h-full">{body}</Link> : body
 }
 
 /** FR x: how confident the model was on the cases it referred, in bins of 0.1. */
@@ -56,13 +56,17 @@ export default function OverviewPage() {
     <>
       <PageHeader title="Overview" subtitle="How Sproutly is being used this week, and where farmers are waiting for an expert." />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         <Stat label="Checks this week" value={data.checks_this_week} />
         <Stat label="Referred to an officer" value={percent(data.referred_this_week / data.checks_this_week)}
               note={`${data.referred_this_week} of ${data.checks_this_week} checks`} />
-        <Stat label="Referrals waiting" value={data.waiting_referrals} note="Open the queue" to="/referrals" />
+        <Stat label="Referrals waiting" value={data.waiting_referrals} to="/referrals"
+              note={data.expiring_soon ? `${data.expiring_soon} expire within 2 days` : 'None expire within 2 days'}
+              urgent={data.expiring_soon > 0} />
         <Stat label="Answered within 7 days" value={percent(data.answered_within_7_days)}
               note="Unanswered cases fall back to the contacts list" />
+        <Stat label="Officers agree with the model" value={percent(data.officer_agreement.agreed / data.officer_agreement.judged)}
+              note={`${data.officer_agreement.agreed} of ${data.officer_agreement.judged} answered referrals that named a disease`} />
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
