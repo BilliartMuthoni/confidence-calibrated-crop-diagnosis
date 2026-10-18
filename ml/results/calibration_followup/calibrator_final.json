@@ -1,0 +1,9 @@
+{
+  "model": "resnet50",
+  "method": "temperature",
+  "temperature": 3.035635949813895,
+  "threshold": 0.8766279923087298,
+  "rule": "90% not reachable with confidence; pre-set cost-based fallback (wrong answer = 5 referrals)",
+  "fitted_on": "selection set (3821 photos)",
+  "confidence": "best class of the farmer's crop, 11-class probability, not rescaled"
+}

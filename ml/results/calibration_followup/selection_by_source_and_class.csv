@@ -1,0 +1,12 @@
+source,cls,photos,accuracy,mean confidence before,mean confidence after,share answered,most common wrong answer
+maize_jhenaidah,Maize Cercospora leaf spot Gray leaf spot,554,0.7328519855595668,0.6741246,0.39604404511012214,0.0,Maize healthy
+maize_jhenaidah,Maize healthy,359,0.9944289693593314,0.9939077,0.7373115176461376,0.07242339832869081,Maize Cercospora leaf spot Gray leaf spot
+maize_natore,Maize Cercospora leaf spot Gray leaf spot,826,0.4600484261501211,0.8430044,0.5566938605260213,0.026634382566585957,Maize healthy
+maize_natore,Maize Common rust ,126,0.4444444444444444,0.71537364,0.42061767343313583,0.0,Maize Cercospora leaf spot Gray leaf spot
+maize_natore,Maize healthy,602,0.8687707641196013,0.68718183,0.5068891766087975,0.10299003322259136,Maize Cercospora leaf spot Gray leaf spot
+potato_holeta,Potato Late blight,67,0.9850746268656716,0.66685826,0.5409050074991232,0.08955223880597014,Potato Early blight
+potato_holeta,Potato healthy,344,0.8168604651162791,0.6631544,0.4465469174671407,0.0,Potato Late blight
+tomato_bd,Tomato Bacterial spot,97,0.0,0.8727124,0.4746289689311858,0.0,Tomato Late blight
+tomato_bd,Tomato Early blight,447,0.09843400447427293,0.8634276,0.4647616664644091,0.0,Tomato Late blight
+tomato_bd,Tomato Late blight,92,0.8478260869565217,0.799413,0.4462324076718374,0.010869565217391304,Tomato Early blight
+tomato_bd,Tomato healthy,307,0.013029315960912053,0.9046812,0.5002158171645269,0.0,Tomato Late blight
