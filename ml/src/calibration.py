@@ -362,6 +362,43 @@ def choose_threshold(confidence, correct, target: float = 0.90, cost_wrong: floa
                                                 if k != "threshold"}}
 
 
+def accuracy_lower_bounds(confidence, correct, thresholds, n: int = 1000, seed: int = 42, level: float = 0.95):
+    """For each threshold, the lower end of the bootstrap range of accuracy on answered photos.
+    A resample in which no photo is answered counts as 0: nothing could be verified."""
+    confidence = np.asarray(confidence, dtype=float)
+    correct = np.asarray(correct, dtype=bool)
+    thresholds = np.asarray(thresholds, dtype=float)
+    rng = np.random.default_rng(seed)
+    values = np.empty((n, len(thresholds)))
+    for b in range(n):
+        idx = rng.integers(0, len(confidence), len(confidence))
+        order = np.argsort(-confidence[idx], kind="stable")
+        conf, ok = confidence[idx][order], correct[idx][order]
+        right = np.r_[0, np.cumsum(ok)]
+        answered = np.searchsorted(-conf, -thresholds, side="right")  # photos with confidence >= threshold
+        values[b] = np.where(answered > 0, right[answered] / np.maximum(answered, 1), 0.0)
+    return np.percentile(values, (1 - level) / 2 * 100, axis=0)
+
+
+def choose_threshold_verified(confidence, correct, target: float = 0.90, cost_wrong: float = 5.0, floor: float = 0.5,
+                              step: float = 0.001, n: int = 1000, seed: int = 42) -> dict:
+    """D7 as clarified on 18 Oct, after the original rule was met by only 2 photos: the lowest
+    threshold whose bootstrap lower bound of accuracy on answered photos is at least ``target``.
+    If no threshold reaches that, the pre-set cost-based fallback is used."""
+    confidence = np.asarray(confidence, dtype=float)
+    correct = np.asarray(correct, dtype=bool)
+    grid = np.round(np.arange(floor, 1.0, step), 6)
+    bounds = accuracy_lower_bounds(confidence, correct, grid, n, seed)
+    meets = grid[bounds >= target]
+    reachable = len(meets) > 0
+    chosen = float(meets.min()) if reachable else threshold_for_cost(confidence, correct, cost_wrong, floor=floor)
+    return {"threshold": chosen, "target_reachable": bool(reachable),
+            "rule": f"lowest threshold whose bootstrap lower bound of accuracy on answered photos is >= {target:.0%}"
+            if reachable else f"{target:.0%} not reachable with confidence; pre-set cost-based fallback (wrong answer = {cost_wrong:g} referrals)",
+            "original_rule_threshold": threshold_for_accuracy(confidence, correct, target, floor),
+            "best_lower_bound": float(bounds.max()), "threshold_at_best_lower_bound": float(grid[int(bounds.argmax())])}
+
+
 def sensitivity(confidence, correct, targets=(0.70, 0.75, 0.80, 0.85, 0.90, 0.95), floor: float = 0.5):
     """What each accuracy target would mean in the app: threshold, share answered, accuracy."""
     import pandas as pd
