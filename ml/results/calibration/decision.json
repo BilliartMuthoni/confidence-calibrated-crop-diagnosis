@@ -1,0 +1,63 @@
+{
+  "D6": {
+    "resnet50": {
+      "method": "temperature",
+      "reason": "lowest out-of-sample log-loss"
+    },
+    "ensemble": {
+      "method": "histogram",
+      "reason": "lowest out-of-sample log-loss (tie ['histogram', 'isotonic'], temperature not among them)"
+    }
+  },
+  "D2": {
+    "aurc_a": 0.34781103573252453,
+    "aurc_b": 0.36053113253562347,
+    "difference_b_minus_a": 0.012720096803098935,
+    "difference_low": 0.004155021978353971,
+    "difference_high": 0.029473665847771637,
+    "b_wins": false,
+    "both_meet_nfr_iii": true,
+    "aurc_uncalibrated_resnet50": 0.3662780453975643,
+    "aurc_uncalibrated_ensemble": 0.36492970354079146,
+    "chosen": "resnet50",
+    "reason": "ensemble not better beyond the bootstrap range: ResNet-50 (simpler, one third of the CPU time) stays"
+  },
+  "D7": {
+    "threshold": 0.9446368922116677,
+    "rule": "lowest threshold with >= 90% accuracy on answered photos",
+    "target_reachable": true,
+    "accuracy_rule_low": 0.8901603115003391,
+    "accuracy_rule_high": 1.0,
+    "cost_based_threshold": 0.8766279923087298,
+    "coverage": 0.0005234231876472127,
+    "referred": 0.9994765768123528,
+    "selective_accuracy": 1.0,
+    "wrong_and_answered": 0.0
+  },
+  "validation_based": {
+    "params_fitted_on_validation": {
+      "temperature": 1.2810088256766734
+    },
+    "params_fitted_on_selection": {
+      "temperature": 3.035635949813895
+    },
+    "validation_accuracy_crop_given": 0.9937106918238994,
+    "original_rule_threshold_on_validation": 0.5
+  },
+  "selection_photos": 3821,
+  "selection_classes": [
+    "Corn_(maize)___Cercospora_leaf_spot Gray_leaf_spot",
+    "Corn_(maize)___Common_rust_",
+    "Corn_(maize)___healthy",
+    "Potato___Late_blight",
+    "Potato___healthy",
+    "Tomato___Bacterial_spot",
+    "Tomato___Early_blight",
+    "Tomato___Late_blight",
+    "Tomato___healthy"
+  ],
+  "missing_from_selection": [
+    "Corn_(maize)___Northern_Leaf_Blight",
+    "Potato___Early_blight"
+  ]
+}
