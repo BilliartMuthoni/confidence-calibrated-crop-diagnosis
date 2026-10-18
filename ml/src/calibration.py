@@ -263,7 +263,33 @@ def threshold_for_cost(confidence: np.ndarray, correct: np.ndarray, cost_wrong: 
     return float(candidates[int(np.argmin(costs))])
 
 
+# ------------------------------------------------------------------ app confidence
+
+def crop_confidence(probs: np.ndarray, class_crops, photo_crops) -> tuple[np.ndarray, np.ndarray]:
+    """The confidence the app shows: the farmer names the crop, the answer is the best class
+    of that crop, and its confidence is that class's 11-class probability, NOT rescaled over
+    the crop (sproutly-backend/app/core/classifier.py). Returns (confidence, predicted index)."""
+    class_crops = np.asarray(class_crops)
+    photo_crops = np.asarray(photo_crops)
+    in_crop = class_crops[None, :] == photo_crops[:, None]
+    masked = np.where(in_crop, probs, -1.0)
+    predicted = masked.argmax(axis=1)
+    return probs[np.arange(len(probs)), predicted], predicted
+
+
 # ----------------------------------------------------------------------- comparison
+
+def out_of_fold(method: str, logits: np.ndarray, labels: np.ndarray, folds: int = 5, seed: int = 42) -> np.ndarray:
+    """Calibrated probabilities where every photo is scored by a calibrator fitted without it."""
+    logits = np.asarray(logits, dtype=np.float64)
+    labels = np.asarray(labels)
+    parts = np.array_split(np.random.default_rng(seed).permutation(len(labels)), folds)
+    probs = np.zeros_like(logits)
+    for k, held_out in enumerate(parts):
+        fitted_on = np.concatenate([p for j, p in enumerate(parts) if j != k])
+        probs[held_out] = fit(method, logits[fitted_on], labels[fitted_on]).probabilities(logits[held_out])
+    return probs
+
 
 def compare(logits: np.ndarray, labels: np.ndarray, methods=METHODS, folds: int = 5,
             repeats: int = 3, seed: int = 42):
@@ -280,13 +306,8 @@ def compare(logits: np.ndarray, labels: np.ndarray, methods=METHODS, folds: int 
     original = logits.argmax(axis=1)
     rows = []
     for repeat in range(repeats):
-        order = np.random.default_rng(seed + repeat).permutation(len(labels))
-        parts = np.array_split(order, folds)
         for method in methods:
-            probs = np.zeros_like(logits)
-            for k, held_out in enumerate(parts):
-                fitted_on = np.concatenate([p for j, p in enumerate(parts) if j != k])
-                probs[held_out] = fit(method, logits[fitted_on], labels[fitted_on]).probabilities(logits[held_out])
+            probs = out_of_fold(method, logits, labels, folds, seed + repeat)
             rows.append({"method": method, "repeat": repeat, **summarise(probs, labels),
                          "changed_predictions": float((probs.argmax(axis=1) != original).mean())})
     return pd.DataFrame(rows)
@@ -306,6 +327,64 @@ def choose_method(table, eligible=KEEPS_PREDICTION, default: str = "temperature"
     if len(tied) > 1 and default in tied:
         return default, f"tie between {sorted(tied)}: {default} kept as the simplest"
     return best, "lowest out-of-sample log-loss" + (f" (tie {sorted(tied)}, {default} not among them)" if len(tied) > 1 else "")
+
+
+# ------------------------------------------------------------------------- decisions
+
+def compare_models(conf_a, correct_a, conf_b, correct_b, n: int = 1000, seed: int = 42) -> dict:
+    """D2: does model b refer better than model a? AURC of each and a paired bootstrap of
+    (b - a), resampling the same photos for both. b wins only if the whole interval is
+    below zero, i.e. lower beyond the bootstrap range; otherwise a (the simpler) stays."""
+    arrays = [np.asarray(x) for x in (conf_a, correct_a, conf_b, correct_b)]
+    low, high = bootstrap(lambda ca, ka, cb, kb: aurc(cb, kb) - aurc(ca, ka), *arrays, n=n, seed=seed)
+    return {"aurc_a": aurc(arrays[0], arrays[1]), "aurc_b": aurc(arrays[2], arrays[3]),
+            "difference_b_minus_a": aurc(arrays[2], arrays[3]) - aurc(arrays[0], arrays[1]),
+            "difference_low": low, "difference_high": high, "b_wins": bool(high < 0)}
+
+
+def choose_threshold(confidence, correct, target: float = 0.90, cost_wrong: float = 5.0, floor: float = 0.5,
+                     n: int = 1000, seed: int = 42) -> dict:
+    """D7: the lowest threshold whose answered photos are at least ``target`` accurate, with a
+    bootstrap range; if no threshold reaches the target, the cost-based threshold (a wrong
+    answer costs ``cost_wrong`` referrals) is used instead and that is reported. The
+    cost-based threshold is always computed as a cross-check."""
+    confidence = np.asarray(confidence, dtype=float)
+    correct = np.asarray(correct, dtype=bool)
+    by_accuracy = threshold_for_accuracy(confidence, correct, target, floor)
+    by_cost = threshold_for_cost(confidence, correct, cost_wrong, floor=floor)
+    reachable = by_accuracy < 1.0
+    chosen = by_accuracy if reachable else by_cost
+    low, high = bootstrap(lambda c, k: threshold_for_accuracy(c, k, target, floor), confidence, correct, n=n, seed=seed)
+    return {"threshold": chosen, "rule": f"lowest threshold with >= {target:.0%} accuracy on answered photos"
+            if reachable else f"{target:.0%} unreachable; cost-based (wrong answer = {cost_wrong:g} referrals)",
+            "target_reachable": bool(reachable), "accuracy_rule_low": low, "accuracy_rule_high": high,
+            "cost_based_threshold": by_cost, **{k: v for k, v in at_threshold(confidence, correct, chosen).items()
+                                                if k != "threshold"}}
+
+
+def sensitivity(confidence, correct, targets=(0.70, 0.75, 0.80, 0.85, 0.90, 0.95), floor: float = 0.5):
+    """What each accuracy target would mean in the app: threshold, share answered, accuracy."""
+    import pandas as pd
+
+    confidence = np.asarray(confidence, dtype=float)
+    correct = np.asarray(correct, dtype=bool)
+    rows = []
+    for target in targets:
+        t = threshold_for_accuracy(confidence, correct, target, floor)
+        rows.append({"target": target, "reachable": t < 1.0, **at_threshold(confidence, correct, t)})
+    return pd.DataFrame(rows)
+
+
+def reliability(confidence, correct, bins: int = 10):
+    """Equal-width confidence bins: mean confidence, accuracy and photo count in each."""
+    import pandas as pd
+
+    confidence = np.asarray(confidence, dtype=float)
+    correct = np.asarray(correct, dtype=bool)
+    which = np.clip((confidence * bins).astype(int), 0, bins - 1)
+    rows = [{"bin": b, "confidence": confidence[which == b].mean(), "accuracy": correct[which == b].mean(),
+             "photos": int((which == b).sum())} for b in range(bins) if (which == b).any()]
+    return pd.DataFrame(rows)
 
 
 # ------------------------------------------------------------------------ bootstrap
