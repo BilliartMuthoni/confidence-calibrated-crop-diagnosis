@@ -1,0 +1,12 @@
+{
+  "D7_clarified": {
+    "threshold": 0.8766279923087298,
+    "target_reachable": false,
+    "rule": "90% not reachable with confidence; pre-set cost-based fallback (wrong answer = 5 referrals)",
+    "original_rule_threshold": 0.9446368922116677,
+    "best_lower_bound": 0.7557150397921066,
+    "threshold_at_best_lower_bound": 0.877,
+    "answered_at_original_rule": 2
+  },
+  "post_hoc_followup": true
+}
