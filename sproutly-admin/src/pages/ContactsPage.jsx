@@ -3,10 +3,20 @@ import { useCallback, useState } from 'react'
 import { listContacts, markContactChecked, saveContact, setContactActive } from '../api/admin.js'
 import { useAuth } from '../auth/context.js'
 import { Badge, Button, Card, Empty, ErrorBox, Field, Loading, PageHeader, inputClass } from '../components/ui.jsx'
-import { CONTACT_KINDS, COUNTIES, daysSince } from '../lib/format.js'
+import { CONTACT_KINDS, COUNTIES, daysSince, parseUtc } from '../lib/format.js'
 import { useLoad } from '../lib/useLoad.js'
 
-const BLANK = { county: '', kind: 'office', name: '', role: '', organisation: 'County Department of Agriculture', phone: '', email: '', hours: '' }
+const BLANK = {
+  county: '', kind: 'office', name: '', role: '', organisation: 'County Department of Agriculture', phone: '',
+  phone_type: 'office', email: '', hours: '',
+}
+// Role numbers first: they outlive staff changes and are not one person's personal data.
+const PHONE_TYPES = {
+  office: 'Office line',
+  hotline: 'Hotline',
+  business: 'Business line',
+  personal: "Someone's personal mobile",
+}
 // Phone numbers and office hours go out of date; after this long a contact is flagged for a call.
 const STALE_DAYS = 180
 
@@ -21,16 +31,20 @@ function Checked({ value }) {
 function ContactForm({ initial, onDone, onCancel }) {
   const { token } = useAuth()
   const [form, setForm] = useState(initial)
+  // Consent already on record stays unless the number changes; a new personal number needs it again.
+  const [consent, setConsent] = useState(Boolean(initial.personal_consent_on))
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
   const set = (key) => (e) => setForm({ ...form, [key]: e.target.value })
+  const personal = form.phone_type === 'personal'
   const ready = form.county && form.name.trim() && form.role.trim() && form.phone.trim() && form.hours.trim()
+    && (!personal || consent)
 
   const save = async () => {
     setBusy(true)
     setError(null)
     try {
-      await saveContact(token, { ...form, email: form.email?.trim() || null })
+      await saveContact(token, { ...form, email: form.email?.trim() || null, personal_consent: personal && consent })
       onDone()
     } catch (e) {
       setError(e)
@@ -63,8 +77,23 @@ function ContactForm({ initial, onDone, onCancel }) {
           <input className={inputClass} value={form.organisation} onChange={set('organisation')} />
         </Field>
         <Field label="Phone">
-          <input className={inputClass} value={form.phone} onChange={set('phone')} />
+          <input className={inputClass} value={form.phone} onChange={(e) => { set('phone')(e); if (personal) setConsent(false) }} />
         </Field>
+        <Field label="What kind of number is it?" hint="Prefer an office line or hotline: it keeps working when staff change.">
+          <select className={inputClass} value={form.phone_type} onChange={(e) => { set('phone_type')(e); setConsent(false) }}>
+            {Object.entries(PHONE_TYPES).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+          </select>
+        </Field>
+        {personal && (
+          <label className="flex gap-3 rounded-xl border border-attention/30 bg-attention/5 px-4 py-3 text-sm sm:col-span-2">
+            <input type="checkbox" className="mt-1" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
+            <span className="text-body">
+              <span className="font-semibold text-ink">This person agreed to have their own mobile shown to farmers in {form.county || 'this county'}.</span>{' '}
+              They were told why, and that they can withdraw at any time (then change it to an office line or hide the
+              contact). Today's date and your name are recorded (Data Protection Act 2019, s.30 and s.32).
+            </span>
+          </label>
+        )}
         <Field label="Email (optional)">
           <input className={inputClass} type="email" value={form.email ?? ''} onChange={set('email')} />
         </Field>
@@ -157,6 +186,10 @@ export default function ContactsPage() {
                   </td>
                   <td className="min-w-48 px-5 py-3 text-body">
                     {c.phone}
+                    <span className={`block text-xs ${c.phone_type === 'personal' ? 'text-attention' : 'text-faint'}`}>
+                      {PHONE_TYPES[c.phone_type] ?? 'Office line'}
+                      {c.personal_consent_on && `, consent ${parseUtc(c.personal_consent_on).toLocaleDateString()}`}
+                    </span>
                     {c.email && <span className="block text-muted">{c.email}</span>}
                     <span className="block text-muted">{c.hours}</span>
                   </td>

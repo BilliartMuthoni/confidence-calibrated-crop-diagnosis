@@ -38,7 +38,7 @@ choose a password (it points at `ADMIN_PORTAL_URL` in the backend's settings).
 |---|---|---|
 | Sign in (password, then authenticator code; first sign-in sets the authenticator up) | yes | yes |
 | Overview: checks, share referred, waiting and soon-expiring referrals, officer-model agreement, results, counties, confidence of referred cases | yes | - |
-| Referrals: claim a case, judge it from a fixed list before seeing the model's guess, reply with optional library advice (officers see their own county only) | all counties | own county |
+| Referrals: claim a case, judge it from a fixed list before seeing the model's guess, reply with optional library advice | view all counties, release abandoned claims | claim and answer, own county only |
 | County contacts: type, hours and last-checked date; shown to farmers on the app's Support contacts screen | edit | view |
 | Users: list, last sign-in, deactivate, reset password or authenticator, move an officer's county, create officer accounts | yes | - |
 | Advice library: cited excerpts, missing-advice check, corrections saved as versions, retire not delete | edit | view |

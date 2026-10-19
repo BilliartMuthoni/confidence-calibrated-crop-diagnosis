@@ -305,7 +305,16 @@ export default function ReferralDetailPage() {
         </Card>
 
         <div className="space-y-6">
-          {referral.status === 'new' && <ClaimCard referral={referral} onChange={change} />}
+          {referral.status === 'new' && (user.role === 'officer' ? <ClaimCard referral={referral} onChange={change} /> : (
+            // Admins oversee the queue; only extension officers claim and answer cases.
+            <Card>
+              <h2 className="font-bold text-ink">Waiting for an officer{referral.county ? ` in ${referral.county}` : ''}</h2>
+              <p className="mt-1 text-sm leading-6 text-muted">
+                Only extension officers claim and answer cases. If the county has no officer, create one under Users;
+                otherwise the farmer is shown the county contacts after 7 days.
+              </p>
+            </Card>
+          ))}
           {referral.status === 'in_review' && !mine && <ClaimedByOther referral={referral} onChange={change} />}
           {mine && <ReplyForm key={referral.claimed_by.at} referral={referral} onChange={change} />}
           {referral.reply && <SentReply referral={referral} />}

@@ -37,6 +37,7 @@ from app.schemas.auth import (
     BackupCodeLoginRequest,
     BackupCodesResponse,
     CodeRequest,
+    CountyUpdate,
     PasswordChangeRequest,
     ReenrolConfirmRequest,
     ReenrolStart,
@@ -240,6 +241,17 @@ def verify_backup_code(request: Request, payload: BackupCodeLoginRequest, db: Se
 
 @router.get("/me", response_model=CurrentUserResponse)
 def read_current_user(current_user: User = Depends(get_current_user)):
+    return current_user
+
+
+@router.post("/me/county", response_model=CurrentUserResponse)
+def set_my_county(payload: CountyUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """A farmer chooses their county (it routes their referrals and their support contacts).
+    Staff counties are set by an admin, so an officer can't move themselves to another queue."""
+    if current_user.role != UserRole.farmer:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Ask an administrator to change your county")
+    current_user.county = payload.county
+    db.commit()
     return current_user
 
 

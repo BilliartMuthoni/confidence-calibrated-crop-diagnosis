@@ -17,7 +17,9 @@ const PATTERNS = [
     {
         match: /already exists/i,
         title: 'Account already exists',
-        message: 'This number is already registered. Try logging in instead.',
+        // Also shown for email sign-ups, and for a sign-up left before the authenticator step:
+        // logging in with the same password goes straight back to that step.
+        message: "It's already registered. Log in instead. If you didn't finish setting up, logging in takes you back to that step.",
         retryable: false,
     },
     {

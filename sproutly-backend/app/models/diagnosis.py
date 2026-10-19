@@ -1,5 +1,4 @@
 import enum
-from datetime import datetime, timezone
 
 from sqlalchemy import (
     Column,
@@ -14,6 +13,7 @@ from sqlalchemy import (
     false,
 )
 
+from app.core.timeutil import utcnow
 from app.db.session import Base
 
 
@@ -51,4 +51,6 @@ class Diagnosis(Base):
     officer_response = Column(Text, nullable=True)
     responded_at = Column(DateTime, nullable=True)
 
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    # Plain UTC without a zone marker: an aware value would be converted to the database
+    # server's local time (e.g. Nairobi, +3 h) when stored in this zone-less column.
+    created_at = Column(DateTime, default=utcnow)

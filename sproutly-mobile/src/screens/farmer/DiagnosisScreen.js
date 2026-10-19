@@ -1,4 +1,4 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useEffect } from 'react';
 import {
     View,
     Text,
@@ -20,6 +20,8 @@ import { toFriendlyError } from '../../utils/errorMessages';
 import ErrorBanner from '../../components/ErrorBanner';
 import ScreenHeader from '../../components/ScreenHeader';
 import { PrimaryButton } from '../../components/Buttons';
+import CountyPicker from '../../components/CountyPicker';
+import { loadCounty, saveCounty } from '../../utils/farmerCounty';
 import { COLORS } from '../../constants/theme';
 
 // "mixed" lets the model detect each photo's crop; the farmer can correct it on the results screen.
@@ -52,6 +54,31 @@ function Label({ title, hint, optional }) {
     );
 }
 
+/** A tick-box row: the whole row is the touch target. */
+function Tick({ checked, onPress, title, hint }) {
+    return (
+        <TouchableOpacity
+            onPress={onPress}
+            activeOpacity={0.8}
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked }}
+            className="flex-row items-start py-2"
+        >
+            <Ionicons name={checked ? 'checkbox' : 'square-outline'} size={24} color={checked ? COLORS.brand : COLORS.faint} />
+            <View className="flex-1 ml-3">
+                <Text className="text-base font-semibold" style={{ color: COLORS.ink }}>
+                    {title}
+                </Text>
+                {hint && (
+                    <Text className="text-sm mt-0.5 leading-5" style={{ color: COLORS.muted }}>
+                        {hint}
+                    </Text>
+                )}
+            </View>
+        </TouchableOpacity>
+    );
+}
+
 export default function DiagnosisScreen({ navigation }) {
     const { userToken } = useContext(AuthContext);
     const [crop, setCrop] = useState(null);
@@ -59,7 +86,26 @@ export default function DiagnosisScreen({ navigation }) {
     const [symptoms, setSymptoms] = useState('');
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState(null);
+    // Consent is asked every time and is off until the farmer ticks it; the county is remembered.
+    const [share, setShare] = useState(false);
+    const [contact, setContact] = useState(false);
+    const [county, setCounty] = useState(null);
 
+    useEffect(() => {
+        loadCounty().then((saved) => saved && setCounty(saved));
+    }, []);
+
+    const chooseCounty = (value) => {
+        setCounty(value);
+        saveCounty(value);
+    };
+
+    const toggleShare = () => {
+        setShare((on) => !on);
+        setContact(false);
+    };
+
+    const sharing = share ? { share: true, contact, county } : null;
     const room = MAX_PHOTOS - photos.length;
     const addPhotos = (assets) => setPhotos((current) => [...current, ...assets].slice(0, MAX_PHOTOS));
 
@@ -121,7 +167,7 @@ export default function DiagnosisScreen({ navigation }) {
         setSubmitting(true);
         try {
             if (single) {
-                const result = await submitDiagnosis({ token: userToken, crop, imageUri: photos[0].uri, symptoms });
+                const result = await submitDiagnosis({ token: userToken, crop, imageUri: photos[0].uri, symptoms, sharing });
                 navigation.navigate('Result', { result, imageUri: photos[0].uri });
             } else {
                 const imageUris = photos.map((p) => p.uri);
@@ -129,6 +175,7 @@ export default function DiagnosisScreen({ navigation }) {
                     token: userToken,
                     crop: crop === 'mixed' ? null : crop,
                     imageUris,
+                    sharing,
                 });
                 navigation.navigate('BatchResult', { results, imageUris });
             }
@@ -139,7 +186,7 @@ export default function DiagnosisScreen({ navigation }) {
         }
     };
 
-    const canSubmit = crop && photos.length > 0 && !submitting;
+    const canSubmit = crop && photos.length > 0 && !(share && !county) && !submitting;
     const missing =
         !crop && photos.length === 0
             ? 'Choose a crop and add a photo'
@@ -147,7 +194,9 @@ export default function DiagnosisScreen({ navigation }) {
               ? 'Choose a crop, or "Not sure / mixed"'
               : photos.length === 0
                 ? 'Add a photo'
-                : null;
+                : share && !county
+                  ? 'Choose your county'
+                  : null;
     const buttonLabel = photos.length > 1 ? `Check ${photos.length} photos` : 'Check this leaf';
 
     return (
@@ -280,10 +329,32 @@ export default function DiagnosisScreen({ navigation }) {
                         </View>
                     )}
 
-                    <Text className="text-sm mt-6 leading-5" style={{ color: COLORS.muted }}>
-                        If we can't be confident about a result, we'll point you to support contacts instead of
-                        guessing.
-                    </Text>
+                    {/* What happens if Sproutly can't be sure: consent, asked each time, off by default */}
+                    <View className="mt-8">
+                        <Label
+                            title="If we can't be sure"
+                            hint="We won't guess. We'll show you support contacts, and if you agree, an extension officer can look at it."
+                        />
+                        <Tick
+                            checked={share}
+                            onPress={toggleShare}
+                            title="Send my photo to an extension officer in my county"
+                            hint="Only if we can't diagnose it. Their reply appears in Your checks within 7 days."
+                        />
+                        {share && (
+                            <>
+                                <Tick
+                                    checked={contact}
+                                    onPress={() => setContact((on) => !on)}
+                                    title="The officer may phone me"
+                                    hint="Your number is shared with that officer only."
+                                />
+                                <View className="mt-2">
+                                    <CountyPicker value={county} onChange={chooseCounty} />
+                                </View>
+                            </>
+                        )}
+                    </View>
                 </ScrollView>
 
                 {/* Pinned at the bottom so the next step is always in reach */}

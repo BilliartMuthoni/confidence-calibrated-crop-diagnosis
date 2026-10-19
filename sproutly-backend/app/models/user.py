@@ -1,7 +1,8 @@
 import enum
 
 from sqlalchemy import Column, String, Integer, Boolean, DateTime, Enum as SqlEnum, false
-from datetime import datetime, timezone
+
+from app.core.timeutil import utcnow
 from app.db.session import Base
 
 
@@ -40,6 +41,7 @@ class User(Base):
     last_sign_in = Column(DateTime, nullable=True)
 
     is_active = Column(Boolean, default=True)
-    created_at=Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    # Plain UTC (see Diagnosis.created_at).
+    created_at = Column(DateTime, default=utcnow)
 
 

@@ -43,7 +43,13 @@ function PhotoRow({ item, imageUri, onOpen, onCorrect, busy, error }) {
                         {referred ? 'Not diagnosed' : result.predicted_disease}
                     </Text>
                     <Text className="text-sm mt-0.5" style={{ color: accent }}>
-                        {referred ? 'Use support contacts' : healthy ? 'No disease found' : 'Tap for what to do'}
+                        {referred
+                            ? result.sent_to_officer
+                                ? 'Sent to a county officer'
+                                : 'Use support contacts'
+                            : healthy
+                              ? 'No disease found'
+                              : 'Tap for what to do'}
                     </Text>
                 </View>
                 {busy ? <ActivityIndicator color={COLORS.brand} /> : <Ionicons name="chevron-forward" size={18} color={COLORS.faint} />}

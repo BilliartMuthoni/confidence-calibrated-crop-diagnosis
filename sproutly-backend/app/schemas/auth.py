@@ -130,6 +130,15 @@ class CurrentUserResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class CountyUpdate(BaseModel):
+    county: str
+
+    @field_validator("county")
+    @classmethod
+    def county_is_real(cls, v: str) -> str:
+        return check_county(v)
+
+
 # --- My account (staff self-service) ---
 
 class CodeRequest(BaseModel):

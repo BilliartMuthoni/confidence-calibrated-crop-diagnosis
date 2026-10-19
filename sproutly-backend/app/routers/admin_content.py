@@ -12,7 +12,7 @@ from app.core.knowledge_base import KNOWLEDGE_BASE, display_name
 from app.core.timeutil import utcnow
 from app.db.session import get_db
 from app.models.advice import AdviceEntry, AdviceKind, AdviceStatus, AdviceVersion
-from app.models.contact import SupportContact
+from app.models.contact import PhoneType, SupportContact
 from app.models.user import User, UserRole
 from app.schemas.admin import (
     ActiveIn,
@@ -35,8 +35,30 @@ admin_only = require_role(UserRole.admin)
 
 def _contact_out(c: SupportContact) -> ContactOut:
     return ContactOut(id=c.contact_id, county=c.county, kind=c.kind, name=c.name, role=c.role,
-                      organisation=c.organisation, phone=c.phone, email=c.email, hours=c.hours,
+                      organisation=c.organisation, phone=c.phone, phone_type=c.phone_type,
+                      personal_consent_on=c.personal_consent_on, email=c.email, hours=c.hours,
                       checked_on=c.checked_on, active=c.active)
+
+
+def _apply_contact(contact: SupportContact, payload: ContactIn, user: User) -> None:
+    """Copy the form onto the contact. A personal mobile is shown to farmers only with that
+    person's consent (Data Protection Act 2019, s.30), recorded with the date and the admin so
+    it can be shown later (s.32(1)); a new personal number needs consent again."""
+    if payload.phone_type == PhoneType.personal and not payload.personal_consent:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="A personal mobile is shown only with the person's consent. Confirm it, or use an office line or hotline.",
+        )
+    new_personal = payload.phone_type == PhoneType.personal and (
+        contact.phone_type != PhoneType.personal or contact.phone != payload.phone or not contact.personal_consent_on)
+    for key, value in payload.model_dump(exclude={"personal_consent"}).items():
+        setattr(contact, key, value)
+    if payload.phone_type != PhoneType.personal:
+        contact.personal_consent_on = None
+        contact.personal_consent_by_id = None
+    elif new_personal:
+        contact.personal_consent_on = utcnow()
+        contact.personal_consent_by_id = user.user_id
 
 
 def _get_contact(db: Session, contact_id: int) -> SupportContact:
@@ -57,9 +79,11 @@ def list_contacts(db: Session = Depends(get_db), user: User = Depends(staff_only
 @router.post("/contacts", response_model=ContactOut, status_code=status.HTTP_201_CREATED)
 def add_contact(payload: ContactIn, request: Request, db: Session = Depends(get_db), user: User = Depends(admin_only)):
     # Whoever saves a contact has just looked at its details, so it counts as checked today.
-    contact = SupportContact(**payload.model_dump(), checked_on=utcnow(), active=True)
+    contact = SupportContact(checked_on=utcnow(), active=True)
+    _apply_contact(contact, payload, user)
     db.add(contact)
-    audit.record(db, user, "contact_add", f"{contact.name} ({contact.county})", request=request)
+    audit.record(db, user, "contact_add", f"{contact.name} ({contact.county})",
+                 "Personal mobile, consent recorded" if contact.personal_consent_on else "", request)
     db.commit()
     return _contact_out(contact)
 
@@ -68,10 +92,11 @@ def add_contact(payload: ContactIn, request: Request, db: Session = Depends(get_
 def edit_contact(contact_id: int, payload: ContactIn, request: Request, db: Session = Depends(get_db),
                  user: User = Depends(admin_only)):
     contact = _get_contact(db, contact_id)
-    for key, value in payload.model_dump().items():
-        setattr(contact, key, value)
+    consent_before = contact.personal_consent_on
+    _apply_contact(contact, payload, user)
     contact.checked_on = utcnow()
-    audit.record(db, user, "contact_edit", f"{contact.name} ({contact.county})", request=request)
+    detail = "Personal mobile, consent recorded" if contact.personal_consent_on and contact.personal_consent_on != consent_before else ""
+    audit.record(db, user, "contact_edit", f"{contact.name} ({contact.county})", detail, request)
     db.commit()
     return _contact_out(contact)
 

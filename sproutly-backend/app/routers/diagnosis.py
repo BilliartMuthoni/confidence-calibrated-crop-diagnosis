@@ -10,7 +10,7 @@ from app.core.deps import get_current_user
 from app.core.image_intake import save_clean_image
 from app.core.knowledge_base import display_name, get_guidance
 from app.core.limiter import limiter
-from app.core.referrals import open_referral
+from app.core.referrals import expire_overdue, open_referral
 from app.db.session import get_db
 from app.models.diagnosis import CropType, Diagnosis
 from app.models.referral import Referral
@@ -63,11 +63,13 @@ def _response(db: Session, record: Diagnosis, prediction: Prediction) -> Diagnos
         created_at=record.created_at,
     )
     if prediction.is_referred:
+        sent = db.query(Referral).filter(Referral.diagnosis_id == record.diagnosis_id).first() is not None
         return DiagnosisResponse(
             **common,
             is_referred=True,
             referral_message=REFERRAL_MESSAGE,
             crop_mismatch=prediction.crop_mismatch,
+            sent_to_officer=sent,
         )
     guidance = get_guidance(prediction.class_name, db)
     return DiagnosisResponse(
@@ -195,10 +197,17 @@ def list_diagnoses(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return (
-        db.query(Diagnosis)
+    expire_overdue(db)
+    rows = (
+        db.query(Diagnosis, Referral.status)
+        .outerjoin(Referral, Referral.diagnosis_id == Diagnosis.diagnosis_id)
         .filter(Diagnosis.user_id == current_user.user_id)
         .order_by(Diagnosis.created_at.desc())
         .limit(50)
         .all()
     )
+    return [
+        DiagnosisListItem.model_validate(record).model_copy(
+            update={"referral_status": referral_status.value if referral_status else None})
+        for record, referral_status in rows
+    ]

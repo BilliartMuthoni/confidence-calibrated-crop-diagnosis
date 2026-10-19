@@ -31,6 +31,8 @@ class DiagnosisResponse(BaseModel):
     # True when the model chose the crop (several photos, crop left out); the app shows
     # it so the farmer can correct it with POST /diagnose/{id}/crop.
     crop_detected: bool = False
+    # True when the case went to a county officer (referred, and the farmer agreed to share it).
+    sent_to_officer: bool = False
     created_at: datetime
 
 
@@ -61,5 +63,7 @@ class DiagnosisListItem(BaseModel):
     # A county officer's reply to a referred case, shown as "Advice from a county officer".
     officer_response: Optional[str] = None
     responded_at: Optional[datetime] = None
+    # For cases sent to an officer: new / in_review / answered / expired; None otherwise.
+    referral_status: Optional[str] = None
 
     model_config = {"from_attributes": True}

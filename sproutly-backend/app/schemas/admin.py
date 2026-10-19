@@ -8,7 +8,7 @@ from pydantic import BaseModel, EmailStr, field_validator
 
 from app.core.counties import check_county
 from app.models.advice import AdviceKind, AdviceStatus
-from app.models.contact import ContactKind
+from app.models.contact import ContactKind, PhoneType
 from app.models.referral import ReferralStatus
 from app.models.user import UserRole
 
@@ -175,6 +175,9 @@ class ContactIn(BaseModel):
     role: str
     organisation: str
     phone: str
+    phone_type: PhoneType = PhoneType.office
+    # Required for a personal mobile: the admin confirms the person agreed to it being shown to farmers.
+    personal_consent: bool = False
     email: Optional[EmailStr] = None
     hours: str
 
@@ -199,6 +202,8 @@ class ContactOut(BaseModel):
     role: str
     organisation: str
     phone: str
+    phone_type: PhoneType
+    personal_consent_on: Optional[datetime] = None
     email: Optional[str]
     hours: str
     checked_on: datetime

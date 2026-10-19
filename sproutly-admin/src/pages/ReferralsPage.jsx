@@ -36,13 +36,13 @@ export default function ReferralsPage() {
         title="Referrals"
         subtitle={
           user.role === 'admin'
-            ? 'Photos the model was not confident about, shared by farmers who agreed to send them to an officer.'
+            ? 'Every county\'s cases, for oversight. Extension officers claim and answer them; you can release a case an officer has left in review.'
             : `Cases from ${user.county} that the model was not confident about. Claim a case before you answer it, so no one else answers it too.`
         }
       />
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
-        {TABS.map(([value, label]) => (
+        {TABS.filter(([value]) => value !== 'mine' || user.role === 'officer').map(([value, label]) => (
           <button key={label} type="button" onClick={() => setTab(value)}
                   className={`rounded-full px-3.5 py-1.5 text-sm font-semibold ${tab === value ? 'bg-primary text-white' : 'bg-white text-muted hover:text-ink'}`}>
             {label}

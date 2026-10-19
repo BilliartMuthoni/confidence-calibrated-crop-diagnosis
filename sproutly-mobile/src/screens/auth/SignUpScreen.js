@@ -20,6 +20,11 @@ import SocialSignIn from '../../components/SocialSignIn';
 
 export default function SignUpScreen({ navigation }) {
     const [authMethod, setAuthMethod] = useState('phone'); // 'phone' or 'email'
+    // An error belongs to the tab it came from; switching tabs clears it.
+    const chooseMethod = (method) => {
+        setAuthMethod(method);
+        setError(null);
+    };
     const [phoneNumber, setPhoneNumber] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -90,7 +95,7 @@ export default function SignUpScreen({ navigation }) {
                         <View className="flex-row mb-6 bg-white/10 rounded-2xl p-1 border border-white/10">
                             <TouchableOpacity
                                 className={`flex-1 py-3 items-center justify-center rounded-xl ${authMethod === 'phone' ? 'bg-white/20' : ''}`}
-                                onPress={() => setAuthMethod('phone')}
+                                onPress={() => chooseMethod('phone')}
                             >
                                 <Text className={`text-base font-semibold ${authMethod === 'phone' ? 'text-white' : 'text-white/60'}`}>
                                     Phone
@@ -98,7 +103,7 @@ export default function SignUpScreen({ navigation }) {
                             </TouchableOpacity>
                             <TouchableOpacity
                                 className={`flex-1 py-3 items-center justify-center rounded-xl ${authMethod === 'email' ? 'bg-white/20' : ''}`}
-                                onPress={() => setAuthMethod('email')}
+                                onPress={() => chooseMethod('email')}
                             >
                                 <Text className={`text-base font-semibold ${authMethod === 'email' ? 'text-white' : 'text-white/60'}`}>
                                     Email

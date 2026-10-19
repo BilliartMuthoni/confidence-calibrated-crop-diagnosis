@@ -1,8 +1,9 @@
 """Admin and officer portal: overview, referral queue, staff accounts, audit log, model.
 
-Every route checks the caller's role on the server. Officers reach only referrals from their
-own county (anything else answers 404, so the queue never confirms other counties' cases);
-everything else here is for admins.
+Every route checks the caller's role on the server. Officers claim, judge and answer referrals
+from their own county only (anything else answers 404, so the queue never confirms other
+counties' cases). Admins see the whole queue read-only and can release an abandoned claim;
+everything else here (overview, users, audit, model) is for admins only.
 """
 
 import os
@@ -52,6 +53,10 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 
 staff_only = require_role(UserRole.admin, UserRole.officer)
 admin_only = require_role(UserRole.admin)
+# Only extension officers claim, judge and answer cases. Admins run the system and oversee the
+# queue (they see every county's cases and can release an abandoned claim) but do not give
+# agronomic advice, and their judgements would not belong in the officer-model agreement.
+officer_only = require_role(UserRole.officer)
 
 OPEN = (ReferralStatus.new, ReferralStatus.in_review)
 
@@ -160,7 +165,7 @@ def referral_photo(referral_id: int, db: Session = Depends(get_db), user: User =
 
 @router.post("/referrals/{referral_id}/claim", response_model=ReferralOut)
 def claim_referral(referral_id: int, request: Request, db: Session = Depends(get_db),
-                   user: User = Depends(staff_only)):
+                   user: User = Depends(officer_only)):
     expire_overdue(db)
     referral = _get_referral(db, referral_id, user)
     # One UPDATE that only succeeds while the case is still new, so two officers clicking
@@ -204,7 +209,7 @@ def _require_claim(referral: Referral, user: User) -> None:
 
 @router.post("/referrals/{referral_id}/judgement", response_model=ReferralOut)
 def record_judgement(referral_id: int, payload: JudgementIn, db: Session = Depends(get_db),
-                     user: User = Depends(staff_only)):
+                     user: User = Depends(officer_only)):
     """Record the officer's own judgement, then show them the model's guess. Once recorded it
     cannot change, so judgements stay independent of the model (avoiding automation bias)."""
     referral = _get_referral(db, referral_id, user)
@@ -221,7 +226,7 @@ def record_judgement(referral_id: int, payload: JudgementIn, db: Session = Depen
 
 @router.post("/referrals/{referral_id}/reply", response_model=ReferralOut)
 def reply_to_referral(referral_id: int, payload: ReplyIn, request: Request, db: Session = Depends(get_db),
-                      user: User = Depends(staff_only)):
+                      user: User = Depends(officer_only)):
     referral = _get_referral(db, referral_id, user)
     _require_claim(referral, user)
     judgement = _check_judgement(payload.judgement)
