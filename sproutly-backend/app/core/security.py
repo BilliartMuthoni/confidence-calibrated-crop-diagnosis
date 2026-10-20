@@ -42,10 +42,10 @@ def _create_token(data: dict, expires_delta: timedelta, token_type: str) -> str:
     return jwt.encode(to_encode, settings.secret_key, algorithm=settings.algorithm)
 
 
-def create_access_token(subject: str, role: str) -> str:
+def create_access_token(subject: str, role: str, minutes: Optional[int] = None) -> str:
     return _create_token(
         {"sub": subject, "role": role},
-        timedelta(minutes=settings.access_token_expire_minutes),
+        timedelta(minutes=minutes or settings.access_token_expire_minutes),
         "access",
     )
 
@@ -65,6 +65,16 @@ def create_mfa_token(subject: str, token_type: str, minutes: int) -> str:
     "access", so neither can be used to call the API.
     """
     return _create_token({"sub": subject}, timedelta(minutes=minutes), token_type)
+
+
+def create_reenrol_token(subject: str, encrypted_secret: str) -> str:
+    """Carries a new, not yet confirmed authenticator secret (Fernet-encrypted) while the user
+    moves to a new phone, so the current secret keeps working until the new one is confirmed."""
+    return _create_token(
+        {"sub": subject, "pending": encrypted_secret},
+        timedelta(minutes=settings.mfa_setup_token_expire_minutes),
+        "mfa_reenrol",
+    )
 
 
 def decode_token(token: str) -> Optional[dict]:
@@ -117,6 +127,17 @@ def qr_code_data_uri(uri: str) -> str:
     buffer = io.BytesIO()
     qrcode.make(uri).save(buffer, format="PNG")
     return "data:image/png;base64," + base64.b64encode(buffer.getvalue()).decode()
+
+
+def new_backup_codes(count: int = 10) -> list[str]:
+    """Codes like "4821-0937": 8 random digits, easy to write down. Stored only as bcrypt
+    hashes, so a database leak does not reveal them; each works once."""
+    return [f"{secrets.randbelow(10**4):04d}-{secrets.randbelow(10**4):04d}" for _ in range(count)]
+
+
+def normalise_backup_code(code: str) -> str:
+    digits = "".join(ch for ch in code if ch.isdigit())
+    return f"{digits[:4]}-{digits[4:]}" if len(digits) == 8 else ""
 
 
 def verify_totp(secret: str, code: str, last_used_step: Optional[int]) -> Optional[int]:

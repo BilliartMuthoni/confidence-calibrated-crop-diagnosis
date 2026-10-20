@@ -37,6 +37,8 @@ export function Button({ variant = 'primary', className = '', busy = false, chil
 }
 
 const BADGE = {
+  new: 'bg-expert/10 text-expert',
+  in_review: 'bg-attention/10 text-attention',
   waiting: 'bg-expert/10 text-expert',
   answered: 'bg-healthy/10 text-healthy',
   expired: 'bg-faint/15 text-muted',

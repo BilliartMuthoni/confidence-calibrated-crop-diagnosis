@@ -4,14 +4,17 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { AuthContext } from '../../context/AuthContext';
-import { fetchCurrentUser } from '../../api/AuthService';
+import { fetchCurrentUser, setMyCounty } from '../../api/AuthService';
 import { toFriendlyError } from '../../utils/errorMessages';
+import { loadCounty, saveCounty } from '../../utils/farmerCounty';
 import ErrorBanner from '../../components/ErrorBanner';
 import ScreenHeader from '../../components/ScreenHeader';
+import CountyPicker from '../../components/CountyPicker';
 import { COLORS } from '../../constants/theme';
 
 const ROLE_LABELS = {
     farmer: 'Farmer',
+    officer: 'Extension officer',
     admin: 'Administrator',
 };
 
@@ -35,6 +38,8 @@ export default function ProfileScreen({ navigation }) {
     const [profile, setProfile] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [county, setCounty] = useState(null);
+    const [countyError, setCountyError] = useState(null);
 
     const load = useCallback(async () => {
         // At logout userToken becomes null while this screen is still mounted; don't ask the backend.
@@ -44,6 +49,10 @@ export default function ProfileScreen({ navigation }) {
         try {
             const data = await fetchCurrentUser({ token: userToken });
             setProfile(data);
+            // The backend's county wins; the phone's copy fills in until one is saved there.
+            const local = await loadCounty();
+            setCounty(data.county || local);
+            if (data.county && data.county !== local) saveCounty(data.county);
         } catch (e) {
             setError(toFriendlyError(e));
         } finally {
@@ -54,6 +63,19 @@ export default function ProfileScreen({ navigation }) {
     useEffect(() => {
         load();
     }, [load]);
+
+    const changeCounty = async (value) => {
+        const before = county;
+        setCounty(value);
+        setCountyError(null);
+        try {
+            await setMyCounty({ token: userToken, county: value });
+            saveCounty(value);
+        } catch (e) {
+            setCounty(before);
+            setCountyError(toFriendlyError(e));
+        }
+    };
 
     const confirmLogout = () => {
         Alert.alert('Log out?', 'You will need your password and a code from your authenticator app to get back in.', [
@@ -112,6 +134,24 @@ export default function ProfileScreen({ navigation }) {
                             <Row label="Email" value={profile.user_email || 'Not set'} />
                             <Row label="Member since" value={memberSince} last />
                         </View>
+
+                        {/* County: routes referrals to that county's officers and picks the support contacts */}
+                        {profile.role === 'farmer' && (
+                            <View className="px-5 mt-8">
+                                <Text className="text-base font-bold" style={{ color: COLORS.ink }}>
+                                    Your county
+                                </Text>
+                                <Text className="text-sm mt-0.5 mb-3 leading-5" style={{ color: COLORS.muted }}>
+                                    Cases you share go to extension officers here, and Support shows this county's contacts.
+                                </Text>
+                                <CountyPicker value={county} onChange={changeCounty} />
+                                {countyError && (
+                                    <View className="mt-3">
+                                        <ErrorBanner error={countyError} onDismiss={() => setCountyError(null)} />
+                                    </View>
+                                )}
+                            </View>
+                        )}
 
                         {/* What this app covers -- honest scope */}
                         <View className="px-5 mt-8">

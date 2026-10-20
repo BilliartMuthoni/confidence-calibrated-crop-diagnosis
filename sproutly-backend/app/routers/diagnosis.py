@@ -5,13 +5,16 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, Uplo
 from sqlalchemy.orm import Session
 
 from app.core.classifier import Prediction, predict
+from app.core.counties import COUNTIES
 from app.core.deps import get_current_user
 from app.core.image_intake import save_clean_image
 from app.core.knowledge_base import display_name, get_guidance
 from app.core.limiter import limiter
+from app.core.referrals import expire_overdue, open_referral
 from app.db.session import get_db
 from app.models.diagnosis import CropType, Diagnosis
-from app.models.user import User
+from app.models.referral import Referral
+from app.models.user import User, UserRole
 from app.schemas.diagnosis import (
     BatchItem,
     BatchResponse,
@@ -39,9 +42,19 @@ def _apply(record: Diagnosis, prediction: Prediction) -> None:
     record.predicted_disease = None if prediction.is_referred else display_name(prediction.class_name)
     record.confidence = prediction.confidence
     record.is_referred = prediction.is_referred
+    record.top_class = prediction.class_name
+    record.crop_probability = prediction.crop_probability
 
 
-def _response(record: Diagnosis, prediction: Prediction) -> DiagnosisResponse:
+def _share(db: Session, record: Diagnosis, user: User) -> None:
+    """A referred case the farmer agreed to share goes to their county's officers (once)."""
+    if record.is_referred and record.share_with_officer:
+        if not db.query(Referral).filter(Referral.diagnosis_id == record.diagnosis_id).first():
+            open_referral(db, record, user)
+            db.commit()
+
+
+def _response(db: Session, record: Diagnosis, prediction: Prediction) -> DiagnosisResponse:
     common = dict(
         diagnosis_id=record.diagnosis_id,
         crop=record.crop,
@@ -50,13 +63,15 @@ def _response(record: Diagnosis, prediction: Prediction) -> DiagnosisResponse:
         created_at=record.created_at,
     )
     if prediction.is_referred:
+        sent = db.query(Referral).filter(Referral.diagnosis_id == record.diagnosis_id).first() is not None
         return DiagnosisResponse(
             **common,
             is_referred=True,
             referral_message=REFERRAL_MESSAGE,
             crop_mismatch=prediction.crop_mismatch,
+            sent_to_officer=sent,
         )
-    guidance = get_guidance(prediction.class_name)
+    guidance = get_guidance(prediction.class_name, db)
     return DiagnosisResponse(
         **common,
         is_referred=False,
@@ -66,14 +81,26 @@ def _response(record: Diagnosis, prediction: Prediction) -> DiagnosisResponse:
 
 
 def _diagnose(db: Session, user: User, crop: Optional[CropType], image_path: str,
-              symptoms_text: Optional[str] = None) -> DiagnosisResponse:
+              symptoms_text: Optional[str] = None, share: bool = False, contact: bool = False) -> DiagnosisResponse:
     prediction = predict(crop, image_path)
-    record = Diagnosis(user_id=user.user_id, image_path=image_path, symptoms_text=symptoms_text)
+    record = Diagnosis(user_id=user.user_id, image_path=image_path, symptoms_text=symptoms_text,
+                       share_with_officer=share, allow_contact=share and contact)
     _apply(record, prediction)
     db.add(record)
     db.commit()
     db.refresh(record)
-    return _response(record, prediction)
+    _share(db, record, user)
+    return _response(db, record, prediction)
+
+
+def _remember_county(db: Session, user: User, county: Optional[str]) -> None:
+    """The app may send the farmer's county with a photo; it decides who sees their referrals."""
+    if county:
+        if county not in COUNTIES:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Not one of Kenya's 47 counties")
+        if user.role == UserRole.farmer and user.county != county:
+            user.county = county
+            db.commit()
 
 
 @router.post("", response_model=DiagnosisResponse, status_code=status.HTTP_201_CREATED)
@@ -83,12 +110,17 @@ def create_diagnosis(
     crop: CropType = Form(...),
     symptoms_text: Optional[str] = Form(None),
     image: UploadFile = File(...),
+    # If the model is not sure: may a county officer see the photo, and may they phone the farmer?
+    share_with_officer: bool = Form(False),
+    allow_contact: bool = Form(False),
+    county: Optional[str] = Form(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    _remember_county(db, current_user, county)
     image_path = save_clean_image(image)
     # Image-only model for now; symptoms_text is stored and used by the fusion model in Sprint 3.
-    return _diagnose(db, current_user, crop, image_path, symptoms_text)
+    return _diagnose(db, current_user, crop, image_path, symptoms_text, share_with_officer, allow_contact)
 
 
 @router.post("/batch", response_model=BatchResponse, status_code=status.HTTP_201_CREATED)
@@ -97,6 +129,9 @@ def create_batch(
     request: Request,
     images: List[UploadFile] = File(...),
     crop: Optional[CropType] = Form(None),
+    share_with_officer: bool = Form(False),
+    allow_contact: bool = Form(False),
+    county: Optional[str] = Form(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -109,6 +144,7 @@ def create_batch(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Send between 1 and {MAX_BATCH_PHOTOS} photos at a time",
         )
+    _remember_county(db, current_user, county)
 
     results = []
     for index, image in enumerate(images):
@@ -117,7 +153,8 @@ def create_batch(
         except HTTPException as exc:
             results.append(BatchItem(index=index, error=exc.detail))
             continue
-        results.append(BatchItem(index=index, result=_diagnose(db, current_user, crop, image_path)))
+        results.append(BatchItem(index=index, result=_diagnose(
+            db, current_user, crop, image_path, share=share_with_officer, contact=allow_contact)))
     return BatchResponse(results=results)
 
 
@@ -150,7 +187,9 @@ def correct_crop(
     _apply(record, prediction)
     db.commit()
     db.refresh(record)
-    return _response(record, prediction)
+    # Re-checked with the right crop and now referred: it can still go to an officer.
+    _share(db, record, current_user)
+    return _response(db, record, prediction)
 
 
 @router.get("/history", response_model=List[DiagnosisListItem])
@@ -158,10 +197,17 @@ def list_diagnoses(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return (
-        db.query(Diagnosis)
+    expire_overdue(db)
+    rows = (
+        db.query(Diagnosis, Referral.status)
+        .outerjoin(Referral, Referral.diagnosis_id == Diagnosis.diagnosis_id)
         .filter(Diagnosis.user_id == current_user.user_id)
         .order_by(Diagnosis.created_at.desc())
         .limit(50)
         .all()
     )
+    return [
+        DiagnosisListItem.model_validate(record).model_copy(
+            update={"referral_status": referral_status.value if referral_status else None})
+        for record, referral_status in rows
+    ]

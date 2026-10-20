@@ -3,7 +3,19 @@ from typing import Literal, Optional
 
 from pydantic import BaseModel, EmailStr, field_validator, model_validator
 
+from app.core.counties import check_county
 from app.models.user import UserRole
+
+# Staff passwords are longer than farmers' (NIST SP 800-63B recommends length over complexity).
+STAFF_PASSWORD_MIN = 12
+
+
+def _six_digits(v: str) -> str:
+    # Authenticator apps show the code as "123 456"; accept it either way.
+    v = v.replace(" ", "")
+    if not v.isdigit() or len(v) != 6:
+        raise ValueError("Code must be the 6 digits shown in your authenticator app")
+    return v
 
 
 class _RequiresIdentifier(BaseModel):
@@ -19,6 +31,8 @@ class _RequiresIdentifier(BaseModel):
 
 class RegisterRequest(_RequiresIdentifier):
     password: str
+    # Decides which officers see the farmer's referrals and which support contacts they get.
+    county: Optional[str] = None
 
     @field_validator("password")
     @classmethod
@@ -26,6 +40,11 @@ class RegisterRequest(_RequiresIdentifier):
         if len(v) < 8:
             raise ValueError("Password must be at least 8 characters long")
         return v
+
+    @field_validator("county")
+    @classmethod
+    def county_is_real(cls, v: Optional[str]) -> Optional[str]:
+        return check_county(v) if v else None
 
 
 class LoginRequest(_RequiresIdentifier):
@@ -39,11 +58,14 @@ class MfaCodeRequest(BaseModel):
     @field_validator("code")
     @classmethod
     def code_is_six_digits(cls, v: str) -> str:
-        # Authenticator apps show the code as "123 456"; accept it either way.
-        v = v.replace(" ", "")
-        if not v.isdigit() or len(v) != 6:
-            raise ValueError("Code must be the 6 digits shown in your authenticator app")
-        return v
+        return _six_digits(v)
+
+
+class BackupCodeLoginRequest(BaseModel):
+    """Second sign-in step with a backup code instead of the phone."""
+
+    mfa_token: str
+    code: str
 
 
 class MfaSetup(BaseModel):
@@ -99,8 +121,84 @@ class CurrentUserResponse(BaseModel):
     user_id: int
     user_phone_number: Optional[str] = None
     user_email: Optional[EmailStr] = None
+    full_name: Optional[str] = None
+    county: Optional[str] = None
     role: UserRole
     is_verified: bool
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class CountyUpdate(BaseModel):
+    county: str
+
+    @field_validator("county")
+    @classmethod
+    def county_is_real(cls, v: str) -> str:
+        return check_county(v)
+
+
+# --- My account (staff self-service) ---
+
+class CodeRequest(BaseModel):
+    """A current authenticator code, asked for again before a security change (step-up)."""
+
+    code: str
+
+    @field_validator("code")
+    @classmethod
+    def code_is_six_digits(cls, v: str) -> str:
+        return _six_digits(v)
+
+
+class PasswordChangeRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+
+class StaffPasswordRequest(BaseModel):
+    """Choosing a password from a one-time invite or reset link."""
+
+    token: str
+    password: str
+
+    @field_validator("password")
+    @classmethod
+    def long_enough(cls, v: str) -> str:
+        if len(v) < STAFF_PASSWORD_MIN:
+            raise ValueError(f"Password must be at least {STAFF_PASSWORD_MIN} characters long")
+        return v
+
+
+class ReenrolStart(BaseModel):
+    setup_token: str
+    secret: str
+    otpauth_uri: str
+    qr_code: str
+
+
+class ReenrolConfirmRequest(BaseModel):
+    setup_token: str
+    code: str
+
+    @field_validator("code")
+    @classmethod
+    def code_is_six_digits(cls, v: str) -> str:
+        return _six_digits(v)
+
+
+class BackupCodesResponse(BaseModel):
+    codes: list[str]
+
+
+class SignInEvent(BaseModel):
+    id: int
+    at: datetime
+    action: str
+    detail: str
+
+
+class AccountResponse(BaseModel):
+    backup_codes_left: int
+    recent_sign_ins: list[SignInEvent]

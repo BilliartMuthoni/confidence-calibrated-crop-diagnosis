@@ -8,6 +8,42 @@ import { useLoad } from '../lib/useLoad.js'
 
 const LICENCES = ['CC BY 4.0', 'CC BY-SA 4.0', 'CC BY-SA 3.0', 'CC0', 'Public domain']
 const BLANK = { disease: '', kind: 'treatment', text: '', source_title: '', source_url: '', licence: '' }
+const isHealthy = (cls) => cls.endsWith('healthy')
+// A disease needs both kinds of advice; a healthy result only needs prevention.
+const needed = (cls) => (isHealthy(cls) ? ['prevention'] : ['treatment', 'prevention'])
+
+/** Which classes a farmer could reach with no advice to show. */
+function Coverage({ entries }) {
+  const gaps = Object.keys(DISEASES).flatMap((cls) =>
+    needed(cls).filter((kind) => !entries.some((a) => a.disease === cls && a.kind === kind && a.status === 'active'))
+      .map((kind) => [cls, kind]))
+  const total = Object.keys(DISEASES).reduce((sum, cls) => sum + needed(cls).length, 0)
+
+  return (
+    <Card className="mb-6">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 className="font-bold text-ink">Missing advice</h2>
+        <p className="text-sm text-muted">{total - gaps.length} of {total} covered</p>
+      </div>
+      {gaps.length === 0 ? (
+        <p className="mt-2 text-sm text-muted">Every result has the advice it needs.</p>
+      ) : (
+        <>
+          <p className="mt-1 text-sm leading-6 text-muted">
+            A farmer who gets one of these results is shown the county contacts instead of advice.
+          </p>
+          <ul className="mt-3 flex flex-wrap gap-2">
+            {gaps.map(([cls, kind]) => (
+              <li key={`${cls}-${kind}`} className="rounded-full bg-attention/10 px-3 py-1 text-xs font-semibold text-attention">
+                {diseaseName(cls)}: {kind}
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+    </Card>
+  )
+}
 
 function EntryForm({ initial, onDone, onCancel }) {
   const { token } = useAuth()
@@ -16,6 +52,8 @@ function EntryForm({ initial, onDone, onCancel }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
   const set = (key) => (e) => setForm({ ...form, [key]: e.target.value })
+  // Healthy results only get prevention advice.
+  const setDisease = (e) => setForm({ ...form, disease: e.target.value, kind: isHealthy(e.target.value) ? 'prevention' : form.kind })
   const correcting = Boolean(initial.id)
   const ready = form.disease && form.text.trim() && form.source_title.trim() && /^https?:\/\//.test(form.source_url)
     && form.licence && note.trim().length >= 5
@@ -41,13 +79,13 @@ function EntryForm({ initial, onDone, onCancel }) {
       </p>
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
         <Field label="Disease">
-          <select className={inputClass} value={form.disease} onChange={set('disease')} disabled={correcting}>
-            <option value="">Choose a disease</option>
-            {Object.keys(DISEASES).filter((c) => !c.endsWith('healthy')).map((c) => <option key={c} value={c}>{diseaseName(c)}</option>)}
+          <select className={inputClass} value={form.disease} onChange={setDisease} disabled={correcting}>
+            <option value="">Choose a result</option>
+            {Object.keys(DISEASES).map((c) => <option key={c} value={c}>{diseaseName(c)}</option>)}
           </select>
         </Field>
         <Field label="Type">
-          <select className={inputClass} value={form.kind} onChange={set('kind')}>
+          <select className={inputClass} value={form.kind} onChange={set('kind')} disabled={isHealthy(form.disease)}>
             <option value="treatment">What to do now (treatment)</option>
             <option value="prevention">Stopping it coming back (prevention)</option>
           </select>
@@ -149,10 +187,12 @@ export default function AdvicePage() {
                    onDone={() => { setEditing(null); reload() }} />
       )}
 
+      {data && <Coverage entries={data} />}
+
       <div className="mb-4 flex flex-wrap items-center gap-4">
         <select className={`${inputClass} w-auto`} value={disease} onChange={(e) => setDisease(e.target.value)} aria-label="Disease">
-          <option value="">All diseases</option>
-          {Object.keys(DISEASES).filter((c) => !c.endsWith('healthy')).map((c) => <option key={c} value={c}>{diseaseName(c)}</option>)}
+          <option value="">All results</option>
+          {Object.keys(DISEASES).map((c) => <option key={c} value={c}>{diseaseName(c)}</option>)}
         </select>
         <label className="flex items-center gap-2 text-sm text-muted">
           <input type="checkbox" checked={showRetired} onChange={(e) => setShowRetired(e.target.checked)} />

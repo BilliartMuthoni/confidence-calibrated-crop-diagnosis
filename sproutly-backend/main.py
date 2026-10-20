@@ -9,6 +9,9 @@ from slowapi.middleware import SlowAPIMiddleware
 from app.core.classifier import load_model
 from app.core.config import settings
 from app.core.limiter import limiter
+from app.routers.admin import router as admin_router
+from app.routers.admin_content import public_router as contacts_router
+from app.routers.admin_content import router as admin_content_router
 from app.routers.auth import router as auth_router
 from app.routers.diagnosis import router as diagnosis_router
 from app.routers.oauth import router as oauth_router
@@ -37,6 +40,10 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(diagnosis_router)
 app.include_router(oauth_router)
+# Admin and officer portal (role-checked on every route) and the farmers' contacts list.
+app.include_router(admin_router)
+app.include_router(admin_content_router)
+app.include_router(contacts_router)
 
 @app.get("/")
 def message():

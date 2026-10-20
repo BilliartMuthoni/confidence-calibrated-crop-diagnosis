@@ -54,6 +54,18 @@ export async function fetchCurrentUser({ token }) {
     }
 }
 
+/** The farmer's county: routes their referrals to that county's officers and picks their contacts. */
+export async function setMyCounty({ token, county }) {
+    try {
+        const { data } = await client.post('/auth/me/county', { county }, {
+            headers: { Authorization: `Bearer ${token}` },
+        });
+        return data;
+    } catch (error) {
+        throw new Error(extractErrorMessage(error));
+    }
+}
+
 // register and login both answer with an MFA challenge: next_step is "setup"
 // (add Sproutly to an authenticator app first) or "verify" (just enter the code).
 

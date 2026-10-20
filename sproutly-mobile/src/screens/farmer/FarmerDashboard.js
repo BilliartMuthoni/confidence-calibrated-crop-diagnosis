@@ -8,34 +8,12 @@ import { AuthContext } from '../../context/AuthContext';
 import { fetchHistory } from '../../api/DiagnosisService';
 import { toFriendlyError } from '../../utils/errorMessages';
 import ErrorBanner from '../../components/ErrorBanner';
-import { COLORS, CROP_LABELS } from '../../constants/theme';
+import BottomBar from '../../components/BottomBar';
+import CheckRow from '../../components/CheckRow';
+import { COLORS } from '../../constants/theme';
 
-const MAX_SHOWN = 20;
-
-// The API sends UTC times without a zone marker; read them as UTC, not phone time.
-function parseUtc(value) {
-    return new Date(/[zZ]|[+-]\d\d:?\d\d$/.test(value) ? value : `${value}Z`);
-}
-
-function timeAgo(value) {
-    const minutes = Math.round((Date.now() - parseUtc(value).getTime()) / 60000);
-    if (minutes < 1) return 'Just now';
-    if (minutes < 60) return `${minutes} min ago`;
-    const hours = Math.round(minutes / 60);
-    if (hours < 24) return `${hours} h ago`;
-    const days = Math.round(hours / 24);
-    if (days === 1) return 'Yesterday';
-    if (days < 7) return `${days} days ago`;
-    return parseUtc(value).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
-}
-
-function outcome(item) {
-    if (item.is_referred) return { text: 'Referred to support', color: COLORS.referral };
-    if (item.predicted_disease?.startsWith('Healthy')) return { text: 'Healthy', color: COLORS.healthy };
-    // "Tomato Late Blight" -> "Late Blight": the crop is already shown above it.
-    const disease = (item.predicted_disease || '').replace(/^(Maize|Tomato|Potato)\s+/, '');
-    return { text: disease, color: COLORS.disease };
-}
+// Home shows the latest few; the full list is on the Your checks tab.
+const LATEST = 3;
 
 export default function FarmerDashboard({ navigation }) {
     const { userToken } = useContext(AuthContext);
@@ -43,6 +21,8 @@ export default function FarmerDashboard({ navigation }) {
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState(null);
+    // The check whose officer reply is open.
+    const [openReply, setOpenReply] = useState(null);
 
     const load = useCallback(async () => {
         setError(null);
@@ -68,8 +48,10 @@ export default function FarmerDashboard({ navigation }) {
         load();
     };
 
+    const seeAll = () => navigation.reset({ index: 1, routes: [{ name: 'FarmerHome' }, { name: 'History', params: { tab: true } }] });
+
     return (
-        <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }} edges={['top']}>
             <StatusBar style="dark" />
             <ScrollView
                 contentContainerClassName="px-5 pb-10"
@@ -111,10 +93,19 @@ export default function FarmerDashboard({ navigation }) {
                     <Ionicons name="chevron-forward" size={22} color="rgba(255,255,255,0.75)" />
                 </TouchableOpacity>
 
-                {/* Real history from the backend */}
-                <Text className="text-lg font-bold mt-10 mb-1" style={{ color: COLORS.ink }}>
-                    Your checks
-                </Text>
+                {/* Latest checks */}
+                <View className="flex-row items-center justify-between mt-10 mb-1">
+                    <Text className="text-lg font-bold" style={{ color: COLORS.ink }}>
+                        Latest checks
+                    </Text>
+                    {history.length > LATEST && (
+                        <TouchableOpacity onPress={seeAll} hitSlop={8} accessibilityRole="button">
+                            <Text className="text-base font-semibold" style={{ color: COLORS.brand }}>
+                                See all ({history.length})
+                            </Text>
+                        </TouchableOpacity>
+                    )}
+                </View>
 
                 {loading ? (
                     <View className="py-10 items-center">
@@ -129,45 +120,18 @@ export default function FarmerDashboard({ navigation }) {
                         No checks yet. Your results will appear here.
                     </Text>
                 ) : (
-                    history.slice(0, MAX_SHOWN).map((item, index) => {
-                        const result = outcome(item);
-                        return (
-                            <View
-                                key={item.diagnosis_id}
-                                className="flex-row items-center py-4"
-                                style={{ borderTopWidth: index ? 1 : 0, borderTopColor: COLORS.divider }}
-                            >
-                                <View className="w-2.5 h-2.5 rounded-full mr-4" style={{ backgroundColor: result.color }} />
-                                <View className="flex-1">
-                                    <Text className="text-base font-semibold" style={{ color: COLORS.ink }}>
-                                        {CROP_LABELS[item.crop] || item.crop}
-                                    </Text>
-                                    <Text className="text-sm mt-0.5" style={{ color: result.color }}>
-                                        {result.text}
-                                    </Text>
-                                </View>
-                                <Text className="text-xs" style={{ color: COLORS.faint }}>
-                                    {timeAgo(item.created_at)}
-                                </Text>
-                            </View>
-                        );
-                    })
+                    history.slice(0, LATEST).map((item, index) => (
+                        <CheckRow
+                            key={item.diagnosis_id}
+                            item={item}
+                            first={index === 0}
+                            open={openReply === item.diagnosis_id}
+                            onToggle={() => setOpenReply(openReply === item.diagnosis_id ? null : item.diagnosis_id)}
+                        />
+                    ))
                 )}
-
-                {/* Secondary action */}
-                <TouchableOpacity
-                    onPress={() => navigation.navigate('SupportContacts')}
-                    accessibilityRole="button"
-                    className="flex-row items-center py-4 mt-8"
-                    style={{ borderTopWidth: 1, borderBottomWidth: 1, borderColor: COLORS.divider }}
-                >
-                    <Ionicons name="call-outline" size={20} color={COLORS.brand} />
-                    <Text className="flex-1 ml-3 text-base font-semibold" style={{ color: COLORS.ink }}>
-                        Support contacts
-                    </Text>
-                    <Ionicons name="chevron-forward" size={18} color={COLORS.faint} />
-                </TouchableOpacity>
             </ScrollView>
+            <BottomBar navigation={navigation} active="FarmerHome" />
         </SafeAreaView>
     );
 }

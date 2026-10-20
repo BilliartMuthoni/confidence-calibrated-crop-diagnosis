@@ -21,11 +21,21 @@ function extractErrorMessage(error) {
     return error?.message || 'Something went wrong. Please try again.';
 }
 
-export async function submitDiagnosis({ token, crop, imageUri, symptoms }) {
+/** The farmer's choices for a case Sproutly can't diagnose: share it with a county officer,
+ *  and (separately) let the officer phone them. The county routes it to that county's officers. */
+function appendSharing(formData, sharing) {
+    if (!sharing?.share) return;
+    formData.append('share_with_officer', 'true');
+    if (sharing.contact) formData.append('allow_contact', 'true');
+    if (sharing.county) formData.append('county', sharing.county);
+}
+
+export async function submitDiagnosis({ token, crop, imageUri, symptoms, sharing }) {
     try {
         const formData = new FormData();
         formData.append('crop', crop);
         if (symptoms?.trim()) formData.append('symptoms_text', symptoms.trim());
+        appendSharing(formData, sharing);
         formData.append('image', {
             uri: imageUri,
             name: 'leaf.jpg',
@@ -48,10 +58,11 @@ export async function submitDiagnosis({ token, crop, imageUri, symptoms }) {
  * Several photos at once. crop is 'maize' | 'tomato' | 'potato' for all photos, or null to
  * let the backend detect each photo's crop. Resolves to { results: [{ index, result, error }] }.
  */
-export async function submitBatch({ token, crop, imageUris }) {
+export async function submitBatch({ token, crop, imageUris, sharing }) {
     try {
         const formData = new FormData();
         if (crop) formData.append('crop', crop);
+        appendSharing(formData, sharing);
         imageUris.forEach((uri, i) => {
             formData.append('images', { uri, name: `leaf-${i + 1}.jpg`, type: 'image/jpeg' });
         });

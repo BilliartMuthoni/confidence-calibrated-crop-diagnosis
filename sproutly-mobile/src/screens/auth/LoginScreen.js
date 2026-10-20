@@ -20,6 +20,11 @@ import SocialSignIn from '../../components/SocialSignIn';
 
 export default function LoginScreen({ navigation }) {
     const [authMethod, setAuthMethod] = useState('phone');
+    // An error belongs to the tab it came from; switching tabs clears it.
+    const chooseMethod = (method) => {
+        setAuthMethod(method);
+        setError(null);
+    };
     const [phoneNumber, setPhoneNumber] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -84,7 +89,7 @@ export default function LoginScreen({ navigation }) {
                         <View className="flex-row mb-8 bg-black/20 rounded-xl p-1">
                             <TouchableOpacity
                                 className={`flex-1 py-3 items-center justify-center rounded-lg ${authMethod === 'phone' ? 'bg-white/15' : ''}`}
-                                onPress={() => setAuthMethod('phone')}
+                                onPress={() => chooseMethod('phone')}
                             >
                                 <Text className={`text-base font-semibold ${authMethod === 'phone' ? 'text-white' : 'text-white/60'}`}>
                                     Phone
@@ -92,7 +97,7 @@ export default function LoginScreen({ navigation }) {
                             </TouchableOpacity>
                             <TouchableOpacity
                                 className={`flex-1 py-3 items-center justify-center rounded-lg ${authMethod === 'email' ? 'bg-white/15' : ''}`}
-                                onPress={() => setAuthMethod('email')}
+                                onPress={() => chooseMethod('email')}
                             >
                                 <Text className={`text-base font-semibold ${authMethod === 'email' ? 'text-white' : 'text-white/60'}`}>
                                     Email

@@ -1,7 +1,19 @@
 @import "tailwindcss";
+/* Roboto, the mobile app's font on Android, bundled with the portal (no requests to Google). */
+@import "@fontsource/roboto/400.css";
+@import "@fontsource/roboto/500.css";
+@import "@fontsource/roboto/700.css";
 
 /* Shared with the mobile app (sproutly-mobile/src/constants/Colors.js and theme.js). */
 @theme {
+  --font-sans: "Roboto", system-ui, sans-serif;
+  /* One step larger than Tailwind's defaults (14 and 12 px), which read too small on a dashboard. */
+  --text-sm: 0.9375rem;
+  --text-sm--line-height: 1.45;
+  --text-xs: 0.8125rem;
+  --text-xs--line-height: 1.4;
+  /* Roboto has no 600 weight; Android uses medium (500) for emphasis, so semibold does too. */
+  --font-weight-semibold: 500;
   --color-forest-deep: #0b1a13;
   --color-forest-mid: #1b3d2f;
   --color-forest-light: #2d5a43;

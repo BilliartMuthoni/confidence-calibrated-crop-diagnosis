@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, ScrollView, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import { Ionicons } from '@expo/vector-icons';
 import ScreenHeader from '../../components/ScreenHeader';
 import { PrimaryButton, SecondaryButton, TextButton } from '../../components/Buttons';
 import { COLORS, CROP_LABELS } from '../../constants/theme';
@@ -59,9 +60,22 @@ export default function ResultScreen({ route, navigation }) {
 
                     {referred ? (
                         <>
-                            <Text className="text-base mt-3 leading-6" style={{ color: COLORS.text }}>
-                                {result.referral_message}
-                            </Text>
+                            {result.sent_to_officer ? (
+                                <View
+                                    className="mt-4 rounded-xl px-4 py-3 flex-row"
+                                    style={{ backgroundColor: '#EAF1F8', borderWidth: 1, borderColor: '#C9DAEC' }}
+                                >
+                                    <Text className="flex-1 ml-3 text-base leading-6" style={{ color: COLORS.text }}>
+                                        <Text className="font-bold">Sent to an extension officer in your county.</Text>{' '}
+                                        Their reply will appear under Your checks within 7 days. If nobody replies,
+                                        use the support contacts.
+                                    </Text>
+                                </View>
+                            ) : (
+                                <Text className="text-base mt-3 leading-6" style={{ color: COLORS.text }}>
+                                    {result.referral_message}
+                                </Text>
+                            )}
                             {result.crop_mismatch && (
                                 <Text className="text-base mt-3 leading-6" style={{ color: COLORS.text }}>
                                     We could not diagnose this as <Text className="font-bold">{crop}</Text>. If this is

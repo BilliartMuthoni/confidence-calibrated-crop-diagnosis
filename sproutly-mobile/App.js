@@ -23,6 +23,7 @@ import ResultScreen from './src/screens/farmer/ResultScreen';
 import BatchResultScreen from './src/screens/farmer/BatchResultScreen';
 import ProfileScreen from './src/screens/farmer/ProfileScreen';
 import SupportContactsScreen from './src/screens/farmer/SupportContactsScreen';
+import HistoryScreen from './src/screens/farmer/HistoryScreen';
 
 const Stack = createStackNavigator();
 
@@ -47,12 +48,18 @@ const RootNavigator = () => {
                 ) : (
                     <>
                         {/*Farmer*/}
-                        <Stack.Screen name="FarmerHome" component={FarmerDashboard} />
+                        {/* Home, History and Support switch through the bottom bar without a slide. */}
+                        <Stack.Screen name="FarmerHome" component={FarmerDashboard} options={{ animation: 'none' }} />
+                        <Stack.Screen name="History" component={HistoryScreen} options={{ animation: 'none' }} />
                         <Stack.Screen name="Diagnosis" component={DiagnosisScreen} />
                         <Stack.Screen name="Result" component={ResultScreen} />
                         <Stack.Screen name="BatchResult" component={BatchResultScreen} />
                         <Stack.Screen name="Profile" component={ProfileScreen} />
-                        <Stack.Screen name="SupportContacts" component={SupportContactsScreen} />
+                        <Stack.Screen
+                            name="SupportContacts"
+                            component={SupportContactsScreen}
+                            options={({ route }) => (route.params?.tab ? { animation: 'none' } : {})}
+                        />
                     </>
                 )}
             </Stack.Navigator>

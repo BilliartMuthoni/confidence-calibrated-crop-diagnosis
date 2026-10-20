@@ -26,7 +26,7 @@ from app.core.limiter import limiter
 from app.core.security import create_mfa_token, hash_token, new_url_token, pkce_challenge
 from app.db.session import get_db
 from app.models.oauth_flow import OAuthFlow
-from app.models.user import User
+from app.models.user import User, UserRole
 from app.routers.auth import issue_tokens
 from app.schemas.auth import MfaChallengeResponse, OAuthExchangeRequest, OAuthLoginResponse
 
@@ -64,6 +64,10 @@ def _find_or_create_user(db: Session, identity: oauth.Identity) -> User:
         # otherwise anyone could add a victim's address to a new provider account and take over.
         user = db.query(User).filter(User.user_email == identity.email).first()
         if user:
+            # Staff sign in only with a password and their authenticator. Linking would remove
+            # both (below) and let a Google account into the admin portal.
+            if user.role != UserRole.farmer:
+                raise oauth.OAuthError("staff_account")
             if getattr(user, column) is not None:
                 raise oauth.OAuthError("account_conflict")
             setattr(user, column, identity.subject)
@@ -177,7 +181,8 @@ def exchange(request: Request, payload: OAuthExchangeRequest, db: Session = Depe
     flow.used = True  # one exchange per code
     db.commit()
     user = db.get(User, flow.user_id)
-    if not user or not user.is_active:
+    # Google sign-in is for farmers only (see _find_or_create_user).
+    if not user or not user.is_active or user.role != UserRole.farmer:
         raise invalid
 
     # A Google login on an account that has MFA on still asks for the authenticator code.
