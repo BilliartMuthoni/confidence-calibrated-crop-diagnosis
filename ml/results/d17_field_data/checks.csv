@@ -1,0 +1,24 @@
+source,reason,images
+maize_bd10,excluded: ambiguous: northern or southern leaf blight,220
+maize_bd10,"excluded: augmented copies, not independent photos",2982
+maize_bd10,excluded: not one of our classes,1149
+maize_bd10,excluded: same photos as RAW_Image (annotation copy),494
+maize_bd10,excluded: same photos as RAW_Image (converted copy),569
+maize_bd10,kept,108
+maize_bd10,near_duplicate_within_new_photos,241
+potato_india,copy_of_a_photo_matching_existing,2
+potato_india,kept,3442
+potato_india,near_duplicate_of_existing_photo,10
+potato_india,near_duplicate_within_new_photos,11405
+potato_india,near_duplicates_with_conflicting_labels,505
+potato_india,over_cap,155
+tomato_pakistan,"excluded: augmented copies, not independent photos",7200
+tomato_pakistan,excluded: not one of our classes,461
+tomato_pakistan,excluded: not the authors' own phone photo (web image or unclear origin),253
+tomato_pakistan,kept,112
+tomato_pakistan,near_duplicates_with_conflicting_labels,4
+tomato_taiwan,"excluded: augmented copies, not independent photos",3184
+tomato_taiwan,excluded: not one of our classes,2016
+tomato_taiwan,kept,314
+tomato_taiwan,unmapped folder: taiwan/Preprocessed data/Test/Gray spot,17
+tomato_taiwan,unmapped folder: taiwan/Preprocessed data/Train/Gray spot,67

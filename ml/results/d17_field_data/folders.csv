@@ -1,0 +1,83 @@
+source,folder,label_reason,images,mapped_to
+maize_bd10,An Open-Source Multi-Format Maize Leaf Image Datas/maize (corn) leaf images/Annotation/Bacterial Leaf Streak,excluded: not one of our classes,100,
+maize_bd10,An Open-Source Multi-Format Maize Leaf Image Datas/maize (corn) leaf images/Annotation/Common Rust,excluded: same photos as RAW_Image (annotation copy),100,
+maize_bd10,An Open-Source Multi-Format Maize Leaf Image Datas/maize (corn) leaf images/Annotation/Corn Leaf Blight,excluded: same photos as RAW_Image (annotation copy),200,
+maize_bd10,An Open-Source Multi-Format Maize Leaf Image Datas/maize (corn) leaf images/Annotation/Eyespot,excluded: not one of our classes,100,
+maize_bd10,An Open-Source Multi-Format Maize Leaf Image Datas/maize (corn) leaf images/Annotation/Gray Leaf Spot,excluded: same photos as RAW_Image (annotation copy),100,
+maize_bd10,An Open-Source Multi-Format Maize Leaf Image Datas/maize (corn) leaf images/Annotation/Healthy Leaf,excluded: same photos as RAW_Image (annotation copy),94,
+maize_bd10,An Open-Source Multi-Format Maize Leaf Image Datas/maize (corn) leaf images/Annotation/Maize Streak Disease,excluded: not one of our classes,99,
+maize_bd10,An Open-Source Multi-Format Maize Leaf Image Datas/maize (corn) leaf images/Augmented_Images/Bacterial_Leaf_Streak,"excluded: augmented copies, not independent photos",300,
+maize_bd10,An Open-Source Multi-Format Maize Leaf Image Datas/maize (corn) leaf images/Augmented_Images/Common_Rust,"excluded: augmented copies, not independent photos",405,
+maize_bd10,An Open-Source Multi-Format Maize Leaf Image Datas/maize (corn) leaf images/Augmented_Images/Corn_Leaf_Blight,"excluded: augmented copies, not independent photos",660,
+maize_bd10,An Open-Source Multi-Format Maize Leaf Image Datas/maize (corn) leaf images/Augmented_Images/Eyespot,"excluded: augmented copies, not independent photos",345,
+maize_bd10,An Open-Source Multi-Format Maize Leaf Image Datas/maize (corn) leaf images/Augmented_Images/Gray_Leaf_Spot,"excluded: augmented copies, not independent photos",300,
+maize_bd10,An Open-Source Multi-Format Maize Leaf Image Datas/maize (corn) leaf images/Augmented_Images/Healthy_Leaf,"excluded: augmented copies, not independent photos",342,
+maize_bd10,An Open-Source Multi-Format Maize Leaf Image Datas/maize (corn) leaf images/Augmented_Images/Maize_Streak_Disease,"excluded: augmented copies, not independent photos",630,
+maize_bd10,An Open-Source Multi-Format Maize Leaf Image Datas/maize (corn) leaf images/Converted raw Images/1. Corn Leaf Blight,excluded: same photos as RAW_Image (converted copy),220,
+maize_bd10,An Open-Source Multi-Format Maize Leaf Image Datas/maize (corn) leaf images/Converted raw Images/2. Common Rust,excluded: same photos as RAW_Image (converted copy),135,
+maize_bd10,An Open-Source Multi-Format Maize Leaf Image Datas/maize (corn) leaf images/Converted raw Images/3. Gray Leaf Spot,excluded: same photos as RAW_Image (converted copy),100,
+maize_bd10,An Open-Source Multi-Format Maize Leaf Image Datas/maize (corn) leaf images/Converted raw Images/4. Eyespot,excluded: not one of our classes,115,
+maize_bd10,An Open-Source Multi-Format Maize Leaf Image Datas/maize (corn) leaf images/Converted raw Images/5. Maize Streak Disease,excluded: not one of our classes,210,
+maize_bd10,An Open-Source Multi-Format Maize Leaf Image Datas/maize (corn) leaf images/Converted raw Images/6. Bacterial Leaf Streak,excluded: not one of our classes,100,
+maize_bd10,An Open-Source Multi-Format Maize Leaf Image Datas/maize (corn) leaf images/Converted raw Images/7. Healthy Leaf,excluded: same photos as RAW_Image (converted copy),114,
+maize_bd10,An Open-Source Multi-Format Maize Leaf Image Datas/maize (corn) leaf images/RAW_Image/Bacterial_Leaf_Streak,excluded: not one of our classes,100,
+maize_bd10,An Open-Source Multi-Format Maize Leaf Image Datas/maize (corn) leaf images/RAW_Image/Common_Rust,mapped,135,Corn_(maize)___Common_rust_
+maize_bd10,An Open-Source Multi-Format Maize Leaf Image Datas/maize (corn) leaf images/RAW_Image/Corn_Leaf_Blight,excluded: ambiguous: northern or southern leaf blight,220,
+maize_bd10,An Open-Source Multi-Format Maize Leaf Image Datas/maize (corn) leaf images/RAW_Image/Eyespot,excluded: not one of our classes,115,
+maize_bd10,An Open-Source Multi-Format Maize Leaf Image Datas/maize (corn) leaf images/RAW_Image/Gray_Leaf_Spot,mapped,100,Corn_(maize)___Cercospora_leaf_spot Gray_leaf_spot
+maize_bd10,An Open-Source Multi-Format Maize Leaf Image Datas/maize (corn) leaf images/RAW_Image/Healthy_Leaf,mapped,114,Corn_(maize)___healthy
+maize_bd10,An Open-Source Multi-Format Maize Leaf Image Datas/maize (corn) leaf images/RAW_Image/Maize_Streak_Disease,excluded: not one of our classes,210,
+potato_india,EB,mapped,4803,Potato___Early_blight
+potato_india,Healthy,mapped,4600,Potato___healthy
+potato_india,LB,mapped,6116,Potato___Late_blight
+tomato_pakistan,Tomato Dataset/Augmented Dataset/test/Tomato_Early_Blight,"excluded: augmented copies, not independent photos",120,
+tomato_pakistan,Tomato Dataset/Augmented Dataset/test/Tomato_Healthy,"excluded: augmented copies, not independent photos",120,
+tomato_pakistan,Tomato Dataset/Augmented Dataset/test/Tomato_leaf_late_blight,"excluded: augmented copies, not independent photos",120,
+tomato_pakistan,Tomato Dataset/Augmented Dataset/test/Tomato_leaf_yellow_curl_virus,"excluded: augmented copies, not independent photos",120,
+tomato_pakistan,Tomato Dataset/Augmented Dataset/test/Tomato_mold_leaf,"excluded: augmented copies, not independent photos",120,
+tomato_pakistan,Tomato Dataset/Augmented Dataset/test/Tomato_septora_leaf_spot,"excluded: augmented copies, not independent photos",120,
+tomato_pakistan,Tomato Dataset/Augmented Dataset/train/Tomato_Early_Blight,"excluded: augmented copies, not independent photos",840,
+tomato_pakistan,Tomato Dataset/Augmented Dataset/train/Tomato_Healthy,"excluded: augmented copies, not independent photos",840,
+tomato_pakistan,Tomato Dataset/Augmented Dataset/train/Tomato_leaf_late_blight,"excluded: augmented copies, not independent photos",840,
+tomato_pakistan,Tomato Dataset/Augmented Dataset/train/Tomato_leaf_yellow_curl_virus,"excluded: augmented copies, not independent photos",840,
+tomato_pakistan,Tomato Dataset/Augmented Dataset/train/Tomato_mold_leaf,"excluded: augmented copies, not independent photos",840,
+tomato_pakistan,Tomato Dataset/Augmented Dataset/train/Tomato_septora_leaf_spot,"excluded: augmented copies, not independent photos",840,
+tomato_pakistan,Tomato Dataset/Augmented Dataset/val/Tomato_Early_Blight,"excluded: augmented copies, not independent photos",240,
+tomato_pakistan,Tomato Dataset/Augmented Dataset/val/Tomato_Healthy,"excluded: augmented copies, not independent photos",240,
+tomato_pakistan,Tomato Dataset/Augmented Dataset/val/Tomato_leaf_late_blight,"excluded: augmented copies, not independent photos",240,
+tomato_pakistan,Tomato Dataset/Augmented Dataset/val/Tomato_leaf_yellow_curl_virus,"excluded: augmented copies, not independent photos",240,
+tomato_pakistan,Tomato Dataset/Augmented Dataset/val/Tomato_mold_leaf,"excluded: augmented copies, not independent photos",240,
+tomato_pakistan,Tomato Dataset/Augmented Dataset/val/Tomato_septora_leaf_spot,"excluded: augmented copies, not independent photos",240,
+tomato_pakistan,Tomato Dataset/Dataset (raw)/Tomato_Early_blight_leaf,excluded: not the authors' own phone photo (web image or unclear origin),78,
+tomato_pakistan,Tomato Dataset/Dataset (raw)/Tomato_Early_blight_leaf,mapped,41,Tomato___Early_blight
+tomato_pakistan,Tomato Dataset/Dataset (raw)/Tomato_Healthy_leaf,excluded: not the authors' own phone photo (web image or unclear origin),71,
+tomato_pakistan,Tomato Dataset/Dataset (raw)/Tomato_Healthy_leaf,mapped,66,Tomato___healthy
+tomato_pakistan,Tomato Dataset/Dataset (raw)/Tomato_Septoria_leaf_spot,excluded: not one of our classes,195,
+tomato_pakistan,Tomato Dataset/Dataset (raw)/Tomato_leaf_late_blight,excluded: not the authors' own phone photo (web image or unclear origin),104,
+tomato_pakistan,Tomato Dataset/Dataset (raw)/Tomato_leaf_late_blight,mapped,9,Tomato___Late_blight
+tomato_pakistan,Tomato Dataset/Dataset (raw)/Tomato_leaf_yellow_curl_virus,excluded: not one of our classes,80,
+tomato_pakistan,Tomato Dataset/Dataset (raw)/Tomato_mold_leaf,excluded: not one of our classes,186,
+tomato_taiwan,taiwan/Preprocessed data/Test/Bacterial spot,mapped,22,Tomato___Bacterial_spot
+tomato_taiwan,taiwan/Preprocessed data/Test/Black mold,excluded: not one of our classes,14,
+tomato_taiwan,taiwan/Preprocessed data/Test/Gray spot,unmapped folder: taiwan/Preprocessed data/Test/Gray spot,17,
+tomato_taiwan,taiwan/Preprocessed data/Test/Late blight,mapped,20,Tomato___Late_blight
+tomato_taiwan,taiwan/Preprocessed data/Test/health,mapped,22,Tomato___healthy
+tomato_taiwan,taiwan/Preprocessed data/Test/powdery mildew,excluded: not one of our classes,32,
+tomato_taiwan,taiwan/Preprocessed data/Train/Bacterial spot,mapped,88,Tomato___Bacterial_spot
+tomato_taiwan,taiwan/Preprocessed data/Train/Black mold,excluded: not one of our classes,53,
+tomato_taiwan,taiwan/Preprocessed data/Train/Gray spot,unmapped folder: taiwan/Preprocessed data/Train/Gray spot,67,
+tomato_taiwan,taiwan/Preprocessed data/Train/Late blight,mapped,78,Tomato___Late_blight
+tomato_taiwan,taiwan/Preprocessed data/Train/health,mapped,84,Tomato___healthy
+tomato_taiwan,taiwan/Preprocessed data/Train/powdery mildew,excluded: not one of our classes,125,
+tomato_taiwan,taiwan/data augmentation/Test/Bacterial spot,"excluded: augmented copies, not independent photos",176,
+tomato_taiwan,taiwan/data augmentation/Test/Black mold,excluded: not one of our classes,108,
+tomato_taiwan,taiwan/data augmentation/Test/Gray spot,"excluded: augmented copies, not independent photos",135,
+tomato_taiwan,taiwan/data augmentation/Test/Late blight,"excluded: augmented copies, not independent photos",157,
+tomato_taiwan,taiwan/data augmentation/Test/health,"excluded: augmented copies, not independent photos",170,
+tomato_taiwan,taiwan/data augmentation/Test/powdery mildew,excluded: not one of our classes,252,
+tomato_taiwan,taiwan/data augmentation/Train/Bacterial spot,"excluded: augmented copies, not independent photos",704,
+tomato_taiwan,taiwan/data augmentation/Train/Black mold,excluded: not one of our classes,428,
+tomato_taiwan,taiwan/data augmentation/Train/Gray spot,"excluded: augmented copies, not independent photos",537,
+tomato_taiwan,taiwan/data augmentation/Train/Late blight,"excluded: augmented copies, not independent photos",627,
+tomato_taiwan,taiwan/data augmentation/Train/health,"excluded: augmented copies, not independent photos",678,
+tomato_taiwan,taiwan/data augmentation/Train/powdery mildew,excluded: not one of our classes,1004,
