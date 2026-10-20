@@ -1,0 +1,12 @@
+class,train.csv,train_d17.csv,added
+Corn_(maize)___Cercospora_leaf_spot Gray_leaf_spot,395,407,12
+Corn_(maize)___Common_rust_,838,855,17
+Corn_(maize)___Northern_Leaf_Blight,686,686,0
+Corn_(maize)___healthy,912,991,79
+Potato___Early_blight,1284,2585,1301
+Potato___Late_blight,1404,2904,1500
+Potato___healthy,808,1449,641
+Tomato___Bacterial_spot,1519,1629,110
+Tomato___Early_blight,680,719,39
+Tomato___Late_blight,1617,1722,105
+Tomato___healthy,1334,1506,172

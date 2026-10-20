@@ -1,0 +1,11 @@
+class,maize_bd10,potato_india,tomato_pakistan,tomato_taiwan,total
+Corn_(maize)___Cercospora_leaf_spot Gray_leaf_spot,12,0,0,0,12
+Corn_(maize)___Common_rust_,17,0,0,0,17
+Corn_(maize)___healthy,79,0,0,0,79
+Potato___Early_blight,0,1301,0,0,1301
+Potato___Late_blight,0,1500,0,0,1500
+Potato___healthy,0,641,0,0,641
+Tomato___Bacterial_spot,0,0,0,110,110
+Tomato___Early_blight,0,0,39,0,39
+Tomato___Late_blight,0,0,7,98,105
+Tomato___healthy,0,0,66,106,172
