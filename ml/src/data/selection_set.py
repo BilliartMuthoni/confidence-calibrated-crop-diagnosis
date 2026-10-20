@@ -189,10 +189,18 @@ def extract(archive: Path, out: Path) -> None:
         subprocess.run(["unrar", "x", "-o+", "-idq", str(archive), str(out) + "/"], check=True)
     else:
         raise ValueError(f"Unsupported archive {archive.name}")
-    # Archives inside the archive (some uploads nest one per class).
-    for inner in list(out.rglob("*.zip")) + list(out.rglob("*.rar")):
+    # Archives inside the archive (some uploads nest one per class). The markers are named
+    # after their archive (".extracted_EB.zip"), so they are not archives themselves: without
+    # this check a second archive unpacked into the same folder tried to open the first's marker.
+    for inner in nested_archives(out):
         extract(inner, inner.with_suffix(""))
     marker.touch()
+
+
+def nested_archives(folder: Path) -> list[Path]:
+    """Real .zip and .rar files under ``folder``, leaving out the "already unpacked" markers."""
+    found = list(folder.rglob("*.zip")) + list(folder.rglob("*.rar"))
+    return [p for p in found if not p.name.startswith(".extracted_")]
 
 
 # ---------------------------------------------------------------------------- labels
