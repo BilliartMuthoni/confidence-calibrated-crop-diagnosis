@@ -34,6 +34,7 @@ from app.core.deps import get_current_user
 from app.schemas.auth import (
     STAFF_PASSWORD_MIN,
     AccountResponse,
+    AddPasswordRequest,
     BackupCodeLoginRequest,
     BackupCodesResponse,
     CodeRequest,
@@ -66,6 +67,16 @@ def _get_user_by_identifier(db: Session, phone_number: Optional[str], email: Opt
 
 def _is_staff(user: User) -> bool:
     return user.role in STAFF
+
+
+GOOGLE_ACCOUNT = "This email signs in with Google. Use Continue with Google, or Sign up with this email to add a password."
+GOOGLE_CONFIRM = "You already have an account with Google. Continue with Google to confirm it's you, and your password will be added."
+
+
+def _google_only(user: User) -> bool:
+    """An account made with Google: it has no password and can only be opened through Google.
+    (A staff account whose password an admin reset also has none, but no Google id.)"""
+    return user.google_id is not None and not user.hashed_password
 
 
 def _start_setup(db: Session, user: User) -> MfaChallengeResponse:
@@ -141,6 +152,10 @@ def _signed_in(db: Session, user: User, request: Request, how: str = "") -> Toke
 @limiter.limit("5/minute")
 def register(request: Request, payload: RegisterRequest, db: Session = Depends(get_db)):
     existing = _get_user_by_identifier(db, payload.phone_number, payload.email)
+    if existing and _google_only(existing):
+        # Typing an email proves nothing (sign-up doesn't confirm emails), so the password is
+        # only added after a Google sign-in proves the account is theirs (/auth/password/add).
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=GOOGLE_CONFIRM)
     if existing:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -170,6 +185,10 @@ def login(request: Request, payload: LoginRequest, db: Session = Depends(get_db)
     if not user or not user.is_active:
         # Same error for "no such user", "deactivated" and "wrong password" -- never reveal which one.
         raise invalid
+    if _google_only(user):
+        # There is no Sproutly password to check (Google's stays with Google): point the farmer
+        # to Google. This says the email is registered, which sign-up already reveals.
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=GOOGLE_ACCOUNT)
     ensure_not_locked(user)
     if not user.hashed_password or not verify_password(payload.password, user.hashed_password):
         if _is_staff(user):
@@ -306,6 +325,23 @@ def change_password(request: Request, payload: PasswordChangeRequest, db: Sessio
     current_user.hashed_password = hash_password(payload.new_password)
     audit.record(db, current_user, "password_change", current_user.user_email or "", request=request)
     db.commit()
+
+
+@router.post("/password/add", response_model=MfaChallengeResponse)
+@limiter.limit("5/minute")
+def add_password(request: Request, payload: AddPasswordRequest, db: Session = Depends(get_db),
+                 current_user: User = Depends(get_current_user)):
+    """A farmer who signed up with Google adds a Sproutly password, right after a Google sign-in
+    proved the account is theirs. Same account, same history; the authenticator is set up next,
+    because every password account has one."""
+    if current_user.role != UserRole.farmer or not _google_only(current_user):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="This account already has a password")
+    if payload.email and payload.email.lower() != (current_user.user_email or "").lower():
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="That Google account is not the one for this email. Choose the right Google account.")
+    current_user.hashed_password = hash_password(payload.password)
+    db.commit()
+    return _start_setup(db, current_user)
 
 
 @router.post("/mfa/reenrol/start", response_model=ReenrolStart)

@@ -24,7 +24,11 @@ export default function SignUpScreen({ navigation }) {
     const chooseMethod = (method) => {
         setAuthMethod(method);
         setError(null);
+        setConfirmWithGoogle(false);
     };
+    // The email already has an account made with Google: the password is added once Google
+    // confirms it's theirs (Continue with Google below), never on the typed email alone.
+    const [confirmWithGoogle, setConfirmWithGoogle] = useState(false);
     const [phoneNumber, setPhoneNumber] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -64,8 +68,25 @@ export default function SignUpScreen({ navigation }) {
             });
         } catch (e) {
             setError(toFriendlyError(e));
+            setConfirmWithGoogle(authMethod === 'email' && /account with google/i.test(e.message));
         } finally {
             setLoading(false);
+        }
+    };
+
+    // Google has confirmed who it is: add the password typed above, then set up the authenticator.
+    const addPasswordAfterGoogle = async (tokens) => {
+        setError(null);
+        try {
+            const data = await AuthService.addPassword({ token: tokens.access_token, password, email });
+            setConfirmWithGoogle(false);
+            navigation.navigate('MfaSetup', {
+                mfaToken: data.mfa_token,
+                expiresInMinutes: data.expires_in_minutes,
+                setup: data.setup,
+            });
+        } catch (e) {
+            setError(toFriendlyError(e));
         }
     };
 
@@ -135,7 +156,10 @@ export default function SignUpScreen({ navigation }) {
                                         autoCapitalize="none"
                                         keyboardType="email-address"
                                         value={email}
-                                        onChangeText={setEmail}
+                                        onChangeText={(text) => {
+                                            setEmail(text);
+                                            setConfirmWithGoogle(false);
+                                        }}
                                     />
                                 </View>
                             )}
@@ -194,7 +218,10 @@ export default function SignUpScreen({ navigation }) {
                             </TouchableOpacity>
                         </View>
 
-                        <SocialSignIn navigation={navigation} />
+                        <SocialSignIn
+                            navigation={navigation}
+                            onSignedIn={confirmWithGoogle ? addPasswordAfterGoogle : undefined}
+                        />
 
                         <View className="flex-row justify-center mt-6">
                             <Text className="text-white/70 text-sm">Already have an account? </Text>

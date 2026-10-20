@@ -27,4 +27,7 @@ class OAuthFlow(Base):
     user_id = Column(Integer, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=True)
     login_code_hash = Column(String, unique=True, index=True, nullable=True)
     login_code_expires_at = Column(DateTime, nullable=True)
+    # Set when the provider's email belongs to an existing password account: the provider's id
+    # for this person, waiting to be joined once they prove the account is theirs (password + code).
+    link_subject = Column(String, nullable=True)
     used = Column(Boolean, nullable=False, default=False, server_default=false())

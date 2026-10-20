@@ -14,8 +14,10 @@ const PROVIDERS = {
 /**
  * "or" plus one button per sign-in option the backend has switched on, for the
  * dark login and sign-up screens. Shows nothing if none are available.
+ * onSignedIn, if given, receives the tokens of a plain Google sign-in instead of logging in
+ * (sign-up uses it to add a password to a Google account once Google has confirmed who it is).
  */
-export default function SocialSignIn({ navigation }) {
+export default function SocialSignIn({ navigation, onSignedIn }) {
     const { login } = useContext(AuthContext);
     const [providers, setProviders] = useState([]);
     const [busy, setBusy] = useState(null);
@@ -31,12 +33,31 @@ export default function SocialSignIn({ navigation }) {
         try {
             const result = await signInWith(provider);
             if (!result) return; // closed or cancelled: nothing to report
+            if (result.link) {
+                // This email already has a password account: prove it's yours to join Google to it.
+                navigation.navigate('LinkGoogle', {
+                    linkToken: result.link.link_token,
+                    email: result.link.email,
+                    needsCode: result.link.needs_code,
+                });
+                return;
+            }
             if (result.challenge) {
-                // This account has the authenticator switched on, so it still asks for the code.
-                navigation.navigate('MfaCode', { mfaToken: result.challenge.mfa_token });
+                // A password account: Google stands in for the password, the authenticator is still asked
+                // (or set up, if sign-up stopped before it).
+                const c = result.challenge;
+                navigation.navigate(c.next_step === 'setup' ? 'MfaSetup' : 'MfaCode', {
+                    mfaToken: c.mfa_token,
+                    expiresInMinutes: c.expires_in_minutes,
+                    setup: c.setup,
+                });
                 return;
             }
             const { tokens } = result;
+            if (onSignedIn) {
+                await onSignedIn(tokens);
+                return;
+            }
             await login(tokens.access_token, [tokens.role], tokens.refresh_token);
         } catch (e) {
             setError(toFriendlyError(e));
@@ -73,6 +94,11 @@ export default function SocialSignIn({ navigation }) {
                     )}
                 </TouchableOpacity>
             ))}
+
+            {/* Google can't tell us a phone number, so it can't find a phone account. */}
+            <Text className="text-white/50 text-xs text-center mb-2">
+                Signed up with your phone number? Use Phone above instead.
+            </Text>
 
             {error && (
                 <View className="mt-1">

@@ -77,6 +77,16 @@ def create_reenrol_token(subject: str, encrypted_secret: str) -> str:
     )
 
 
+def create_link_token(subject: str, provider: str, provider_subject: str, minutes: int) -> str:
+    """Carries a Google identity that has just signed in but is not yet joined to the account
+    with the same email. Signed by the backend, so the app can't swap in another identity."""
+    return _create_token(
+        {"sub": subject, "provider": provider, "provider_sub": provider_subject},
+        timedelta(minutes=minutes),
+        "oauth_link",
+    )
+
+
 def decode_token(token: str) -> Optional[dict]:
     try:
         return jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])

@@ -100,6 +100,33 @@ export async function exchangeOAuthCode({ code, codeVerifier }) {
     }
 }
 
+/**
+ * Join Google to the password account with the same email: its password, plus the
+ * authenticator code if it has one. Answers { tokens } or { challenge } (setup still to do).
+ */
+export async function linkGoogle({ linkToken, password, code }) {
+    try {
+        const payload = { link_token: linkToken, password };
+        if (code) payload.code = code;
+        const { data } = await client.post('/auth/oauth/link', payload);
+        return data;
+    } catch (error) {
+        throw new Error(extractErrorMessage(error));
+    }
+}
+
+/** A Google account adds a Sproutly password, straight after a Google sign-in. Answers the setup challenge. */
+export async function addPassword({ token, password, email }) {
+    try {
+        const { data } = await client.post('/auth/password/add', { password, email }, {
+            headers: { Authorization: `Bearer ${token}` },
+        });
+        return data;
+    } catch (error) {
+        throw new Error(extractErrorMessage(error));
+    }
+}
+
 /** Code from the authenticator app after the password; returns the session tokens. */
 export async function verifyMfa({ mfaToken, code }) {
     try {

@@ -15,11 +15,50 @@ const PATTERNS = [
         retryable: false,
     },
     {
+        // Password login on an account made with Google: there is no Sproutly password yet.
+        match: /signs in with google/i,
+        title: 'This account uses Google',
+        message: 'Tap Continue with Google below. To also log in with a password, go to Sign up with this email.',
+        retryable: false,
+    },
+    {
+        // Email sign-up on an account made with Google.
+        match: /account with google/i,
+        title: 'You already have an account',
+        message: "It was made with Google. Tap Continue with Google below to confirm it's you, and your password will be added.",
+        retryable: false,
+    },
+    {
+        match: /not the one for this email/i,
+        title: 'Different Google account',
+        message: 'Tap Continue with Google again and choose the Google account with the email you typed.',
+        retryable: false,
+    },
+    {
+        match: /password is not right/i,
+        title: 'That password is not right',
+        message: 'Enter your Sproutly password, not your Google password.',
+        retryable: false,
+    },
+    {
+        match: /already linked to another sproutly account/i,
+        title: 'Google already in use',
+        message: 'That Google account already opens a different Sproutly account. Log in with that one instead.',
+        retryable: false,
+    },
+    {
         match: /already exists/i,
         title: 'Account already exists',
         // Also shown for email sign-ups, and for a sign-up left before the authenticator step:
         // logging in with the same password goes straight back to that step.
         message: "It's already registered. Log in instead. If you didn't finish setting up, logging in takes you back to that step.",
+        retryable: false,
+    },
+    {
+        // The account lockout, not the per-minute limit.
+        match: /too many wrong attempts/i,
+        title: 'Account paused',
+        message: 'There were too many wrong tries, so this account is paused for a few minutes. Try again later.',
         retryable: false,
     },
     {
@@ -44,6 +83,12 @@ const PATTERNS = [
         match: /oauth account_conflict/i,
         title: 'Already linked elsewhere',
         message: 'This email is already linked to a different account on that service. Sign in with that one instead.',
+        retryable: false,
+    },
+    {
+        match: /oauth staff_account/i,
+        title: 'Staff log in with a password',
+        message: 'Officer and admin accounts use their password and authenticator, not Google.',
         retryable: false,
     },
     {
