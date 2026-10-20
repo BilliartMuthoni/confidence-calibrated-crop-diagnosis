@@ -65,7 +65,7 @@ class Source:
     # Folder-name keyword (lower case, "_" and "-" read as spaces) -> project class.
     # With exact=True the keyword must equal the photo's own folder name.
     classes: dict[str, str]
-    # Folder keywords left out, with the reason; checked before ``classes``.
+    # Folder keywords (regular expressions) left out, with the reason; checked before ``classes``.
     excluded: dict[str, str] = field(default_factory=dict)
     exact: bool = False
     # Only photos whose file name matches this pattern are used (None: all).
@@ -94,8 +94,10 @@ SOURCES = {
         "ngdgg79rzb", 1, "tomato",
         "Huang, M.-L., & Chang, Y.-H. (2020). Dataset of Tomato Leaves (Version 1). Mendeley Data. "
         "doi:10.17632/ngdgg79rzb.1",
-        {"bacterial spot": "Tomato___Bacterial_spot", "healthy": "Tomato___healthy", "late blight": f"Tomato___{LB}"},
-        {"mold": "not one of our classes", "mould": "not one of our classes",
+        # The healthy folder is named "health" in the archive.
+        {"bacterial spot": "Tomato___Bacterial_spot", "health": "Tomato___healthy", "late blight": f"Tomato___{LB}"},
+        {"augmentation": "augmented copies, not independent photos (\"Preprocessed data\" holds the originals)",
+         "mold": "not one of our classes", "mould": "not one of our classes",
          "gray leaf spot": "not one of our classes", "grey leaf spot": "not one of our classes",
          "powdery": "not one of our classes", "plantvillage": "PlantVillage copy, already in training"},
         files=["taiwan.7z"],
@@ -118,7 +120,13 @@ SOURCES = {
          "gray leaf spot": "Corn_(maize)___Cercospora_leaf_spot Gray_leaf_spot",
          "grey leaf spot": "Corn_(maize)___Cercospora_leaf_spot Gray_leaf_spot",
          "healthy": "Corn_(maize)___healthy"},
+        # The archive holds the same photos three times (Annotation, Converted raw Images,
+        # RAW_Image); only RAW_Image, the originals, is used. Its "Corn Leaf Blight" folder does
+        # not say northern or southern, so it is left out, as the selection set's "Blight" was.
         {"augment": "augmented copies, not independent photos",
+         "annotation": "same photos as RAW_Image (annotation copy)",
+         "converted": "same photos as RAW_Image (converted copy)",
+         r"(?<!northern )(?<!southern )corn leaf blight": "ambiguous: northern or southern leaf blight",
          "southern": "not one of our classes", "eyespot": "not one of our classes",
          "curvularia": "not one of our classes", "streak": "not one of our classes"},
         manual=True,
@@ -191,7 +199,7 @@ def extract(archive: Path, out: Path) -> None:
     if shutil.which("7z") is None:
         subprocess.run(["apt-get", "install", "-y", "-qq", "p7zip-full"], check=True)
     subprocess.run(["7z", "x", "-y", "-bd", f"-o{out}", str(archive)], check=True, stdout=subprocess.DEVNULL)
-    for inner in list(out.rglob("*.zip")) + list(out.rglob("*.rar")):
+    for inner in selection_set.nested_archives(out):
         selection_set.extract(inner, inner.with_suffix(""))
     marker.touch()
 
@@ -207,7 +215,7 @@ def label_of(name: str, relative: Path) -> tuple[str | None, str]:
     source = SOURCES[name]
     folders = " / ".join(_words(part) for part in relative.parent.parts)
     for keyword, reason in source.excluded.items():
-        if keyword in folders:
+        if re.search(keyword, folders):
             return None, f"excluded: {reason}"
     if source.exact:
         own = _words(relative.parent.name)
