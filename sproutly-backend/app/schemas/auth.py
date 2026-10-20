@@ -109,12 +109,49 @@ class OAuthExchangeRequest(BaseModel):
         return v
 
 
+class LinkNeeded(BaseModel):
+    """Google's email already has a password account: prove it's yours to join Google to it."""
+
+    link_token: str
+    email: str
+    # The account has the authenticator on, so its code is asked with the password.
+    needs_code: bool
+    expires_in_minutes: int
+
+
 class OAuthLoginResponse(BaseModel):
-    """Exactly one is set: tokens to log in, or an authenticator challenge for an
-    existing account that already has MFA switched on."""
+    """Exactly one is set: tokens to log in, an authenticator challenge (code, or setup for a
+    password account that never finished it), or a request to join Google to an existing account."""
 
     tokens: Optional[TokenResponse] = None
     challenge: Optional[MfaChallengeResponse] = None
+    link: Optional[LinkNeeded] = None
+
+
+class OAuthLinkRequest(BaseModel):
+    link_token: str
+    password: str
+    code: Optional[str] = None
+
+    @field_validator("code")
+    @classmethod
+    def code_is_six_digits(cls, v: Optional[str]) -> Optional[str]:
+        return _six_digits(v) if v else None
+
+
+class AddPasswordRequest(BaseModel):
+    """A Google account adding a Sproutly password, so it can also sign in with email."""
+
+    password: str
+    # The email typed on the sign-up form: the Google account just used must be that one.
+    email: Optional[EmailStr] = None
+
+    @field_validator("password")
+    @classmethod
+    def password_min_length(cls, v: str) -> str:
+        if len(v) < 8:
+            raise ValueError("Password must be at least 8 characters long")
+        return v
 
 
 class CurrentUserResponse(BaseModel):
