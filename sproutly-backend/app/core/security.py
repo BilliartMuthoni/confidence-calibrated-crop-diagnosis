@@ -50,9 +50,11 @@ def create_access_token(subject: str, role: str, minutes: Optional[int] = None) 
     )
 
 
-def create_refresh_token(subject: str) -> str:
+def create_refresh_token(subject: str, token_id: str) -> str:
+    """Long-lived key the app swaps for a fresh pair (/auth/refresh). ``token_id`` is also
+    stored on the user, and only the stored one works, so each key works once."""
     return _create_token(
-        {"sub": subject},
+        {"sub": subject, "jti": token_id},
         timedelta(days=settings.refresh_token_expire_days),
         "refresh",
     )

@@ -39,6 +39,9 @@ class User(Base):
     failed_attempts = Column(Integer, nullable=False, default=0, server_default="0")
     locked_until = Column(DateTime, nullable=True)
     last_sign_in = Column(DateTime, nullable=True)
+    # The one refresh token that may be used next (its "jti"). Each refresh replaces it, a new
+    # sign-in replaces it (ending older sessions), and log out or reuse of an old one clears it.
+    refresh_token_id = Column(String, nullable=True)
 
     is_active = Column(Boolean, default=True)
     # Plain UTC (see Diagnosis.created_at).

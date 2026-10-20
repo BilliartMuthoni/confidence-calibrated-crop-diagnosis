@@ -95,6 +95,10 @@ class TokenResponse(BaseModel):
     role: UserRole
 
 
+class RefreshRequest(BaseModel):
+    refresh_token: str
+
+
 class OAuthExchangeRequest(BaseModel):
     # One-time login code the backend sent to the app's link after Google sign-in.
     code: str
