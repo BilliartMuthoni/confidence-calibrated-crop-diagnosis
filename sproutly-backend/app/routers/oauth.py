@@ -221,7 +221,9 @@ def exchange(request: Request, payload: OAuthExchangeRequest, db: Session = Depe
             mfa_token=create_mfa_token(str(user.user_id), "mfa_login", minutes),
             expires_in_minutes=minutes,
         ))
-    return OAuthLoginResponse(tokens=issue_tokens(user))
+    tokens = issue_tokens(user)
+    db.commit()  # stores the new refresh token's id
+    return OAuthLoginResponse(tokens=tokens)
 
 
 @router.post("/link", response_model=OAuthLoginResponse)

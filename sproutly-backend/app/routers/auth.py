@@ -1,3 +1,4 @@
+import hmac
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -17,6 +18,7 @@ from app.core.security import (
     decode_token,
     new_backup_codes,
     new_totp_secret,
+    new_url_token,
     normalise_backup_code,
     encrypt_secret,
     decrypt_secret,
@@ -42,6 +44,7 @@ from app.schemas.auth import (
     PasswordChangeRequest,
     ReenrolConfirmRequest,
     ReenrolStart,
+    RefreshRequest,
     RegisterRequest,
     LoginRequest,
     MfaCodeRequest,
@@ -129,12 +132,16 @@ def _check_code(db: Session, user: User, code: str, request: Optional[Request] =
     db.commit()
 
 
-def issue_tokens(user: User) -> TokenResponse:
+def issue_tokens(user: User, login: Optional[str] = None) -> TokenResponse:
+    """A new pair of tokens. The refresh token's id ("<login>.<random>") is stored on the
+    user, replacing any earlier one, so only the newest one can be used. ``login`` names the
+    sign-in the tokens belong to: new at every sign-in, kept across refreshes. The caller commits."""
     # Staff sessions end after a working day at most; farmers keep the app's usual tokens.
     minutes = settings.staff_session_minutes if _is_staff(user) else None
+    user.refresh_token_id = f"{login or new_url_token()}.{new_url_token()}"
     return TokenResponse(
         access_token=create_access_token(subject=str(user.user_id), role=user.role.value, minutes=minutes),
-        refresh_token=create_refresh_token(subject=str(user.user_id)),
+        refresh_token=create_refresh_token(subject=str(user.user_id), token_id=user.refresh_token_id),
         role=user.role,
     )
 
@@ -144,8 +151,63 @@ def _signed_in(db: Session, user: User, request: Request, how: str = "") -> Toke
     user.last_sign_in = utcnow()
     if _is_staff(user):
         audit.record(db, user, "sign_in", user.user_email or "", how, request)
+    tokens = issue_tokens(user)
     db.commit()
-    return issue_tokens(user)
+    return tokens
+
+
+SESSION_ENDED = "Your session has ended. Please log in again."
+
+
+def _check_refresh_token(db: Session, token: str) -> tuple[Optional[User], str, str]:
+    """(user, state, login) for a refresh token. state is "current" (the one that may be used
+    next), "reused" (an earlier token of the same sign-in: it was already swapped, so someone
+    kept a copy), "replaced" (from an older sign-in that a newer one replaced) or "invalid"."""
+    claims = decode_token(token)
+    token_id = claims.get("jti") if claims and claims.get("type") == "refresh" else None
+    if not token_id or "." not in token_id or not claims.get("sub"):
+        return None, "invalid", ""
+    user = db.get(User, int(claims["sub"]))
+    if not user:
+        return None, "invalid", ""
+    login = token_id.split(".")[0]
+    stored = user.refresh_token_id or ""
+    if stored and hmac.compare_digest(token_id, stored):
+        return user, "current", login
+    if stored and hmac.compare_digest(login, stored.split(".")[0]):
+        return user, "reused", login
+    return user, "replaced", login
+
+
+@router.post("/refresh", response_model=TokenResponse)
+@limiter.limit("30/minute")
+def refresh(request: Request, payload: RefreshRequest, db: Session = Depends(get_db)):
+    """Swap the app's refresh token for a new pair, so a farmer stays signed in without
+    logging in every 15 minutes. Each refresh token works once (rotation). An earlier token
+    of the same sign-in used again means a copy exists, so that sign-in is ended for whoever
+    holds it; a token from an older sign-in on another phone is simply refused."""
+    ended = HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=SESSION_ENDED)
+    user, state, login = _check_refresh_token(db, payload.refresh_token)
+    if state == "reused":
+        user.refresh_token_id = None
+        db.commit()
+    # Staff sessions end after a working day; the portal signs in again instead of renewing.
+    if state != "current" or not user.is_active or _is_staff(user):
+        raise ended
+    tokens = issue_tokens(user, login)
+    db.commit()
+    return tokens
+
+
+@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+@limiter.limit("30/minute")
+def logout(request: Request, payload: RefreshRequest, db: Session = Depends(get_db)):
+    """End the session on the server: the refresh token stops working. Answers the same
+    whether or not the token was valid, so it says nothing about other accounts."""
+    user, state, _ = _check_refresh_token(db, payload.refresh_token)
+    if state == "current":
+        user.refresh_token_id = None
+        db.commit()
 
 
 @router.post("/register", response_model=MfaChallengeResponse, status_code=status.HTTP_201_CREATED)
