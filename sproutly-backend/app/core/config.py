@@ -1,4 +1,4 @@
-from pydantic import field_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -64,6 +64,16 @@ class Settings(BaseSettings):
     lockout_minutes: int = 15
     # Days an officer has to answer a referral before the farmer is shown the county contacts.
     referral_days: int = 7
+    # Farmers' photos are deleted this many days after the check (app/core/retention.py); the
+    # result, confidence and any officer's reply stay. Must be longer than referral_days, so an
+    # officer never loses the photo of a case they can still answer.
+    photo_days: int = 30
+
+    @model_validator(mode="after")
+    def photos_outlive_referrals(self):
+        if self.photo_days <= self.referral_days:
+            raise ValueError("PHOTO_DAYS must be longer than REFERRAL_DAYS")
+        return self
 
     @field_validator("temperature")
     @classmethod

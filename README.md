@@ -221,6 +221,7 @@ explains each one. The ones you are most likely to change:
 | `TEMPERATURE` | 3.04 | calibration; 1.0 switches it off |
 | `ML_MODEL_PATH` | `models/compare_resnet50/model.pt` | which trained model to load |
 | `REFERRAL_DAYS` | 7 | days an officer has to answer before a referral expires |
+| `PHOTO_DAYS` | 30 | farmers' photos are deleted this many days after the check; the result stays (must be longer than `REFERRAL_DAYS`) |
 | `LOCKOUT_ATTEMPTS` / `LOCKOUT_MINUTES` | 5 / 15 | wrong passwords or codes before an account is paused, and for how long |
 | `STAFF_SESSION_MINUTES` | 480 | longest staff session (the portal also signs out after 30 idle minutes) |
 | `CORS_ORIGINS` | `["http://localhost:5173"]` | browser addresses allowed to use the API (the portal's) |
@@ -268,7 +269,9 @@ Every notebook, decision and result file is in [`ml/`](ml/).
   phone me* tick. A personal mobile number of
   a support contact is shown to farmers only with that person's recorded consent (Kenya Data
   Protection Act 2019, s.30 and s.32).
-- **Photos:** resized and stripped of location (EXIF/GPS) data on upload.
+- **Photos:** resized and stripped of location (EXIF/GPS) data on upload, and **deleted 30 days
+  after the check** (the result, confidence and any officer's reply stay). The backend does this
+  by itself every hour; `python -m app.scripts.delete_old_photos` runs it at once.
 
 ## Checks and tests
 
