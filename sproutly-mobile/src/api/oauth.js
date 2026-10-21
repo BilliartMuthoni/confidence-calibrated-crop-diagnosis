@@ -4,7 +4,7 @@ import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
 import * as Crypto from 'expo-crypto';
 import { API_BASE_URL } from '../constants/api';
-import { exchangeOAuthCode } from './AuthService';
+import { exchangeOAuthCode, finishConnect, startConnect } from './AuthService';
 
 const toHex = (bytes) => Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
 const toBase64Url = (base64) => base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
@@ -27,14 +27,8 @@ async function makePkce() {
  * Resolves to the backend's answer ({ tokens } or { challenge }), or null if the
  * person closed the page or pressed Cancel.
  */
-export async function signInWith(provider) {
-    const { verifier, challenge } = await makePkce();
-    // Where the backend sends the browser back to: exp://<laptop>:8081/--/oauth in Expo Go.
-    const returnUrl = Linking.createURL('oauth');
-    const startUrl =
-        `${API_BASE_URL}/auth/oauth/${provider}/start` +
-        `?redirect_uri=${encodeURIComponent(returnUrl)}&code_challenge=${encodeURIComponent(challenge)}`;
-
+/** Open the provider's page and answer the one-time code it sends back, or null if cancelled. */
+async function openProviderPage(startUrl, returnUrl) {
     // Android: by default Expo launches the tab through a proxy activity that keeps it alive
     // after the person leaves it, so an unfinished sign-in resurfaces on the next tap (even on
     // the other provider's button). Without the proxy the tab opens with "no history": it
@@ -47,6 +41,34 @@ export async function signInWith(provider) {
     if (queryParams?.error === 'cancelled') return null;
     if (queryParams?.error) throw new Error(`oauth ${queryParams.error}`);
     if (!queryParams?.code) throw new Error('oauth failed');
+    return queryParams.code;
+}
 
-    return exchangeOAuthCode({ code: queryParams.code, codeVerifier: verifier });
+export async function signInWith(provider) {
+    const { verifier, challenge } = await makePkce();
+    // Where the backend sends the browser back to: exp://<laptop>:8081/--/oauth in Expo Go.
+    const returnUrl = Linking.createURL('oauth');
+    const startUrl =
+        `${API_BASE_URL}/auth/oauth/${provider}/start` +
+        `?redirect_uri=${encodeURIComponent(returnUrl)}&code_challenge=${encodeURIComponent(challenge)}`;
+
+    const code = await openProviderPage(startUrl, returnUrl);
+    if (!code) return null;
+    return exchangeOAuthCode({ code, codeVerifier: verifier });
+}
+
+/**
+ * Connect Google to the signed-in account from Account: password and code first, then the
+ * Google page. Resolves true once joined, false if the person cancelled on Google's page.
+ */
+export async function connectWith(provider, { token, password, code }) {
+    const { verifier, challenge } = await makePkce();
+    const returnUrl = Linking.createURL('oauth');
+    const { authorization_url } = await startConnect({
+        token, provider, password, code, redirectUri: returnUrl, codeChallenge: challenge,
+    });
+    const oneTimeCode = await openProviderPage(authorization_url, returnUrl);
+    if (!oneTimeCode) return false;
+    await finishConnect({ token, code: oneTimeCode, codeVerifier: verifier });
+    return true;
 }

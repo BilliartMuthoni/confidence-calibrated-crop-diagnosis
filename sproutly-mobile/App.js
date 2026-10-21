@@ -22,7 +22,13 @@ import FarmerDashboard from './src/screens/farmer/FarmerDashboard';
 import DiagnosisScreen from './src/screens/farmer/DiagnosisScreen';
 import ResultScreen from './src/screens/farmer/ResultScreen';
 import BatchResultScreen from './src/screens/farmer/BatchResultScreen';
-import ProfileScreen from './src/screens/farmer/ProfileScreen';
+import AccountScreen from './src/screens/account/AccountScreen';
+import ChangePasswordScreen from './src/screens/account/ChangePasswordScreen';
+import NewAuthenticatorScreen from './src/screens/account/NewAuthenticatorScreen';
+import BackupCodesScreen from './src/screens/account/BackupCodesScreen';
+import DeleteAccountScreen from './src/screens/account/DeleteAccountScreen';
+import InfoScreen from './src/screens/account/InfoScreen';
+import ConnectGoogleScreen from './src/screens/account/ConnectGoogleScreen';
 import SupportContactsScreen from './src/screens/farmer/SupportContactsScreen';
 import HistoryScreen from './src/screens/farmer/HistoryScreen';
 
@@ -56,7 +62,13 @@ const RootNavigator = () => {
                         <Stack.Screen name="Diagnosis" component={DiagnosisScreen} />
                         <Stack.Screen name="Result" component={ResultScreen} />
                         <Stack.Screen name="BatchResult" component={BatchResultScreen} />
-                        <Stack.Screen name="Profile" component={ProfileScreen} />
+                        <Stack.Screen name="Account" component={AccountScreen} options={{ animation: 'none' }} />
+                        <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} />
+                        <Stack.Screen name="NewAuthenticator" component={NewAuthenticatorScreen} />
+                        <Stack.Screen name="BackupCodes" component={BackupCodesScreen} />
+                        <Stack.Screen name="DeleteAccount" component={DeleteAccountScreen} />
+                        <Stack.Screen name="Info" component={InfoScreen} />
+                        <Stack.Screen name="ConnectGoogle" component={ConnectGoogleScreen} />
                         <Stack.Screen
                             name="SupportContacts"
                             component={SupportContactsScreen}

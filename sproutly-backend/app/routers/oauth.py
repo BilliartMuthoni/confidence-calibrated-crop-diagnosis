@@ -21,8 +21,9 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
-from app.core import oauth
+from app.core import audit, oauth
 from app.core.config import settings
+from app.core.deps import get_current_user
 from app.core.limiter import limiter
 from app.core.lockout import ensure_not_locked, register_failure
 from app.core.security import (
@@ -37,13 +38,16 @@ from app.core.security import (
 from app.db.session import get_db
 from app.models.oauth_flow import OAuthFlow
 from app.models.user import User, UserRole
-from app.routers.auth import _check_code, _signed_in, _start_setup, issue_tokens
+from app.routers.auth import _check_code, _signed_in, _start_setup, check_password_and_code, issue_tokens
 from app.schemas.auth import (
+    ConnectRequest,
+    ConnectStart,
     LinkNeeded,
     MfaChallengeResponse,
     OAuthExchangeRequest,
     OAuthLinkRequest,
     OAuthLoginResponse,
+    PasswordAndCodeRequest,
 )
 
 router = APIRouter(prefix="/auth/oauth", tags=["auth"])
@@ -102,9 +106,9 @@ def _find_or_create_user(db: Session, identity: oauth.Identity) -> tuple[User, O
     return user, None
 
 
-@router.get("/{provider}/start")
-@limiter.limit("10/minute")
-def start(request: Request, provider: str, redirect_uri: str, code_challenge: str, db: Session = Depends(get_db)):
+def _new_flow(db: Session, request: Request, provider: str, redirect_uri: str, code_challenge: str,
+              connect_user_id: Optional[int] = None) -> str:
+    """Record a new attempt and answer the provider's sign-in page for it."""
     if not oauth.is_configured(provider):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Unknown sign-in option")
     # Only the app's own links: the login code must never be sent to an outside website.
@@ -124,14 +128,56 @@ def start(request: Request, provider: str, redirect_uri: str, code_challenge: st
         app_code_challenge=code_challenge,
         provider_code_verifier=verifier,
         expires_at=_now() + timedelta(minutes=settings.oauth_flow_expire_minutes),
+        connect_user_id=connect_user_id,
     )
     db.add(flow)
     db.commit()
-    redirect_uri = oauth.callback_url(provider, str(request.base_url))
-    return RedirectResponse(
-        oauth.authorization_url(provider, flow.state, pkce_challenge(verifier), redirect_uri),
-        status_code=status.HTTP_302_FOUND,
-    )
+    callback = oauth.callback_url(provider, str(request.base_url))
+    return oauth.authorization_url(provider, flow.state, pkce_challenge(verifier), callback)
+
+
+@router.get("/{provider}/start")
+@limiter.limit("10/minute")
+def start(request: Request, provider: str, redirect_uri: str, code_challenge: str, db: Session = Depends(get_db)):
+    return RedirectResponse(_new_flow(db, request, provider, redirect_uri, code_challenge),
+                            status_code=status.HTTP_302_FOUND)
+
+
+def _provider_column(provider: str) -> str:
+    column = PROVIDER_ID_COLUMNS.get(provider)
+    if not column or not oauth.is_configured(provider):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Unknown sign-in option")
+    return column
+
+
+def _farmer_with_password(db: Session, user: User, password: str, code: str, request: Request) -> None:
+    """Connecting and disconnecting change how the account signs in, so, like GitHub's sudo
+    mode, they ask for the password and authenticator code again: a stolen phone session alone
+    can't add the thief's Google to the account or take the owner's away."""
+    if user.role != UserRole.farmer:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                            detail="Staff sign in with their password and authenticator only")
+    if not user.hashed_password:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="This account signs in with Google only")
+    check_password_and_code(db, user, password, code, request)
+
+
+@router.post("/{provider}/connect", response_model=ConnectStart)
+@limiter.limit("5/minute")
+def connect(request: Request, provider: str, payload: ConnectRequest, db: Session = Depends(get_db),
+            current_user: User = Depends(get_current_user)):
+    """Connect Google from Account, step 1. Whichever Google account the person then picks is
+    joined to this account, even with a different email, as on GitHub; the email is never used
+    to choose the account here, because the account is the one already signed in."""
+    column = _provider_column(provider)
+    if getattr(current_user, column) is not None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="Google is already connected to this account")
+    _farmer_with_password(db, current_user, payload.password, payload.code, request)
+    url = _new_flow(db, request, provider, payload.redirect_uri, payload.code_challenge,
+                    connect_user_id=current_user.user_id)
+    return ConnectStart(authorization_url=url)
 
 
 @router.get("/{provider}/callback")
@@ -159,12 +205,18 @@ def callback(
         # own address rebuilds exactly the redirect_uri that was sent to the provider.
         identity = oauth.fetch_identity(provider, code, flow.provider_code_verifier,
                                         oauth.callback_url(provider, str(request.base_url)))
-        user, link_subject = _find_or_create_user(db, identity)
+        if flow.connect_user_id is not None:
+            # Connect from Account: the account is the one that started this, never found by email.
+            user, link_subject = db.get(User, flow.connect_user_id), identity.subject
+            if not user or _owner_of(db, provider, identity.subject) not in (None, user.user_id):
+                raise oauth.OAuthError("google_in_use")
+        else:
+            user, link_subject = _find_or_create_user(db, identity)
     except oauth.OAuthError as exc:
         flow.used = True
         db.commit()
         # These tell the app what to say; anything else (a provider failure) is just "failed".
-        reason = str(exc) if str(exc) in ("account_conflict", "staff_account") else "failed"
+        reason = str(exc) if str(exc) in ("account_conflict", "staff_account", "google_in_use") else "failed"
         return _back_to_app(flow, error=reason)
 
     if not user.is_active:
@@ -192,6 +244,9 @@ def exchange(request: Request, payload: OAuthExchangeRequest, db: Session = Depe
         raise invalid
     if not hmac.compare_digest(pkce_challenge(payload.code_verifier), flow.app_code_challenge):
         raise invalid
+
+    if flow.connect_user_id is not None:
+        raise invalid  # a Connect Google attempt finishes at /connect/finish, never as a sign-in
 
     flow.used = True  # one exchange per code
     db.commit()
@@ -263,6 +318,50 @@ def link(request: Request, payload: OAuthLinkRequest, db: Session = Depends(get_
         # Sign-up stopped before the authenticator: set it up now, as a password login would.
         return OAuthLoginResponse(challenge=_start_setup(db, user))
     return OAuthLoginResponse(tokens=_signed_in(db, user, request, "Google joined to this account"))
+
+
+def _owner_of(db: Session, provider: str, subject: str) -> Optional[int]:
+    """The account this provider identity already opens, if any."""
+    owner = db.query(User).filter(getattr(User, PROVIDER_ID_COLUMNS[provider]) == subject).first()
+    return owner.user_id if owner else None
+
+
+@router.post("/connect/finish", status_code=status.HTTP_204_NO_CONTENT)
+@limiter.limit("10/minute")
+def finish_connect(request: Request, payload: OAuthExchangeRequest, db: Session = Depends(get_db),
+                   current_user: User = Depends(get_current_user)):
+    """Connect Google, step 2: the app that started it sends the one-time code and its PKCE
+    verifier, signed in as the same account. A code that reached some other app is useless."""
+    invalid = HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="This sign-in has expired. Please try again.")
+    flow = db.query(OAuthFlow).filter(OAuthFlow.login_code_hash == hash_token(payload.code)).first()
+    if not flow or flow.used or flow.login_code_expires_at < _now() or flow.connect_user_id != current_user.user_id:
+        raise invalid
+    if not hmac.compare_digest(pkce_challenge(payload.code_verifier), flow.app_code_challenge):
+        raise invalid
+    flow.used = True
+    column = PROVIDER_ID_COLUMNS[flow.provider]
+    if _owner_of(db, flow.provider, flow.link_subject) not in (None, current_user.user_id) \
+            or getattr(current_user, column) not in (None, flow.link_subject):
+        db.commit()
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="This Google account is already linked to another Sproutly account")
+    setattr(current_user, column, flow.link_subject)
+    audit.record(db, current_user, "google_connected", current_user.user_email or "", request=request)
+    db.commit()
+
+
+@router.post("/{provider}/disconnect", status_code=status.HTTP_204_NO_CONTENT)
+@limiter.limit("5/minute")
+def disconnect(request: Request, provider: str, payload: PasswordAndCodeRequest, db: Session = Depends(get_db),
+               current_user: User = Depends(get_current_user)):
+    """Stop signing in with Google. Only for an account with a password, so it can still be opened."""
+    column = _provider_column(provider)
+    if getattr(current_user, column) is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Google is not connected to this account")
+    _farmer_with_password(db, current_user, payload.password, payload.code, request)
+    setattr(current_user, column, None)
+    audit.record(db, current_user, "google_disconnected", current_user.user_email or "", request=request)
+    db.commit()
 
 
 @router.get("/providers")

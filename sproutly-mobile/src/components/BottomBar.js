@@ -4,11 +4,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../constants/theme';
 
-// The three places a farmer moves between. Profile stays in the top corner of Home.
+// The four places a farmer moves between. Account holds the profile and every setting
+// (security, privacy, help, about), like the account page of other professional apps.
 const TABS = [
     { name: 'FarmerHome', label: 'Home', icon: 'home' },
     { name: 'History', label: 'Your checks', icon: 'time' },
     { name: 'SupportContacts', label: 'Support', icon: 'call' },
+    { name: 'Account', label: 'Account', icon: 'person-circle' },
 ];
 
 /** Switches tabs without stacking screens: Home stays underneath, so Back always returns Home. */

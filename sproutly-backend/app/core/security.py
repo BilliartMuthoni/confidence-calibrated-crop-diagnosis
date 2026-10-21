@@ -42,19 +42,23 @@ def _create_token(data: dict, expires_delta: timedelta, token_type: str) -> str:
     return jwt.encode(to_encode, settings.secret_key, algorithm=settings.algorithm)
 
 
-def create_access_token(subject: str, role: str, minutes: Optional[int] = None) -> str:
+def create_access_token(subject: str, role: str, minutes: Optional[int] = None,
+                        auth_time: Optional[int] = None) -> str:
+    """``auth_time``: when the person last proved who they are (password and code, or Google),
+    in seconds since 1970. Renewing a session keeps it, so actions that need a recent proof
+    (deleting a Google-only account) can tell a fresh sign-in from a renewed one."""
     return _create_token(
-        {"sub": subject, "role": role},
+        {"sub": subject, "role": role, "auth_time": auth_time or int(time.time())},
         timedelta(minutes=minutes or settings.access_token_expire_minutes),
         "access",
     )
 
 
-def create_refresh_token(subject: str, token_id: str) -> str:
+def create_refresh_token(subject: str, token_id: str, auth_time: Optional[int] = None) -> str:
     """Long-lived key the app swaps for a fresh pair (/auth/refresh). ``token_id`` is also
     stored on the user, and only the stored one works, so each key works once."""
     return _create_token(
-        {"sub": subject, "jti": token_id},
+        {"sub": subject, "jti": token_id, "auth_time": auth_time or int(time.time())},
         timedelta(days=settings.refresh_token_expire_days),
         "refresh",
     )

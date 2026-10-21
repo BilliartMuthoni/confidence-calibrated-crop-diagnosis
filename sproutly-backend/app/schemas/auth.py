@@ -143,6 +143,30 @@ class OAuthLinkRequest(BaseModel):
         return _six_digits(v) if v else None
 
 
+class PasswordAndCodeRequest(BaseModel):
+    """Proof before changing how the account signs in: its password and authenticator code."""
+
+    password: str
+    code: str
+
+    @field_validator("code")
+    @classmethod
+    def code_is_six_digits(cls, v: str) -> str:
+        return _six_digits(v)
+
+
+class ConnectRequest(PasswordAndCodeRequest):
+    """Connect Google from Account: the proof, plus the app's return link and PKCE challenge."""
+
+    redirect_uri: str
+    code_challenge: str
+
+
+class ConnectStart(BaseModel):
+    # The provider's sign-in page; the app opens it in a browser tab.
+    authorization_url: str
+
+
 class AddPasswordRequest(BaseModel):
     """A Google account adding a Sproutly password, so it can also sign in with email."""
 
@@ -167,8 +191,25 @@ class CurrentUserResponse(BaseModel):
     role: UserRole
     is_verified: bool
     created_at: datetime
+    # Which ways in the account has, so the app shows only the settings that apply.
+    has_password: bool = False
+    mfa_enabled: bool = False
+    google_connected: bool = False
 
     model_config = {"from_attributes": True}
+
+
+class DeleteAccountRequest(BaseModel):
+    """Proof before deleting: password and code; an account made with Google sends neither
+    and needs a Google sign-in from the last 5 minutes instead."""
+
+    password: Optional[str] = None
+    code: Optional[str] = None
+
+    @field_validator("code")
+    @classmethod
+    def code_is_six_digits(cls, v: Optional[str]) -> Optional[str]:
+        return _six_digits(v) if v else None
 
 
 class CountyUpdate(BaseModel):

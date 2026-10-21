@@ -127,6 +127,72 @@ export async function addPassword({ token, password, email }) {
     }
 }
 
+// --- Account tab ---
+
+async function authorizedPost(path, token, body) {
+    try {
+        const { data } = await client.post(path, body, { headers: { Authorization: `Bearer ${token}` } });
+        return data;
+    } catch (error) {
+        throw new Error(extractErrorMessage(error));
+    }
+}
+
+/** Change the password. Answers a fresh sign-in for this phone; other phones are signed out. */
+export function changePassword({ token, currentPassword, newPassword }) {
+    return authorizedPost('/auth/password', token, { current_password: currentPassword, new_password: newPassword });
+}
+
+/** Moving the authenticator to a new phone, step 1: a code from the current app. Answers the new key. */
+export function startNewAuthenticator({ token, code }) {
+    return authorizedPost('/auth/mfa/reenrol/start', token, { code });
+}
+
+/** Step 2: a code from the authenticator on the new phone. The old one stops working. */
+export function confirmNewAuthenticator({ token, setupToken, code }) {
+    return authorizedPost('/auth/mfa/reenrol/confirm', token, { setup_token: setupToken, code });
+}
+
+/** Ten new single-use backup codes, shown once; all older codes stop working. */
+export function makeBackupCodes({ token, code }) {
+    return authorizedPost('/auth/backup-codes', token, { code });
+}
+
+/** Delete the account and its data. Password accounts send password and code; an account made
+ *  with Google sends neither, right after continuing with Google again. */
+export function deleteAccount({ token, password, code }) {
+    const body = {};
+    if (password) body.password = password;
+    if (code) body.code = code;
+    return authorizedPost('/auth/me/delete', token, body);
+}
+
+/** Connect Google, step 1: password and code first. Answers { authorization_url } (Google's page). */
+export function startConnect({ token, provider, password, code, redirectUri, codeChallenge }) {
+    return authorizedPost(`/auth/oauth/${provider}/connect`, token,
+        { password, code, redirect_uri: redirectUri, code_challenge: codeChallenge });
+}
+
+/** Connect Google, step 2: the one-time code Google's page sent back, with the PKCE verifier. */
+export function finishConnect({ token, code, codeVerifier }) {
+    return authorizedPost('/auth/oauth/connect/finish', token, { code, code_verifier: codeVerifier });
+}
+
+/** Stop signing in with Google (accounts with a password only). */
+export function disconnect({ token, provider, password, code }) {
+    return authorizedPost(`/auth/oauth/${provider}/disconnect`, token, { password, code });
+}
+
+/** A backup code instead of the authenticator code (lost phone); each code works once. */
+export async function verifyBackupCode({ mfaToken, code }) {
+    try {
+        const { data } = await client.post('/auth/mfa/backup', { mfa_token: mfaToken, code });
+        return data;
+    } catch (error) {
+        throw new Error(extractErrorMessage(error));
+    }
+}
+
 /** Code from the authenticator app after the password; returns the session tokens. */
 export async function verifyMfa({ mfaToken, code }) {
     try {

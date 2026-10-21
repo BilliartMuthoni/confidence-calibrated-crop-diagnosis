@@ -30,7 +30,7 @@ ORPHAN_HOURS = 24
 OPEN = (ReferralStatus.new, ReferralStatus.in_review)
 
 
-def _inside_uploads(path: str) -> bool:
+def inside_uploads(path: str) -> bool:
     folder = os.path.realpath(settings.upload_dir)
     return os.path.commonpath([folder, os.path.realpath(path)]) == folder
 
@@ -51,7 +51,7 @@ def delete_old_photos(db: Session, now: Optional[datetime] = None) -> dict:
         if diagnosis_id in open_referrals:
             kept_open += 1
             continue
-        if path and os.path.isfile(path) and _inside_uploads(path):
+        if path and os.path.isfile(path) and inside_uploads(path):
             os.remove(path)
             deleted += 1
 

@@ -70,6 +70,10 @@ export const AUDIT_ACTIONS = {
   advice_add: 'Added advice',
   advice_correct: 'Corrected advice',
   advice_retire: 'Retired advice',
+  account_deleted: 'A farmer deleted their account',
+  google_connected: 'Connected Google',
+  google_disconnected: 'Disconnected Google',
+  photos_deleted: 'Old photos deleted (automatic)',
 }
 
 // The API sends UTC times without a zone marker; read them as UTC (same rule as the mobile app).
