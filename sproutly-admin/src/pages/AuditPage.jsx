@@ -14,9 +14,11 @@ const GROUPS = [
   ['user', 'User accounts'],
   ['contact', 'Contacts'],
   ['advice', 'Advice library'],
+  ['photos', 'Photo clean-up'],
 ]
-const SECURITY = ['password_change', 'mfa_reenrol', 'backup_codes']
-const groupOf = (action) => (SECURITY.includes(action) ? 'security' : action.split('_')[0])
+const SECURITY = ['password_change', 'mfa_reenrol', 'backup_codes', 'google_connected', 'google_disconnected']
+const groupOf = (action) =>
+  SECURITY.includes(action) ? 'security' : action === 'account_deleted' ? 'user' : action.split('_')[0]
 
 // Read-only: the backend writes every entry and nobody can edit or delete one.
 export default function AuditPage() {

@@ -38,15 +38,27 @@ export async function clearTokens() {
     await AsyncStorage.multiRemove(OLD_KEYS);
 }
 
+function claimsOf(token) {
+    const part = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    return JSON.parse(atob(part + '='.repeat((4 - (part.length % 4)) % 4)));
+}
+
 /** True if the token expires within `seconds` (or can't be read). Only the expiry is read;
  *  the backend checks the signature. */
 export function expiresWithin(token, seconds) {
     try {
-        const part = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
-        const { exp } = JSON.parse(atob(part + '='.repeat((4 - (part.length % 4)) % 4)));
-        return exp * 1000 - Date.now() < seconds * 1000;
+        return claimsOf(token).exp * 1000 - Date.now() < seconds * 1000;
     } catch {
         return true;
+    }
+}
+
+/** The account a token belongs to (its user id), or null if it can't be read. */
+export function accountOf(token) {
+    try {
+        return String(claimsOf(token).sub);
+    } catch {
+        return null;
     }
 }
 

@@ -30,4 +30,7 @@ class OAuthFlow(Base):
     # Set when the provider's email belongs to an existing password account: the provider's id
     # for this person, waiting to be joined once they prove the account is theirs (password + code).
     link_subject = Column(String, nullable=True)
+    # Set from the start on a "Connect Google" attempt made from Account: the signed-in account
+    # the provider identity is joined to, whatever its email (as GitHub's connected accounts).
+    connect_user_id = Column(Integer, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=True)
     used = Column(Boolean, nullable=False, default=False, server_default=false())

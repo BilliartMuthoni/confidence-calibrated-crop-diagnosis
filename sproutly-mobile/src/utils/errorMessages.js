@@ -35,9 +35,27 @@ const PATTERNS = [
         retryable: false,
     },
     {
+        match: /current password is not right/i,
+        title: 'That password is not right',
+        message: 'Type the password you use to log in to Sproutly now.',
+        retryable: false,
+    },
+    {
         match: /password is not right/i,
         title: 'That password is not right',
         message: 'Enter your Sproutly password, not your Google password.',
+        retryable: false,
+    },
+    {
+        match: /backup code is wrong or already used/i,
+        title: 'That backup code did not work',
+        message: 'Check the digits, or try another of your codes: each one works only once.',
+        retryable: false,
+    },
+    {
+        match: /continue with google again/i,
+        title: 'Confirm with Google first',
+        message: 'For your safety, tap the button to continue with Google, then your account is deleted.',
         retryable: false,
     },
     {
@@ -77,6 +95,12 @@ const PATTERNS = [
         match: /code must be the 6 digits/i,
         title: 'Enter all 6 digits',
         message: 'Type the 6-digit code shown under Sproutly in your authenticator app.',
+        retryable: false,
+    },
+    {
+        match: /oauth google_in_use/i,
+        title: 'Google already in use',
+        message: 'That Google account already opens a different Sproutly account. Choose another Google account.',
         retryable: false,
     },
     {

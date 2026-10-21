@@ -37,6 +37,13 @@ def get_current_user(
     return user
 
 
+def get_token_claims(credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme)) -> dict:
+    """The claims of the request's access token (use together with get_current_user, which
+    checks it), e.g. auth_time: when the person last signed in rather than renewed."""
+    payload = decode_token(credentials.credentials) if credentials else None
+    return payload or {}
+
+
 def require_role(*allowed_roles: UserRole):
     """Guard a route so only the given roles may call it."""
 

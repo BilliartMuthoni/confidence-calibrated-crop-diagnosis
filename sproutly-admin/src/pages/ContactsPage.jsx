@@ -124,9 +124,21 @@ export default function ContactsPage() {
     reload()
   }
 
+  // Which row is saving a check, and which one failed: the click must always show something.
+  const [checking, setChecking] = useState(null)
+  const [checkFailed, setCheckFailed] = useState(null)
+
   const checked = async (contact) => {
-    await markContactChecked(token, contact.id)
-    reload()
+    setChecking(contact.id)
+    setCheckFailed(null)
+    try {
+      await markContactChecked(token, contact.id)
+      reload()
+    } catch {
+      setCheckFailed(contact.id)
+    } finally {
+      setChecking(null)
+    }
   }
 
   const shown = (data ?? []).filter((c) => !county || c.county === county).filter((c) => isAdmin || c.active)
@@ -198,7 +210,15 @@ export default function ContactsPage() {
                   {isAdmin && (
                     <td className="px-5 py-3 text-right">
                       <div className="flex flex-col items-end gap-1 whitespace-nowrap">
-                        <button type="button" className="font-semibold text-primary underline" onClick={() => checked(c)}>Mark checked</button>
+                        {daysSince(c.checked_on) === 0 ? (
+                          <span className="font-semibold text-healthy">Checked today</span>
+                        ) : (
+                          <button type="button" className="font-semibold text-primary underline disabled:opacity-50"
+                                  disabled={checking === c.id} onClick={() => checked(c)}>
+                            {checking === c.id ? 'Saving…' : 'Mark checked'}
+                          </button>
+                        )}
+                        {checkFailed === c.id && <span role="alert" className="text-xs text-attention">Couldn't save. Try again.</span>}
                         <button type="button" className="font-semibold text-primary underline" onClick={() => setEditing(c)}>Edit</button>
                         <button type="button" className="font-semibold text-muted underline" onClick={() => toggle(c)}>
                           {c.active ? 'Hide' : 'Show'}

@@ -58,18 +58,11 @@ export default function FarmerDashboard({ navigation }) {
                 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}
             >
                 {/* Header */}
-                <View className="flex-row items-center justify-between pt-4">
+                {/* Profile and settings live in the Account tab. */}
+                <View className="flex-row items-center pt-4">
                     <Text className="text-2xl font-bold" style={{ color: COLORS.brand }}>
                         Sproutly
                     </Text>
-                    <TouchableOpacity
-                        onPress={() => navigation.navigate('Profile')}
-                        hitSlop={12}
-                        accessibilityRole="button"
-                        accessibilityLabel="Profile"
-                    >
-                        <Ionicons name="person-circle-outline" size={32} color={COLORS.brand} />
-                    </TouchableOpacity>
                 </View>
                 <Text className="text-base mt-1" style={{ color: COLORS.muted }}>
                     What is affecting your crop today?

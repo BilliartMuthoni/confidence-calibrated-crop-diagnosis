@@ -1,7 +1,10 @@
 import hmac
+import os
+import time
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.core import audit
@@ -29,10 +32,14 @@ from app.core.security import (
 from app.core.staff_links import find_link
 from app.core.timeutil import utcnow
 from app.db.session import get_db
+from app.core.retention import inside_uploads
 from app.models.audit import AuditEntry
+from app.models.diagnosis import Diagnosis
+from app.models.oauth_flow import OAuthFlow
+from app.models.referral import Referral
 from app.models.staff_auth import BackupCode
 from app.models.user import User, UserRole
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, get_token_claims
 from app.schemas.auth import (
     STAFF_PASSWORD_MIN,
     AccountResponse,
@@ -41,6 +48,7 @@ from app.schemas.auth import (
     BackupCodesResponse,
     CodeRequest,
     CountyUpdate,
+    DeleteAccountRequest,
     PasswordChangeRequest,
     ReenrolConfirmRequest,
     ReenrolStart,
@@ -132,16 +140,34 @@ def _check_code(db: Session, user: User, code: str, request: Optional[Request] =
     db.commit()
 
 
-def issue_tokens(user: User, login: Optional[str] = None) -> TokenResponse:
+def check_password_and_code(db: Session, user: User, password: Optional[str], code: Optional[str],
+                            request: Optional[Request] = None) -> None:
+    """Proof the person holds the account: its password, and the authenticator code if it is on.
+    Wrong answers count towards the account's lockout."""
+    ensure_not_locked(user)
+    if not user.hashed_password or not password or not verify_password(password, user.hashed_password):
+        register_failure(db, user)
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="That password is not right")
+    if user.mfa_enabled:
+        if not code:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                                detail="Code must be the 6 digits shown in your authenticator app")
+        _check_code(db, user, code, request)
+
+
+def issue_tokens(user: User, login: Optional[str] = None, auth_time: Optional[int] = None) -> TokenResponse:
     """A new pair of tokens. The refresh token's id ("<login>.<random>") is stored on the
     user, replacing any earlier one, so only the newest one can be used. ``login`` names the
-    sign-in the tokens belong to: new at every sign-in, kept across refreshes. The caller commits."""
+    sign-in the tokens belong to and ``auth_time`` when it happened: both new at every sign-in,
+    kept across refreshes. The caller commits."""
     # Staff sessions end after a working day at most; farmers keep the app's usual tokens.
     minutes = settings.staff_session_minutes if _is_staff(user) else None
     user.refresh_token_id = f"{login or new_url_token()}.{new_url_token()}"
     return TokenResponse(
-        access_token=create_access_token(subject=str(user.user_id), role=user.role.value, minutes=minutes),
-        refresh_token=create_refresh_token(subject=str(user.user_id), token_id=user.refresh_token_id),
+        access_token=create_access_token(subject=str(user.user_id), role=user.role.value, minutes=minutes,
+                                         auth_time=auth_time),
+        refresh_token=create_refresh_token(subject=str(user.user_id), token_id=user.refresh_token_id,
+                                           auth_time=auth_time),
         role=user.role,
     )
 
@@ -159,24 +185,24 @@ def _signed_in(db: Session, user: User, request: Request, how: str = "") -> Toke
 SESSION_ENDED = "Your session has ended. Please log in again."
 
 
-def _check_refresh_token(db: Session, token: str) -> tuple[Optional[User], str, str]:
-    """(user, state, login) for a refresh token. state is "current" (the one that may be used
+def _check_refresh_token(db: Session, token: str) -> tuple[Optional[User], str, dict]:
+    """(user, state, claims) for a refresh token. state is "current" (the one that may be used
     next), "reused" (an earlier token of the same sign-in: it was already swapped, so someone
     kept a copy), "replaced" (from an older sign-in that a newer one replaced) or "invalid"."""
     claims = decode_token(token)
     token_id = claims.get("jti") if claims and claims.get("type") == "refresh" else None
     if not token_id or "." not in token_id or not claims.get("sub"):
-        return None, "invalid", ""
+        return None, "invalid", {}
     user = db.get(User, int(claims["sub"]))
     if not user:
-        return None, "invalid", ""
+        return None, "invalid", {}
     login = token_id.split(".")[0]
     stored = user.refresh_token_id or ""
     if stored and hmac.compare_digest(token_id, stored):
-        return user, "current", login
+        return user, "current", claims
     if stored and hmac.compare_digest(login, stored.split(".")[0]):
-        return user, "reused", login
-    return user, "replaced", login
+        return user, "reused", claims
+    return user, "replaced", claims
 
 
 @router.post("/refresh", response_model=TokenResponse)
@@ -187,14 +213,14 @@ def refresh(request: Request, payload: RefreshRequest, db: Session = Depends(get
     of the same sign-in used again means a copy exists, so that sign-in is ended for whoever
     holds it; a token from an older sign-in on another phone is simply refused."""
     ended = HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=SESSION_ENDED)
-    user, state, login = _check_refresh_token(db, payload.refresh_token)
+    user, state, claims = _check_refresh_token(db, payload.refresh_token)
     if state == "reused":
         user.refresh_token_id = None
         db.commit()
     # Staff sessions end after a working day; the portal signs in again instead of renewing.
     if state != "current" or not user.is_active or _is_staff(user):
         raise ended
-    tokens = issue_tokens(user, login)
+    tokens = issue_tokens(user, claims["jti"].split(".")[0], claims.get("auth_time"))
     db.commit()
     return tokens
 
@@ -204,7 +230,7 @@ def refresh(request: Request, payload: RefreshRequest, db: Session = Depends(get
 def logout(request: Request, payload: RefreshRequest, db: Session = Depends(get_db)):
     """End the session on the server: the refresh token stops working. Answers the same
     whether or not the token was valid, so it says nothing about other accounts."""
-    user, state, _ = _check_refresh_token(db, payload.refresh_token)
+    user, state, _claims = _check_refresh_token(db, payload.refresh_token)
     if state == "current":
         user.refresh_token_id = None
         db.commit()
@@ -320,9 +346,18 @@ def verify_backup_code(request: Request, payload: BackupCodeLoginRequest, db: Se
     return _signed_in(db, user, request, f"With a backup code ({len(unused) - 1} left)")
 
 
+def _me(user: User) -> CurrentUserResponse:
+    """The account, plus which ways in it has, so the app shows only the settings that apply."""
+    return CurrentUserResponse.model_validate(user).model_copy(update={
+        "has_password": bool(user.hashed_password),
+        "mfa_enabled": bool(user.mfa_enabled),
+        "google_connected": user.google_id is not None,
+    })
+
+
 @router.get("/me", response_model=CurrentUserResponse)
 def read_current_user(current_user: User = Depends(get_current_user)):
-    return current_user
+    return _me(current_user)
 
 
 @router.post("/me/county", response_model=CurrentUserResponse)
@@ -333,7 +368,7 @@ def set_my_county(payload: CountyUpdate, db: Session = Depends(get_db), current_
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Ask an administrator to change your county")
     current_user.county = payload.county
     db.commit()
-    return current_user
+    return _me(current_user)
 
 
 # --- Staff passwords from one-time links ---
@@ -372,10 +407,12 @@ def my_account(db: Session = Depends(get_db), current_user: User = Depends(get_c
     )
 
 
-@router.post("/password", status_code=status.HTTP_204_NO_CONTENT)
+@router.post("/password", response_model=TokenResponse)
 @limiter.limit("5/minute")
 def change_password(request: Request, payload: PasswordChangeRequest, db: Session = Depends(get_db),
                     current_user: User = Depends(get_current_user)):
+    """Change the password. This device gets a fresh sign-in; any other phone's session stops
+    renewing (only the newest sign-in can), so a changed password also locks out a stolen phone."""
     ensure_not_locked(current_user)
     if not current_user.hashed_password or not verify_password(payload.current_password, current_user.hashed_password):
         register_failure(db, current_user)
@@ -386,6 +423,52 @@ def change_password(request: Request, payload: PasswordChangeRequest, db: Sessio
                             detail=f"The new password must be at least {minimum} characters long")
     current_user.hashed_password = hash_password(payload.new_password)
     audit.record(db, current_user, "password_change", current_user.user_email or "", request=request)
+    tokens = issue_tokens(current_user)
+    db.commit()
+    return tokens
+
+
+# Deleting a Google-only account (no password to ask for) needs a Google sign-in this recent.
+RECENT_SIGN_IN_SECONDS = 300
+
+
+@router.post("/me/delete", status_code=status.HTTP_204_NO_CONTENT)
+@limiter.limit("5/minute")
+def delete_my_account(request: Request, payload: DeleteAccountRequest, db: Session = Depends(get_db),
+                      current_user: User = Depends(get_current_user), claims: dict = Depends(get_token_claims)):
+    """A farmer deletes their account and its data: photos (the files too), checks, referrals,
+    backup codes and sign-in attempts, then the account (Kenya Data Protection Act 2019, s.40,
+    right to erasure; Google Play requires deletion inside the app). It asks for proof first:
+    the password and authenticator code, or for an account made with Google, a Google sign-in
+    in the last 5 minutes (a renewed session doesn't count). One audit entry records that an
+    account was deleted and when, without anything that identifies the person."""
+    user = current_user
+    if user.role != UserRole.farmer:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                            detail="Staff accounts are removed by an administrator")
+    if user.hashed_password:
+        check_password_and_code(db, user, payload.password, payload.code, request)
+    elif time.time() - float(claims.get("auth_time") or 0) > RECENT_SIGN_IN_SECONDS:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="For your safety, continue with Google again, then delete your account.")
+
+    user_id = user.user_id
+    diagnoses = db.query(Diagnosis).filter(Diagnosis.user_id == user_id).all()
+    for diagnosis in diagnoses:
+        if diagnosis.image_path and os.path.isfile(diagnosis.image_path) and inside_uploads(diagnosis.image_path):
+            os.remove(diagnosis.image_path)
+    ids = [d.diagnosis_id for d in diagnoses]
+    if ids:
+        db.query(Referral).filter(Referral.diagnosis_id.in_(ids)).delete(synchronize_session=False)
+        db.query(Diagnosis).filter(Diagnosis.diagnosis_id.in_(ids)).delete(synchronize_session=False)
+    db.query(BackupCode).filter(BackupCode.user_id == user_id).delete(synchronize_session=False)
+    db.query(OAuthFlow).filter(or_(OAuthFlow.user_id == user_id, OAuthFlow.connect_user_id == user_id)).delete(
+        synchronize_session=False)
+    db.query(AuditEntry).filter(AuditEntry.actor_id == user_id).update(
+        {AuditEntry.actor_id: None, AuditEntry.actor_label: "(deleted account)"}, synchronize_session=False)
+    audit.record(db, None, "account_deleted", f"farmer account #{user_id}",
+                 f"Deleted by the account holder with {len(ids)} checks", actor_label="(deleted account)")
+    db.delete(user)
     db.commit()
 
 
