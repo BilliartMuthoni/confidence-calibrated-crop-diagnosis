@@ -1,0 +1,8 @@
+reason,photos
+excluded: also shows a disease that is not ours,375
+excluded: healthy but with insect damage or tearing,36
+excluded: more than one of our classes,284
+excluded: none of our classes,426
+kept,1182
+near_duplicate_within_new_photos,44
+near_duplicates_with_conflicting_labels,8
