@@ -96,9 +96,19 @@ def predict(model: nn.Module, loader: DataLoader, device: str) -> tuple[np.ndarr
     return np.concatenate(all_logits), np.concatenate(all_labels)
 
 
-def _train_epoch(model, loader, optimizer, scheduler, scaler, device) -> float:
+def balanced_class_weights(labels, num_classes: int, cap: float = 5.0) -> list[float]:
+    """One loss weight per class index: total / (classes x class photos), as scikit-learn's
+    "balanced", capped at ``cap`` so a very small class cannot dominate the loss."""
+    counts = np.bincount(np.asarray(labels, dtype=int), minlength=num_classes)
+    if (counts == 0).any():
+        raise ValueError(f"No training photos for class index {np.flatnonzero(counts == 0).tolist()}")
+    return np.minimum(counts.sum() / (num_classes * counts), cap).round(4).tolist()
+
+
+def _train_epoch(model, loader, optimizer, scheduler, scaler, device, class_weights=None) -> float:
     model.train()
-    loss_fn = nn.CrossEntropyLoss()
+    weight = None if class_weights is None else torch.tensor(class_weights, dtype=torch.float32, device=device)
+    loss_fn = nn.CrossEntropyLoss(weight=weight)
     total, count = 0.0, 0
     for images, labels in tqdm(loader, desc="Training", leave=False):
         images, labels = images.to(device, non_blocking=True), labels.to(device, non_blocking=True)
@@ -115,7 +125,11 @@ def _train_epoch(model, loader, optimizer, scheduler, scaler, device) -> float:
 
 
 def fit(model, train_loader, val_loader, run_dir: Path, settings: dict, device: str) -> pd.DataFrame:
-    """Train with AdamW and a cosine learning-rate schedule; returns the per-epoch history."""
+    """Train with AdamW and a cosine learning-rate schedule; returns the per-epoch history.
+
+    ``settings["class_weights"]`` (optional, one per class index) weights the training loss;
+    without it every photo counts the same, as in every run before D22.
+    """
     run_dir.mkdir(parents=True, exist_ok=True)
     model.to(device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=settings["learning_rate"], weight_decay=settings["weight_decay"])
@@ -139,7 +153,8 @@ def fit(model, train_loader, val_loader, run_dir: Path, settings: dict, device: 
     num_classes = _head(model)[1].out_features
     for epoch in range(start, settings["epochs"]):
         began = time.time()
-        train_loss = _train_epoch(model, train_loader, optimizer, scheduler, scaler, device)
+        train_loss = _train_epoch(model, train_loader, optimizer, scheduler, scaler, device,
+                                  settings.get("class_weights"))
         logits, labels = predict(model, val_loader, device)
         val = metrics.summarise(logits, labels, num_classes)
         improved = val["macro_f1"] > best
