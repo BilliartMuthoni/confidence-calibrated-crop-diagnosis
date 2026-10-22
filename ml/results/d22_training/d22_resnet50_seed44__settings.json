@@ -1,0 +1,27 @@
+{
+  "image_size": 224,
+  "batch_size": 64,
+  "epochs": 15,
+  "patience": 4,
+  "weight_decay": 0.01,
+  "learning_rate": 0.001,
+  "architecture": "resnet50 (ImageNet weights: IMAGENET1K_V2)",
+  "seed": 44,
+  "train_list": "train_d22.csv",
+  "class_weights": [
+    1.3823,
+    1.5574,
+    1.7918,
+    1.2477,
+    0.9283,
+    2.1033,
+    0.8782,
+    1.0042,
+    0.585,
+    0.5208,
+    1.0437
+  ],
+  "class_weight_rule": "balanced (total / (classes x class photos)), capped at 5; decided 22 Oct 2026 because largest/smallest = 4.0 > 3",
+  "gpu": "Tesla T4",
+  "torch": "2.11.0+cu130"
+}
