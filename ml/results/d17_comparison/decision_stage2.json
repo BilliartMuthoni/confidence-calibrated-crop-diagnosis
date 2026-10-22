@@ -1,0 +1,38 @@
+{
+  "stage": 2,
+  "seeds_new": [
+    42,
+    43,
+    44
+  ],
+  "seeds_v1": [
+    42,
+    43,
+    44
+  ],
+  "selection_accuracy_new_per_seed": [
+    0.7228,
+    0.6148,
+    0.6577
+  ],
+  "selection_accuracy_v1_per_seed": [
+    0.5745,
+    0.5308,
+    0.5548
+  ],
+  "difference_new_minus_v1": 0.11175085056267997,
+  "seed_spread_new": 0.10808688824914947,
+  "seed_spread_v1": 0.04370583616854229,
+  "bootstrap_95_low": 0.1024164703829713,
+  "bootstrap_95_high": 0.12100671726424148,
+  "validation_macro_f1_new_mean": 0.9860756464470862,
+  "validation_macro_f1_v1_mean": 0.9866643265191716,
+  "validation_drop": 0.0005886800720853458,
+  "validation_drop_allowed": 0.0024990976072452042,
+  "validation_ok": true,
+  "margin": 0.10808688824914947,
+  "outcome": "adopt",
+  "adopt": true,
+  "reason": "New model better on the selection set beyond luck, validation not worse: adopt v2.",
+  "rule": "src/adoption.py, fixed 20 Oct 2026 before training"
+}
