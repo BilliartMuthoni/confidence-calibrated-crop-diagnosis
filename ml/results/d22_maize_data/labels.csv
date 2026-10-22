@@ -1,0 +1,12 @@
+label_reason,class,photos
+excluded: also shows a disease that is not ours,-,375
+excluded: healthy but with insect damage or tearing,-,36
+excluded: more than one of our classes,-,284
+excluded: none of our classes,-,426
+mapped,Corn_(maize)___Cercospora_leaf_spot Gray_leaf_spot,630
+mapped,Corn_(maize)___Common_rust_,107
+mapped,Corn_(maize)___Northern_Leaf_Blight,140
+mapped,Corn_(maize)___healthy,232
+mapped (with insect damage or tearing),Corn_(maize)___Cercospora_leaf_spot Gray_leaf_spot,83
+mapped (with insect damage or tearing),Corn_(maize)___Common_rust_,12
+mapped (with insect damage or tearing),Corn_(maize)___Northern_Leaf_Blight,30

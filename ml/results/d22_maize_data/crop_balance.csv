@@ -1,0 +1,6 @@
+,train.csv,train.csv,train_d17.csv,train_d17.csv,train_d22.csv,train_d22.csv
+,photos,share (%),photos,share (%),photos,share (%)
+class,,,,,,
+tomato,5150,44.9,5576,36.1,5576,33.5
+potato,3496,30.5,6938,44.9,6938,41.7
+maize,2831,24.7,2939,19.0,4121,24.8
