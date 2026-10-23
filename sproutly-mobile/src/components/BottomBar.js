@@ -42,10 +42,19 @@ export default function BottomBar({ navigation, active }) {
                         onPress={() => go(tab.name)}
                         accessibilityRole="tab"
                         accessibilityState={{ selected }}
-                        className="flex-1 items-center pt-2.5"
+                        accessibilityLabel={tab.label}
+                        className="flex-1 items-center pt-2.5 px-1"
                     >
-                        <Ionicons name={selected ? tab.icon : `${tab.icon}-outline`} size={22} color={color} />
-                        <Text className="text-xs mt-1" style={{ color, fontWeight: selected ? '700' : '500' }}>
+                        <Ionicons name={selected ? tab.icon : `${tab.icon}-outline`} size={24} color={color} />
+                        {/* Labels grow at most 1.2x with the phone's text size and stay on one line, as
+                            platform tab bars do; reading text elsewhere grows fully. */}
+                        <Text
+                            className="text-xs mt-1"
+                            style={{ color, fontWeight: selected ? '700' : '500' }}
+                            numberOfLines={1}
+                            maxFontSizeMultiplier={1.2}
+                            adjustsFontSizeToFit
+                        >
                             {tab.label}
                         </Text>
                     </TouchableOpacity>

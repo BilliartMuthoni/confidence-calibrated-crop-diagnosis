@@ -26,14 +26,15 @@ export function Group({ title, note, children }) {
 
 const rowLine = (last) => (last ? null : { borderBottomWidth: 1, borderBottomColor: COLORS.divider });
 
-/** A label and a value that can't be changed here. */
+/** A label and a value that can't be changed here. The label never shrinks: a value too long
+ *  to fit beside it (a long email, or any value with large text) moves to its own line. */
 export function InfoRow({ label, value, last }) {
     return (
-        <View className="flex-row items-center py-4 ml-5 pr-5" style={rowLine(last)}>
-            <Text className="text-base flex-1" style={{ color: COLORS.muted }}>
+        <View className="flex-row flex-wrap items-center py-4 ml-5 pr-5" style={rowLine(last)}>
+            <Text className="text-base mr-3" style={{ color: COLORS.muted, flexGrow: 1, flexShrink: 0 }}>
                 {label}
             </Text>
-            <Text className="text-base font-semibold" style={{ color: COLORS.ink }}>
+            <Text className="text-base font-semibold" style={{ color: COLORS.ink, flexShrink: 1, textAlign: 'right' }}>
                 {value}
             </Text>
         </View>
