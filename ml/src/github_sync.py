@@ -31,7 +31,7 @@ def push(repo: Path, branch: str, message: str, token: str, name: str, email: st
         return "Nothing to commit."
 
     _git(repo, "switch", "-c", branch)
-    committed = False
+    committed = pushed = False
     try:
         _git(repo, "add", "-A", "--", *(paths or ["."]))
         _git(repo, "-c", f"user.name={name}", "-c", f"user.email={email}", "commit", "-m", message)
@@ -43,12 +43,17 @@ def push(repo: Path, branch: str, message: str, token: str, name: str, email: st
             _git(repo, "push", authed, f"{branch}:{branch}")
         except RuntimeError as err:
             raise RuntimeError(str(err).replace(token, "***")) from None
+        pushed = True
         commit = _git(repo, "log", "-1", "--oneline")
     finally:
         if committed:
             # Colab autosaves the running notebook after the commit; that copy only
             # differs in this cell's output, so it is safe to drop.
             _git(repo, "switch", "--discard-changes", "main")
+            if pushed:
+                # The branch is on GitHub now; forgetting the local copy lets a later
+                # run push again without "a branch named ... already exists".
+                _git(repo, "branch", "-D", branch)
         else:
             # Nothing was committed, so carry the changes back to main rather than lose them.
             _git(repo, "switch", "main")
