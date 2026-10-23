@@ -16,6 +16,7 @@ from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.core import audit
+from app.core.classifier import model_paths
 from app.core.config import settings
 from app.core.deps import require_role
 from app.core.knowledge_base import KNOWLEDGE_BASE, display_name
@@ -424,12 +425,18 @@ def list_audit(db: Session = Depends(get_db), user: User = Depends(admin_only)):
 
 # ------------------------------------------------------------------------------- model
 
+def _image_model_label() -> str:
+    """The run folders in ML_MODEL_PATH: one model, or the members of the ensemble."""
+    runs = [p.parent.name or str(p) for p in model_paths()]
+    return runs[0] if len(runs) == 1 else f"Ensemble of {len(runs)}: " + ", ".join(runs)
+
+
 @router.get("/model", response_model=ModelOut)
 def model_settings(user: User = Depends(admin_only)):
     """What diagnosis runs on and where each part came from (notebook, results, commit)."""
     return ModelOut(
         parts=[
-            ModelPart(label="Image model", value=f"ResNet-50 ({settings.ml_model_path})",
+            ModelPart(label="Image model", value=_image_model_label(),
                       source="Notebook 10 (architecture comparison)", results="ml/results/compare_resnet50",
                       commit="92e4496", date="2026-10-14"),
             ModelPart(label="Symptom text model", value="BERT-base, late fusion (not yet in the backend)",

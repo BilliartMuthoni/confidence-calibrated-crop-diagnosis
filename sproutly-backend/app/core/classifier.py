@@ -96,7 +96,9 @@ def _build(architecture: str, num_classes: int) -> nn.Module:
     return network
 
 
-class _Model:
+class _Member:
+    """One trained network and the preprocessing it was evaluated with."""
+
     def __init__(self, path: Path):
         if not path.exists():
             raise FileNotFoundError(
@@ -108,7 +110,6 @@ class _Model:
 
         self.architecture: str = saved.get("architecture")
         self.classes: list[str] = saved["classes"]
-        self.crops = [crop_of(name) for name in self.classes]
 
         network = _build(self.architecture, len(self.classes))
         network.load_state_dict(saved["state_dict"])
@@ -121,16 +122,40 @@ class _Model:
             transforms.Normalize(saved["mean"], saved["std"]),
         ])
 
+    def softmax(self, image: Image.Image) -> torch.Tensor:
+        batch = self.transform(image).unsqueeze(0)
+        return torch.softmax(self.network(batch), dim=1)[0]
+
+
+class _Model:
+    """One model, or an ensemble (D2, notebook 18b): the members' probabilities are averaged,
+    then calibrated. With one member this is exactly softmax(scores / temperature)."""
+
+    def __init__(self, paths: list[Path]):
+        self.members = [_Member(path) for path in paths]
+        self.classes: list[str] = self.members[0].classes
+        for member in self.members[1:]:
+            if member.classes != self.classes:
+                raise ValueError("All models in ML_MODEL_PATH must have the same classes in the same order")
+        self.crops = [crop_of(name) for name in self.classes]
+        self.architectures = [member.architecture for member in self.members]
+
     @torch.inference_mode()
     def probabilities(self, image: Image.Image) -> torch.Tensor:
-        batch = self.transform(image.convert("RGB")).unsqueeze(0)
-        return torch.softmax(self.network(batch) / settings.temperature, dim=1)[0]
+        image = image.convert("RGB")
+        mean = torch.stack([member.softmax(image) for member in self.members]).mean(dim=0)
+        return torch.softmax(torch.log(mean + 1e-12) / settings.temperature, dim=0)
+
+
+def model_paths() -> list[Path]:
+    """ML_MODEL_PATH holds one model.pt, or several separated by commas for the ensemble."""
+    return [Path(p.strip()) for p in settings.ml_model_path.split(",") if p.strip()]
 
 
 @lru_cache(maxsize=1)
 def load_model() -> _Model:
     """Load once per process; called at startup so a missing file fails immediately."""
-    return _Model(Path(settings.ml_model_path))
+    return _Model(model_paths())
 
 
 def threshold() -> float:

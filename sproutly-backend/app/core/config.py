@@ -41,7 +41,8 @@ class Settings(BaseSettings):
     # Diagnosis
     upload_dir: str = "uploads"
     # Trained image model (not in Git): ResNet-50, chosen in the architecture comparison (#41),
-    # exported by ml/notebooks/09_architecture_comparison.ipynb.
+    # exported by ml/notebooks/09_architecture_comparison.ipynb. Several model.pt paths separated
+    # by commas run as an ensemble: their probabilities are averaged (notebook 18b).
     ml_model_path: str = "models/compare_resnet50/model.pt"
     # Temperature scaling (D6): the model's scores are divided by this before softmax, so its
     # confidence matches how often it is right on unseen field photos. Fitted in notebook 13
