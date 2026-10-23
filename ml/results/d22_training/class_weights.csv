@@ -1,0 +1,12 @@
+,photos,class weight
+Corn_(maize)___Cercospora_leaf_spot Gray_leaf_spot,1094,1.3823
+Corn_(maize)___Common_rust_,971,1.5574
+Corn_(maize)___Northern_Leaf_Blight,844,1.7918
+Corn_(maize)___healthy,1212,1.2477
+Tomato___Bacterial_spot,1629,0.9283
+Tomato___Early_blight,719,2.1033
+Tomato___Late_blight,1722,0.8782
+Tomato___healthy,1506,1.0042
+Potato___Early_blight,2585,0.585
+Potato___Late_blight,2904,0.5208
+Potato___healthy,1449,1.0437
