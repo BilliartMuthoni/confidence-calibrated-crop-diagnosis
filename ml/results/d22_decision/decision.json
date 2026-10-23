@@ -1,0 +1,114 @@
+{
+  "question_1_v3_or_v2": {
+    "stage": 2,
+    "seeds_v3": 3,
+    "seeds_v2": 3,
+    "selection_accuracy_v3_per_seed": [
+      0.6548,
+      0.6689,
+      0.6726
+    ],
+    "selection_accuracy_v2_per_seed": [
+      0.7228,
+      0.6148,
+      0.6577
+    ],
+    "difference_v3_minus_v2": 0.00034894879176472493,
+    "seed_spread_v3": 0.01779638838000519,
+    "seed_spread_v2": 0.10808688824914947,
+    "bootstrap_95_low": -0.010034458693186777,
+    "bootstrap_95_high": 0.010994067870539997,
+    "validation_macro_f1_v3_mean": 0.9843603995074294,
+    "validation_macro_f1_v2_mean": 0.9860756464470862,
+    "validation_drop": 0.001715246939656856,
+    "validation_drop_allowed": 0.0029227323997278454,
+    "validation_ok": true,
+    "margin": 0.10808688824914947,
+    "v3_better": false,
+    "adopt_v3": false,
+    "outcome": "keep v2",
+    "reason": "v3 not better beyond luck: difference +0.0003, needed more than 0.1081 with the bootstrap range above zero (-0.0100 to +0.0110)"
+  },
+  "question_2_rule_b": {
+    "family": "v2",
+    "family_runs": [
+      "d17_resnet50_seed42",
+      "d17_resnet50_seed43",
+      "d17_resnet50_seed44"
+    ],
+    "margin": 0.10808688824914947,
+    "challengers_scored": [
+      "d22_efficientnet_b0",
+      "d22_mobilenet_v3_large",
+      "d22_densenet121",
+      "d22_convnext_tiny",
+      "d22_convnext_tiny_lr1e-04",
+      "d22_swin_t"
+    ],
+    "challengers_missing": [],
+    "winners": [],
+    "single_model": "d17_resnet50_seed44"
+  },
+  "question_3_ensemble": {
+    "aurc_a": 0.19464112366796443,
+    "aurc_b": 0.08610295827954424,
+    "difference_b_minus_a": -0.10853816538842019,
+    "difference_low": -0.12062879117185558,
+    "difference_high": -0.0951833513533327,
+    "b_wins": true,
+    "ensemble": [
+      "d17_resnet50_seed44",
+      "d22_convnext_tiny_lr1e-04",
+      "d22_efficientnet_b0"
+    ],
+    "ensemble_cpu_ms": 447.1136,
+    "ensemble_meets_nfr_iii": true,
+    "ensemble_better": true,
+    "outcome": "ensemble refers better beyond the bootstrap range: reported as the better design; the backend serves one model, so the single model is deployed now"
+  },
+  "D6": {
+    "single": {
+      "method": "temperature",
+      "reason": "lowest out-of-sample log-loss"
+    },
+    "ensemble": {
+      "method": "temperature",
+      "reason": "lowest out-of-sample log-loss"
+    }
+  },
+  "deployed_method": "temperature",
+  "D7": {
+    "threshold": 0.759,
+    "target_reachable": true,
+    "rule": "lowest threshold whose bootstrap lower bound of accuracy on answered photos is >= 90%",
+    "original_rule_threshold": 0.7129719616600548,
+    "best_lower_bound": 0.9187984496124031,
+    "threshold_at_best_lower_bound": 0.8,
+    "answered_at_threshold": {
+      "threshold": 0.759,
+      "coverage": 0.1599057838262235,
+      "referred": 0.8400942161737766,
+      "selective_accuracy": 0.9230769230769231,
+      "wrong_and_answered": 0.0123004449097095
+    }
+  },
+  "fusion_bias": {
+    "healthy_with_disease_text": 0.014150943396226415,
+    "healthy_with_same_crop_text": 0.014150943396226415,
+    "healthy_without_text": 0.014150943396226415,
+    "diseased_without_text_called_healthy": 0.0,
+    "diseased_called_healthy_by_resnet_alone": 0.0
+  },
+  "deployed": {
+    "model_run": "d17_resnet50_seed44",
+    "model_version": "v2-resnet50-seed44",
+    "architecture": "resnet50",
+    "method": "temperature",
+    "temperature": 3.8174787530175505,
+    "threshold": 0.759,
+    "rule": "lowest threshold whose bootstrap lower bound of accuracy on answered photos is >= 90%",
+    "fitted_on": "selection set (3821 photos)",
+    "confidence": "best class of the farmer's crop, 11-class probability, not rescaled"
+  },
+  "rules": "fixed before notebook 18 ran: D17 rule (src/adoption.py), rule B, D2, D6, D7 clarified (13b)"
+}

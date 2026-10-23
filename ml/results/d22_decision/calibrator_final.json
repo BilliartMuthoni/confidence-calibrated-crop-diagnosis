@@ -1,0 +1,11 @@
+{
+  "model_run": "d17_resnet50_seed44",
+  "model_version": "v2-resnet50-seed44",
+  "architecture": "resnet50",
+  "method": "temperature",
+  "temperature": 3.8174787530175505,
+  "threshold": 0.759,
+  "rule": "lowest threshold whose bootstrap lower bound of accuracy on answered photos is >= 90%",
+  "fitted_on": "selection set (3821 photos)",
+  "confidence": "best class of the farmer's crop, 11-class probability, not rescaled"
+}
