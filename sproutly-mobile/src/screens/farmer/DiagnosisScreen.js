@@ -333,7 +333,8 @@ export default function DiagnosisScreen({ navigation }) {
                     <View className="mt-8">
                         <Label
                             title="If we can't be sure"
-                            hint="We won't guess. We'll show you support contacts, and if you agree, an extension officer can look at it."
+                            optional
+                            hint="We won't guess. We'll show you support contacts, and if you agree, an extension officer can look at it. Leave these off and no officer sees your photo or your number."
                         />
                         <Tick
                             checked={share}
