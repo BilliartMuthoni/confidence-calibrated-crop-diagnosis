@@ -41,6 +41,9 @@ class Diagnosis(Base):
     # judgements can be compared with it; and the share of probability on the chosen crop.
     top_class = Column(String, nullable=True)
     crop_probability = Column(Float, nullable=True)
+    # Which model made this result: run folders, temperature and threshold
+    # (classifier.model_version); empty for results made before it was recorded.
+    model_version = Column(String, nullable=True)
 
     # The farmer's choices when a case is referred: share the photo with a county officer,
     # and (separately) let the officer phone them.

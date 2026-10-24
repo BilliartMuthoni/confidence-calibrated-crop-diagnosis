@@ -16,7 +16,7 @@ from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.core import audit
-from app.core.classifier import model_paths
+from app.core.classifier import model_paths, model_version
 from app.core.leaf_check import load_leaf_check
 from app.core.config import settings
 from app.core.deps import require_role
@@ -97,7 +97,8 @@ def _referral_out(db: Session, referral: Referral, viewer: User) -> ReferralOut:
         farmer_phone=(farmer.user_phone_number or farmer.user_email) if diagnosis.allow_contact and farmer else None,
         status=referral.status,
         claimed_by=ClaimedBy(id=claimer.user_id, name=_name(claimer), at=referral.claimed_at) if claimer else None,
-        guess=Guess(disease=diagnosis.top_class, confidence=diagnosis.confidence)
+        guess=Guess(disease=diagnosis.top_class, confidence=diagnosis.confidence,
+                    model_version=diagnosis.model_version)
         if show_guess and diagnosis.top_class else None,
         judgement=referral.judgement if (judged_by_viewer or referral.status not in OPEN) else None,
         crop_mismatch=(diagnosis.crop_probability or 1.0) < 0.5,
@@ -467,6 +468,11 @@ def model_settings(user: User = Depends(admin_only)):
                       note="The rule fixed in advance gave 0.5. 0.8 was chosen afterwards as a policy, judging a "
                            "wrong diagnosis worse than about 12 referrals: on unseen field photos the ensemble then "
                            "answers 20.9% with 99.5% accuracy."),
+            ModelPart(label="Recorded with each result", value=model_version(),
+                      source="Built from the settings in use", results="diagnoses.model_version",
+                      commit="-", date="-",
+                      note="Every new diagnosis stores this, so a result can be traced after the model, "
+                           "temperature or threshold changes."),
         ],
         fitted_on="Selection set: 3,821 unseen field photos (notebook 12)",
     )

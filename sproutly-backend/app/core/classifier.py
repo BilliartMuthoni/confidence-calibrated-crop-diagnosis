@@ -163,6 +163,13 @@ def threshold() -> float:
     return max(settings.confidence_threshold, MIN_THRESHOLD)
 
 
+def model_version() -> str:
+    """What made a result, built from the settings in use so it cannot drift from them:
+    the model run folders, the temperature and the threshold."""
+    runs = "+".join(p.parent.name or str(p) for p in model_paths())
+    return f"{runs}; T={settings.temperature:g}; threshold={threshold():g}"
+
+
 def predict(crop: Optional[CropType], image_path: str) -> Prediction:
     """Diagnose one photo. Without a crop, the crop is detected first (see module docstring)."""
     model = load_model()

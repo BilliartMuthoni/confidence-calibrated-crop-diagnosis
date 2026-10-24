@@ -4,7 +4,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
 from sqlalchemy.orm import Session
 
-from app.core.classifier import Prediction, predict
+from app.core.classifier import Prediction, model_version, predict
 from app.core.counties import COUNTIES
 from app.core.deps import get_current_user
 from app.core.image_intake import save_clean_image
@@ -45,6 +45,7 @@ def _apply(record: Diagnosis, prediction: Prediction) -> None:
     record.is_referred = prediction.is_referred
     record.top_class = prediction.class_name
     record.crop_probability = prediction.crop_probability
+    record.model_version = model_version()
 
 
 def _share(db: Session, record: Diagnosis, user: User) -> None:
