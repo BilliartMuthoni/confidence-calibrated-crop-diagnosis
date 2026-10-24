@@ -1,0 +1,88 @@
+{
+  "chosen": "mobilenet_v3_large",
+  "enabled": true,
+  "tried": [
+    {
+      "architecture": "mobilenet_v3_large",
+      "threshold": 0.9974504172421256,
+      "val leaves passed": 0.990356394129979,
+      "val non-leaves rejected": 1.0,
+      "meets rule": true
+    }
+  ],
+  "report": [
+    {
+      "set": "leaves: test split",
+      "photos": 2441,
+      "really leaves": true,
+      "passed as leaf": 0.9946743138058173,
+      "correct": 0.9946743138058173
+    },
+    {
+      "set": "leaves: PlantDoc (internet field photos)",
+      "photos": 953,
+      "really leaves": true,
+      "passed as leaf": 0.8835257082896117,
+      "correct": 0.8835257082896117
+    },
+    {
+      "set": "leaves: selection set (unseen field sources)",
+      "photos": 3821,
+      "really leaves": true,
+      "passed as leaf": 0.9672860507720492,
+      "correct": 0.9672860507720492
+    },
+    {
+      "set": "COCO everyday, held-out test",
+      "photos": 830,
+      "really leaves": false,
+      "passed as leaf": 0.0,
+      "correct": 1.0
+    },
+    {
+      "set": "COCO plant-like (potted plant, broccoli)",
+      "photos": 242,
+      "really leaves": false,
+      "passed as leaf": 0.0,
+      "correct": 1.0
+    },
+    {
+      "set": "COCO fruit (apple, orange, banana)",
+      "photos": 181,
+      "really leaves": false,
+      "passed as leaf": 0.0,
+      "correct": 1.0
+    },
+    {
+      "set": "COCO food",
+      "photos": 427,
+      "really leaves": false,
+      "passed as leaf": 0.0,
+      "correct": 1.0
+    },
+    {
+      "set": "own photos: leaves",
+      "photos": 0,
+      "really leaves": true,
+      "passed as leaf": NaN,
+      "correct": NaN
+    },
+    {
+      "set": "own photos: not leaves",
+      "photos": 28,
+      "really leaves": false,
+      "passed as leaf": 0.0,
+      "correct": 1.0
+    }
+  ],
+  "coco_licences": {
+    "Attribution-NonCommercial-ShareAlike License": 1431,
+    "Attribution-NonCommercial-NoDerivs License": 1414,
+    "Attribution License": 857,
+    "Attribution-NonCommercial License": 630,
+    "Attribution-ShareAlike License": 417,
+    "Attribution-NoDerivs License": 246,
+    "No known copyright restrictions": 5
+  },
+  "rule": "cut-off where 99% of validation leaves pass; used only if it rejects >= 95% of validation non-leaves (decided 23 Oct 2026, before scoring)"
+}
