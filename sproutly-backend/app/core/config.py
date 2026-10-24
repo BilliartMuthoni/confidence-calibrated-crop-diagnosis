@@ -1,6 +1,10 @@
 from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+# The deployed ensemble (notebook 18b): v2 ResNet-50 seed 44, ConvNeXt-Tiny (1e-4), EfficientNet-B0.
+DEFAULT_MODEL_PATH = ",".join(f"models/{run}/model.pt" for run in (
+    "d17_resnet50_seed44", "d22_convnext_tiny_lr1e-04", "d22_efficientnet_b0"))
+
 
 class Settings(BaseSettings):
     app_name: str = "Sproutly"
@@ -40,18 +44,19 @@ class Settings(BaseSettings):
 
     # Diagnosis
     upload_dir: str = "uploads"
-    # Trained image model (not in Git): ResNet-50, chosen in the architecture comparison (#41),
-    # exported by ml/notebooks/09_architecture_comparison.ipynb. Several model.pt paths separated
-    # by commas run as an ensemble: their probabilities are averaged (notebook 18b).
-    ml_model_path: str = "models/compare_resnet50/model.pt"
-    # Temperature scaling (D6): the model's scores are divided by this before softmax, so its
-    # confidence matches how often it is right on unseen field photos. Fitted in notebook 13
-    # (ml/results/calibration); 1.0 switches calibration off.
-    temperature: float = 3.04
+    # Trained image models (not in Git): the ensemble that won D2 in notebook 18, deployed in
+    # notebook 18b. Several model.pt paths separated by commas run as an ensemble: their
+    # probabilities are averaged. One path runs a single model.
+    ml_model_path: str = DEFAULT_MODEL_PATH
+    # Temperature scaling (D6): the combined scores are divided by this before softmax, so the
+    # confidence matches how often it is right on unseen field photos. Fitted in notebook 18b
+    # (ml/results/ensemble_deployment); 1.0 switches calibration off.
+    temperature: float = 2.4381
     # Below this calibrated confidence the farmer is referred instead of getting a diagnosis.
-    # Chosen in notebook 13b (D7, ml/results/calibration_followup); the classifier never uses a
-    # value below 0.5 (see app/core/classifier.py).
-    confidence_threshold: float = 0.877
+    # The pre-set rule (D7) gave 0.5 for the ensemble; 0.8 was chosen afterwards as a policy,
+    # judging a wrong diagnosis worse than about 12 referrals (threshold table, notebook 18b
+    # results). The classifier never uses a value below 0.5 (see app/core/classifier.py).
+    confidence_threshold: float = 0.8
 
     # Admin portal and staff accounts.
     # Where the portal runs: one-time links for new officers and password resets point here.
@@ -92,7 +97,7 @@ class Settings(BaseSettings):
     @field_validator("ml_model_path")
     @classmethod
     def ml_model_path_not_blank(cls, v: str) -> str:
-        return v.strip() or "models/compare_resnet50/model.pt"
+        return v.strip() or DEFAULT_MODEL_PATH
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
