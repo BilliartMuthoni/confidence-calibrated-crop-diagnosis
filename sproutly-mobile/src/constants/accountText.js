@@ -109,11 +109,11 @@ export const PAGES = {
                 'Diseases of maize, tomato and potato. Anything else, including pests and soil problems, needs local support such as your county agriculture office or an agrovet.',
             ]],
             ['How it decides', [
-                'An image model (ResNet-50) looks at the photo. Its confidence is calibrated so that a stated confidence matches how often it is right.',
-                'Below 87.7% confidence it does not guess: the case can go to an extension officer instead.',
+                'Three image models (ResNet-50, ConvNeXt-Tiny and EfficientNet-B0) look at the photo and their answers are combined. The combined confidence is calibrated on field photos the models never trained on.',
+                'Below 80% confidence it does not guess: the case can go to an extension officer instead. In testing on new field photos, the answers it did give were right 99.5% of the time.',
             ]],
             ['Data used to build the model', [
-                'PlantVillage, FieldPlant, a Tanzanian potato field dataset and openly licensed (CC BY 4.0) field photo collections from Mendeley Data. Advice in replies comes from cited sources.',
+                'PlantVillage, FieldPlant, a Tanzanian potato field dataset and openly licensed (CC BY 4.0) field photo collections from Mendeley Data and the University of Pretoria. Advice in replies comes from cited sources.',
             ]],
             ['Made by', [
                 'Mwangi Billiart B. Muthoni, BSc Informatics and Computer Science, Strathmore University, 2026.',

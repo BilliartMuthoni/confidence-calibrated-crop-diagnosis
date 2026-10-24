@@ -437,20 +437,24 @@ def model_settings(user: User = Depends(admin_only)):
     return ModelOut(
         parts=[
             ModelPart(label="Image model", value=_image_model_label(),
-                      source="Notebook 10 (architecture comparison)", results="ml/results/compare_resnet50",
-                      commit="92e4496", date="2026-10-14"),
-            ModelPart(label="Symptom text model", value="BERT-base, late fusion (not yet in the backend)",
-                      source="Notebook 11b (late-fusion follow-up)", results="ml/results/fusion_late_followup",
-                      commit="cfb3906", date="2026-10-17",
-                      note="The farmer's description is stored with each check; the backend does not use it yet."),
+                      source="Notebook 18 (v3 or v2, architectures, ensemble)", results="ml/results/d22_decision",
+                      commit="e6fae75", date="2026-10-23",
+                      note="The ensemble referred uncertain photos better than ResNet-50 alone (AURC 0.086 against "
+                           "0.195 on unseen field photos)."),
+            ModelPart(label="Symptom text model", value="BERT-base, late fusion (not used in the diagnosis)",
+                      source="Notebook 18b (ensemble deployment)", results="ml/results/ensemble_deployment",
+                      commit="eca05a0", date="2026-10-24",
+                      note="The farmer's description is stored with each check and shown to officers. With the "
+                           "ensemble, late fusion lowered PlantDoc accuracy (43.8% to 38.7%), so it is not used yet."),
             ModelPart(label="Calibration", value=f"Temperature scaling, T = {settings.temperature:g}",
-                      source="Notebook 13 (calibration and threshold)", results="ml/results/calibration",
-                      commit="b0ab005", date="2026-10-18"),
+                      source="Notebook 18b (ensemble deployment)", results="ml/results/ensemble_deployment",
+                      commit="eca05a0", date="2026-10-24"),
             ModelPart(label="Referral threshold", value=max(settings.confidence_threshold, 0.5),
-                      source="Notebook 13b (threshold follow-up)", results="ml/results/calibration_followup",
-                      commit="0c7224f", date="2026-10-18",
-                      note="No threshold reached 90% accuracy with confidence, so the rule fixed in advance chose "
-                           "it: one wrong answer counts as much as five referrals."),
+                      source="Notebook 18b (threshold table)", results="ml/results/ensemble_deployment",
+                      commit="eca05a0", date="2026-10-24",
+                      note="The rule fixed in advance gave 0.5. 0.8 was chosen afterwards as a policy, judging a "
+                           "wrong diagnosis worse than about 12 referrals: on unseen field photos the ensemble then "
+                           "answers 20.9% with 99.5% accuracy."),
         ],
         fitted_on="Selection set: 3,821 unseen field photos (notebook 12)",
     )

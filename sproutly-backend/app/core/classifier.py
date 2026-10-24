@@ -1,9 +1,11 @@
-"""Image-only crop disease classifier (ResNet-50, chosen in the architecture comparison, #41).
+"""Image-only crop disease classifier: the ensemble chosen in notebook 18 (D2) and
+deployed in notebook 18b (v2 ResNet-50 seed 44, ConvNeXt-Tiny 1e-4, EfficientNet-B0).
 
-Loads a model.pt exported by ml/notebooks/08 or 09: the architecture name, weights,
+Loads model.pt files exported by ml/src/training.export: the architecture name, weights,
 class list, image size and normalisation, so preprocessing here matches the
 evaluation transform used in training exactly. Any architecture from the comparison
-can be loaded, so switching models is a matter of changing ML_MODEL_PATH.
+can be loaded, so switching models is a matter of changing ML_MODEL_PATH; several paths
+separated by commas run as an ensemble whose probabilities are averaged.
 
 Crop rule: the farmer says which crop the photo shows. The model still scores all
 11 classes; the answer is the best class *of that crop*, and its confidence is the
@@ -15,16 +17,15 @@ MIN_THRESHOLD = 0.5, any disagreement about the crop always ends in a referral.
 The rule can only turn diagnoses into referrals, never create one.
 
 Crop left out (several photos of mixed crops): the crop is detected as the one whose
-classes hold the most probability, then the same rule applies. Detection is reliable
-on familiar photos (100% on the test set) but wrong 27% of the time on PlantDoc,
-usually with confidence, so the app shows the detected crop and lets the farmer
-correct it (POST /diagnose/{id}/crop); with the farmer's crop, PlantDoc accuracy
-rises from 28% to 40% (measured 14 Oct with ResNet-50's saved predictions).
+classes hold the most probability, then the same rule applies. With the ensemble,
+detection is right on 100% of familiar photos but only 76.5% of unseen field photos
+(measured 24 Oct), so the app shows the detected crop and lets the farmer correct it
+(POST /diagnose/{id}/crop).
 
-Confidence is calibrated by temperature scaling (D6): the scores are divided by
-settings.temperature (3.04, fitted on unseen field photos in notebook 13) before softmax.
-This changes how sure the model says it is, never which class it picks, and the
-referral threshold (0.877, notebook 13b) was chosen on these calibrated values.
+Confidence is calibrated by temperature scaling (D6): the log of the averaged
+probabilities is divided by settings.temperature (2.4381, fitted on unseen field photos
+in notebook 18b) before softmax. This changes how sure the model says it is, never which
+class it picks. The referral threshold (0.8) was chosen on these calibrated values.
 """
 
 from dataclasses import dataclass
