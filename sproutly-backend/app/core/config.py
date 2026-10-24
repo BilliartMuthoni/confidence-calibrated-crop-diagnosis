@@ -57,6 +57,9 @@ class Settings(BaseSettings):
     # judging a wrong diagnosis worse than about 12 referrals (threshold table, notebook 18b
     # results). The classifier never uses a value below 0.5 (see app/core/classifier.py).
     confidence_threshold: float = 0.8
+    # Leaf check (D15, notebook 19): photos that are not leaves get no diagnosis. Copy
+    # ml/results/leaf_check/leaf_check.json here; blank switches the check off.
+    leaf_check_path: str = "models/leaf_check.json"
 
     # Admin portal and staff accounts.
     # Where the portal runs: one-time links for new officers and password resets point here.

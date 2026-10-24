@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 
 from app.core import audit
 from app.core.classifier import model_paths
+from app.core.leaf_check import load_leaf_check
 from app.core.config import settings
 from app.core.deps import require_role
 from app.core.knowledge_base import KNOWLEDGE_BASE, display_name
@@ -431,6 +432,11 @@ def _image_model_label() -> str:
     return runs[0] if len(runs) == 1 else f"Ensemble of {len(runs)}: " + ", ".join(runs)
 
 
+def _leaf_check_label() -> str:
+    check = load_leaf_check()
+    return "Off (LEAF_CHECK_PATH is blank)" if check is None else f"{check.architecture}, cut-off {check.threshold:.4f}"
+
+
 @router.get("/model", response_model=ModelOut)
 def model_settings(user: User = Depends(admin_only)):
     """What diagnosis runs on and where each part came from (notebook, results, commit)."""
@@ -441,6 +447,12 @@ def model_settings(user: User = Depends(admin_only)):
                       commit="e6fae75", date="2026-10-23",
                       note="The ensemble referred uncertain photos better than ResNet-50 alone (AURC 0.086 against "
                            "0.195 on unseen field photos)."),
+            ModelPart(label="Leaf check", value=_leaf_check_label(),
+                      source="Notebook 19 (leaf check)", results="ml/results/leaf_check",
+                      commit="e8ad7ba", date="2026-10-24",
+                      note="A frozen MobileNetV3 with one logistic layer stops photos that are not leaves before "
+                           "the disease model; on unseen field photos 96.7% of real leaves passed and every "
+                           "held-out non-leaf photo was stopped."),
             ModelPart(label="Symptom text model", value="BERT-base, late fusion (not used in the diagnosis)",
                       source="Notebook 18b (ensemble deployment)", results="ml/results/ensemble_deployment",
                       commit="eca05a0", date="2026-10-24",
