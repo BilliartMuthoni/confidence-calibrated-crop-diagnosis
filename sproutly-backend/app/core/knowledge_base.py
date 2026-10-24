@@ -1,10 +1,12 @@
 """Treatment guidance for the 11 classes the model predicts.
 
-Grounded content only -- the system retrieves and presents this text as written
-rather than generating advice. Sources should be verified Kenyan agricultural
-references (KALRO, CABI PlantwisePlus, county extension guidance) before this
-is used with real farmers; the entries below are placeholders pending that review.
-Sprint 3 replaces this module with the ChromaDB knowledge base with citations.
+Grounded content only -- the system retrieves and presents text as written rather
+than generating advice. Treatment and prevention come from the advice library (D16):
+excerpts copied word for word from Plantwise factsheets for farmers (CABI, CC BY-SA 4.0)
+and PlantVillage (CC BY-SA 3.0), with no pesticide product or rate, built and checked by
+ml/data/advice/build_advice.py and loaded with app/scripts/import_advice.py. The
+treatment and prevention lists below are only a fallback for a class with no library
+entries; the summaries are the project's own short descriptions.
 
 Keys are the model's class names (PlantVillage folder names).
 """

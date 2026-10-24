@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, ScrollView, Image } from 'react-native';
+import { View, Text, ScrollView, Image, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
@@ -25,6 +25,35 @@ function Steps({ title, items }) {
                     </Text>
                 </View>
             ))}
+        </View>
+    );
+}
+
+/** Where the advice comes from: each source's title and licence, opening the factsheet.
+ *  The backend sends "Title (licence): link"; showing it is the credit the licences ask for. */
+function Sources({ items }) {
+    if (!items?.length) return null;
+    return (
+        <View className="mt-6 pt-5" style={{ borderTopWidth: 1, borderTopColor: COLORS.divider }}>
+            <Text className="text-sm font-bold mb-2" style={{ color: COLORS.muted }}>
+                Where this advice comes from
+            </Text>
+            {items.map((source) => {
+                const at = source.lastIndexOf(': http');
+                const label = at > 0 ? source.slice(0, at) : source;
+                const url = at > 0 ? source.slice(at + 2) : null;
+                return (
+                    <Text
+                        key={source}
+                        className="text-sm leading-5 mb-2"
+                        style={{ color: url ? COLORS.brand : COLORS.muted }}
+                        onPress={url ? () => Linking.openURL(url) : undefined}
+                        accessibilityRole={url ? 'link' : undefined}
+                    >
+                        {label}
+                    </Text>
+                );
+            })}
         </View>
     );
 }
@@ -101,7 +130,15 @@ export default function ResultScreen({ route, navigation }) {
                                 </Text>
                             )}
                             <Steps title="What to do now" items={result.guidance?.treatment} />
+                            {!healthy && result.guidance?.treatment?.length > 0 && (
+                                // Sprays are never named or dosed in the app: a wrong diagnosis would become a wrong spray.
+                                <Text className="text-base leading-6" style={{ color: COLORS.text }}>
+                                    <Text className="font-bold">Before using any chemical:</Text> use a product registered
+                                    for this disease, follow its label, and ask your agrovet or extension officer.
+                                </Text>
+                            )}
                             <Steps title="Stopping it coming back" items={result.guidance?.prevention} />
+                            <Sources items={result.guidance?.sources} />
                         </>
                     )}
                 </View>
