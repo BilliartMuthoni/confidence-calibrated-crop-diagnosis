@@ -61,6 +61,9 @@ function ModelGuess({ guess }) {
     <>
       {diseaseName(guess.disease)}, {percent(guess.confidence)} sure (below the threshold, so not shown to the farmer as a
       diagnosis)
+      {guess.model_version && (
+        <span className="block text-sm text-muted mt-1">Model: {guess.model_version}</span>
+      )}
     </>
   )
 }

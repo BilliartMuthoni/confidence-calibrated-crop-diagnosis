@@ -21,6 +21,8 @@ LICENCES = ("CC BY 4.0", "CC BY-SA 4.0", "CC BY-SA 3.0", "CC0", "Public domain")
 class Guess(BaseModel):
     disease: str
     confidence: float
+    # Which model made it; empty for results made before this was recorded.
+    model_version: Optional[str] = None
 
 
 class ClaimedBy(BaseModel):
