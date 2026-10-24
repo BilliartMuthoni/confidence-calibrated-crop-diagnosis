@@ -32,3 +32,5 @@ kaggle.json
 .vscode/
 Thumbs.db
 .DS_Store
+# Model files copied in for the backend (from Drive or ml/results); never committed.
+sproutly-backend/models/

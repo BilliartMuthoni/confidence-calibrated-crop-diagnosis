@@ -12,14 +12,19 @@ import { PrimaryButton } from '../../components/Buttons';
 import { COLORS, CROP_LABELS } from '../../constants/theme';
 
 const GROUPS = [
+    { key: 'check', title: 'Check the crop' },
     { key: 'maize', title: 'Maize' },
     { key: 'tomato', title: 'Tomato' },
     { key: 'potato', title: 'Potato' },
     { key: 'unclear', title: 'Crop unclear' },
 ];
 
-// A detected crop the model wasn't sure of goes to "Crop unclear"; everything else by its crop.
-const groupOf = (result) => (result.crop_detected && result.crop_mismatch ? 'unclear' : result.crop);
+// A detected crop the model wasn't sure of goes to "Crop unclear"; a photo that does not look
+// like the crop the farmer chose goes to "Check the crop"; everything else by its crop.
+// The other crop is never named: the model's guess of the crop is often wrong on new fields.
+const groupOf = (result) =>
+    result.crop_mismatch ? (result.crop_detected ? 'unclear' : 'check') : result.crop;
+const CROP_IDS = ['maize', 'tomato', 'potato'];
 
 function PhotoRow({ item, imageUri, onOpen, onCorrect, busy, error }) {
     const [choosing, setChoosing] = useState(false);
@@ -27,7 +32,8 @@ function PhotoRow({ item, imageUri, onOpen, onCorrect, busy, error }) {
     const referred = result.is_referred;
     const healthy = !referred && result.predicted_disease?.startsWith('Healthy');
     const accent = referred ? COLORS.referral : healthy ? COLORS.healthy : COLORS.disease;
-    const unclear = groupOf(result) === 'unclear';
+    const group = groupOf(result);
+    const unclear = group === 'unclear';
 
     const pick = (crop) => {
         setChoosing(false);
@@ -55,31 +61,83 @@ function PhotoRow({ item, imageUri, onOpen, onCorrect, busy, error }) {
                 {busy ? <ActivityIndicator color={COLORS.brand} /> : <Ionicons name="chevron-forward" size={18} color={COLORS.faint} />}
             </TouchableOpacity>
 
-            {/* The model chose the crop: show it so the farmer can correct it (it is wrong more often on unfamiliar photos). */}
-            {result.crop_detected && (
+            {/* Chosen crop, but the photo does not look like it: ask which crop it is. */}
+            {group === 'check' && (
+                <View className="mt-2 ml-[68px]">
+                    <Text className="text-sm leading-5" style={{ color: COLORS.text }}>
+                        This does not look like {CROP_LABELS[result.crop].toLowerCase()}. If it is another crop, check it
+                        again as that crop. If it is {CROP_LABELS[result.crop].toLowerCase()}, use the support contacts.
+                    </Text>
+                    <View className="flex-row flex-wrap mt-2">
+                        {CROP_IDS.filter((c) => c !== result.crop).map((c) => (
+                            <TouchableOpacity
+                                key={c}
+                                onPress={() => onCorrect(c)}
+                                disabled={busy}
+                                accessibilityRole="button"
+                                className="mr-2 mb-2 px-4 py-2 rounded-full"
+                                style={{ backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.brand }}
+                            >
+                                <Text className="text-sm font-semibold" style={{ color: COLORS.brand }}>
+                                    It is {CROP_LABELS[c].toLowerCase()}
+                                </Text>
+                            </TouchableOpacity>
+                        ))}
+                    </View>
+                </View>
+            )}
+
+            {/* The model guessed a crop it was sure of: the farmer confirms or changes it. */}
+            {result.crop_detected && !unclear && (
+                <View className="flex-row flex-wrap items-center mt-2 ml-[68px]">
+                    <Text className="text-sm mr-2" style={{ color: COLORS.text }}>
+                        {referred ? 'Crop guess' : 'Detected as'}: {CROP_LABELS[result.crop]}. Is that right?
+                    </Text>
+                    <TouchableOpacity
+                        onPress={() => onCorrect(result.crop)}
+                        disabled={busy}
+                        accessibilityRole="button"
+                        className="mr-2 px-3 py-1.5 rounded-full"
+                        style={{ borderWidth: 1, borderColor: COLORS.brand }}
+                    >
+                        <Text className="text-sm font-bold" style={{ color: COLORS.brand }}>
+                            Yes
+                        </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        onPress={() => setChoosing((v) => !v)}
+                        disabled={busy}
+                        accessibilityRole="button"
+                        className="px-3 py-1.5 rounded-full"
+                        style={{ borderWidth: 1, borderColor: COLORS.divider }}
+                    >
+                        <Text className="text-sm font-bold" style={{ color: COLORS.brand }}>
+                            Change
+                        </Text>
+                    </TouchableOpacity>
+                </View>
+            )}
+
+            {/* The model could not tell the crop: the farmer chooses it. */}
+            {unclear && (
                 <TouchableOpacity
                     onPress={() => setChoosing((v) => !v)}
                     disabled={busy}
                     accessibilityRole="button"
                     className="flex-row items-center self-start mt-2 ml-[68px] px-3 py-1.5 rounded-full"
-                    style={{ borderWidth: 1, borderColor: unclear ? COLORS.referral : COLORS.divider }}
+                    style={{ borderWidth: 1, borderColor: COLORS.referral }}
                 >
                     <Text className="text-sm" style={{ color: COLORS.text }}>
-                        {/* A referred photo's crop is only a guess (e.g. a photo that is not a leaf at all). */}
-                        {unclear
-                            ? 'Crop unclear'
-                            : referred
-                              ? `Crop guess: ${CROP_LABELS[result.crop]}`
-                              : `Detected as ${CROP_LABELS[result.crop]}`}
+                        Crop unclear
                     </Text>
                     <Text className="text-sm font-bold ml-2" style={{ color: COLORS.brand }}>
-                        {unclear ? 'Choose crop' : 'Change'}
+                        Choose crop
                     </Text>
                 </TouchableOpacity>
             )}
             {choosing && (
                 <View className="flex-row ml-[68px] mt-2">
-                    {['maize', 'tomato', 'potato'].map((crop) => (
+                    {CROP_IDS.map((crop) => (
                         <TouchableOpacity
                             key={crop}
                             onPress={() => pick(crop)}
