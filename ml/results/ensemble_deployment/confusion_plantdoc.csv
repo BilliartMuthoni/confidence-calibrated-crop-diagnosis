@@ -1,0 +1,10 @@
+true class,Maize Cercospora leaf spot Gray leaf spot,Maize Common rust,Maize Northern Leaf Blight,Maize healthy,Tomato Bacterial spot,Tomato Early blight,Tomato Late blight,Tomato healthy,Potato Early blight,Potato Late blight,Potato healthy
+Maize Cercospora leaf spot Gray leaf spot,62,0,3,0,0,0,0,0,0,0,0
+Maize Common rust,28,78,8,2,0,0,0,0,0,0,0
+Maize Northern Leaf Blight,115,6,67,1,0,0,0,0,0,0,0
+Tomato Bacterial spot,0,0,0,0,18,44,28,19,0,0,0
+Tomato Early blight,0,0,0,0,2,50,25,11,0,0,0
+Tomato Late blight,0,0,0,0,0,7,99,5,0,0,0
+Tomato healthy,0,0,0,0,1,4,14,44,0,0,0
+Potato Early blight,0,0,0,0,0,0,0,0,41,62,9
+Potato Late blight,0,0,0,0,0,0,0,0,16,74,10

@@ -1,0 +1,46 @@
+{
+  "why": "D2 winner in notebook 18; the backend's one-model limit was lifted",
+  "D6": {
+    "method": "temperature",
+    "reason": "lowest out-of-sample log-loss"
+  },
+  "deployed_method": "temperature",
+  "D7": {
+    "threshold": 0.5,
+    "target_reachable": true,
+    "rule": "lowest threshold whose bootstrap lower bound of accuracy on answered photos is >= 90%",
+    "original_rule_threshold": 0.5,
+    "best_lower_bound": 1.0,
+    "threshold_at_best_lower_bound": 0.86,
+    "answered_at_threshold": {
+      "threshold": 0.5,
+      "coverage": 0.4163831457733578,
+      "referred": 0.5836168542266422,
+      "selective_accuracy": 0.9566310496543055,
+      "wrong_and_answered": 0.01805809997382884
+    }
+  },
+  "fusion_bias": {
+    "healthy_with_disease_text": 0.009433962264150943,
+    "healthy_with_same_crop_text": 0.009433962264150943,
+    "healthy_without_text": 0.009433962264150943,
+    "diseased_without_text_called_healthy": 0.002849002849002849,
+    "diseased_called_healthy_by_resnet_alone": 0.002849002849002849
+  },
+  "deployed": {
+    "model_runs": [
+      "d17_resnet50_seed44",
+      "d22_convnext_tiny_lr1e-04",
+      "d22_efficientnet_b0"
+    ],
+    "model_version": "ensemble-v2r44-cnx-effb0",
+    "combination": "mean of the members' softmax probabilities; log; divided by the temperature; softmax",
+    "method": "temperature",
+    "temperature": 2.4381275602850097,
+    "threshold": 0.5,
+    "rule": "lowest threshold whose bootstrap lower bound of accuracy on answered photos is >= 90%",
+    "fitted_on": "selection set (3821 photos)",
+    "confidence": "best class of the farmer's crop, 11-class probability, not rescaled"
+  },
+  "post_hoc_followup": true
+}
