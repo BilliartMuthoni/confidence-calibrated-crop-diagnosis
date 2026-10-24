@@ -31,6 +31,9 @@ const CROPS = [
     { id: 'potato', label: 'Potato' },
     { id: 'mixed', label: 'Not sure / mixed' },
 ];
+// The label under each photo, and the order a tap moves through.
+const PHOTO_CROP_LABELS = { maize: 'Maize', tomato: 'Tomato', potato: 'Potato', mixed: 'Not sure' };
+const PHOTO_CROP_ORDER = ['maize', 'tomato', 'potato', 'mixed'];
 const MAX_PHOTOS = 10; // same limit as the backend
 
 function Label({ title, hint, optional }) {
@@ -158,25 +161,66 @@ export default function DiagnosisScreen({ navigation }) {
     // By position: the same gallery photo can be added twice.
     const removePhoto = (index) => setPhotos((current) => current.filter((_, i) => i !== index));
 
+    // Each photo has its own crop, which is the crop chosen above until the farmer changes it:
+    // the farmer knows the crop of each photo better than the model can guess it.
+    const cropOf = (photo) => photo.crop || crop;
+    const nextPhotoCrop = (index) =>
+        setPhotos((current) =>
+            current.map((photo, i) => {
+                if (i !== index) return photo;
+                const at = PHOTO_CROP_ORDER.indexOf(cropOf(photo));
+                return { ...photo, crop: PHOTO_CROP_ORDER[(at + 1) % PHOTO_CROP_ORDER.length] };
+            })
+        );
+
     // One photo of a known crop keeps the original flow (with symptom text); anything else
     // (several photos, or crop not sure) goes through the batch flow.
-    const single = photos.length === 1 && crop && crop !== 'mixed';
+    const single = photos.length === 1 && cropOf(photos[0]) && cropOf(photos[0]) !== 'mixed';
+
+    // Several photos: one batch per crop, then the results are put back in photo order.
+    const submitByCrop = async (imageUris) => {
+        const groups = new Map();
+        photos.forEach((photo, index) => {
+            const key = cropOf(photo);
+            groups.set(key, [...(groups.get(key) || []), index]);
+        });
+        const merged = [];
+        let firstError = null;
+        for (const [key, indexes] of groups) {
+            try {
+                const { results } = await submitBatch({
+                    token: userToken,
+                    crop: key === 'mixed' ? null : key,
+                    imageUris: indexes.map((i) => imageUris[i]),
+                    sharing,
+                });
+                results.forEach((item) => merged.push({ ...item, index: indexes[item.index] }));
+            } catch (e) {
+                // One crop's upload failed: report its photos, keep the others' results.
+                firstError = firstError || e;
+                indexes.forEach((i) => merged.push({ index: i, error: e.message }));
+            }
+        }
+        if (merged.every((item) => !item.result)) throw firstError || new Error('No photo could be checked');
+        return merged.sort((a, b) => a.index - b.index);
+    };
 
     const handleSubmit = async () => {
         setError(null);
         setSubmitting(true);
         try {
             if (single) {
-                const result = await submitDiagnosis({ token: userToken, crop, imageUri: photos[0].uri, symptoms, sharing });
+                const result = await submitDiagnosis({
+                    token: userToken,
+                    crop: cropOf(photos[0]),
+                    imageUri: photos[0].uri,
+                    symptoms,
+                    sharing,
+                });
                 navigation.navigate('Result', { result, imageUri: photos[0].uri });
             } else {
                 const imageUris = photos.map((p) => p.uri);
-                const { results } = await submitBatch({
-                    token: userToken,
-                    crop: crop === 'mixed' ? null : crop,
-                    imageUris,
-                    sharing,
-                });
+                const results = await submitByCrop(imageUris);
                 navigation.navigate('BatchResult', { results, imageUris });
             }
         } catch (e) {
@@ -210,9 +254,11 @@ export default function DiagnosisScreen({ navigation }) {
                         <Label
                             title="Which crop is it?"
                             hint={
-                                crop === 'mixed'
-                                    ? "We'll work out each photo's crop. Check it on the results and correct it if it's wrong."
-                                    : 'Choosing the crop gives the most reliable result'
+                                photos.length > 1
+                                    ? "This is every photo's crop. If one photo is a different crop, tap the crop under it to change it."
+                                    : crop === 'mixed'
+                                      ? "We'll work out the crop. Check it on the result and correct it if it's wrong."
+                                      : 'Choosing the crop gives the most reliable result'
                             }
                         />
                         <View className="flex-row flex-wrap">
@@ -276,6 +322,29 @@ export default function DiagnosisScreen({ navigation }) {
                                 {photos.map((photo, index) => (
                                     <View key={`${index}-${photo.uri}`} className="w-1/3 p-1">
                                         <Image source={{ uri: photo.uri }} className="w-full aspect-square rounded-lg" resizeMode="cover" />
+                                        {photos.length > 1 && crop && (
+                                            <TouchableOpacity
+                                                onPress={() => nextPhotoCrop(index)}
+                                                accessibilityRole="button"
+                                                accessibilityLabel={`Crop of photo ${index + 1}: ${PHOTO_CROP_LABELS[cropOf(photo)]}. Tap to change.`}
+                                                className="flex-row items-center justify-center mt-1 py-1.5 rounded-full"
+                                                style={{
+                                                    borderWidth: 1,
+                                                    borderColor: cropOf(photo) !== crop ? COLORS.brand : COLORS.divider,
+                                                    backgroundColor: COLORS.surface,
+                                                }}
+                                            >
+                                                <Text
+                                                    className="text-sm font-semibold"
+                                                    numberOfLines={1}
+                                                    maxFontSizeMultiplier={1.3}
+                                                    style={{ color: COLORS.brand }}
+                                                >
+                                                    {PHOTO_CROP_LABELS[cropOf(photo)]}
+                                                </Text>
+                                                <Ionicons name="swap-horizontal" size={14} color={COLORS.brand} style={{ marginLeft: 4 }} />
+                                            </TouchableOpacity>
+                                        )}
                                         <TouchableOpacity
                                             onPress={() => removePhoto(index)}
                                             accessibilityRole="button"
