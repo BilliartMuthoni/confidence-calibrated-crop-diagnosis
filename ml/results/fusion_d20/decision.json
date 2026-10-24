@@ -1,0 +1,42 @@
+{
+  "verdict": "Text fusion is used: {'encoder': 'tfidf', 'scope': 'crop', 'weight': 0.25, 'gate': 'below 0.8'} (help +0.007, range +0.005 to +0.010; harm 0.010; 4 option(s) tied with the best)",
+  "winner": {
+    "encoder": "tfidf",
+    "scope": "crop",
+    "weight": 0.25,
+    "gate": "below 0.8"
+  },
+  "rule": {
+    "harm_limit": 0.02,
+    "answered_target_with_wrong_text": 0.9,
+    "threshold": 0.8,
+    "help": "largest help whose paired bootstrap range lies above zero",
+    "tie": "help at least the best's lower bound; then smaller encoder, lower weight, gated, farmer's crop"
+  },
+  "image_model": {
+    "members": [
+      "d17_resnet50_seed44",
+      "d22_convnext_tiny_lr1e-04",
+      "d22_efficientnet_b0"
+    ],
+    "temperature": 2.4381275602850097
+  },
+  "sentences": {
+    "pool": 64,
+    "folds": 4,
+    "locked_test": 8
+  },
+  "pairings_per_photo": 5,
+  "selection_photos": 3821,
+  "options_safe": 4,
+  "options_helping": 72,
+  "options_passing": 4,
+  "cpu_ms_per_sentence": {
+    "tfidf": 0.0,
+    "distilbert": 73.79002199996876,
+    "bert_base": 369.30726550002646,
+    "minilm": 18.363048499963952,
+    "mpnet": 157.0023435000394,
+    "scibert": 581.533105999938
+  }
+}
