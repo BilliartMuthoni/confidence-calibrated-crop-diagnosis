@@ -1,0 +1,7 @@
+encoder,pool out-of-fold: 8-way,pool out-of-fold: crop given,test: 8-way,test: crop given
+tfidf,0.328125,0.640625,0.375,0.625
+distilbert,0.3125,0.5625,0.375,0.625
+bert_base,0.328125,0.546875,0.25,0.625
+minilm,0.3125,0.640625,0.25,0.625
+mpnet,0.3125,0.609375,0.375,0.625
+scibert,0.359375,0.640625,0.5,0.625
