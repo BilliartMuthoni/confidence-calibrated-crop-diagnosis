@@ -20,7 +20,7 @@ import os
 import uuid
 
 from fastapi import HTTPException, UploadFile, status
-from PIL import Image, UnidentifiedImageError
+from PIL import Image, ImageOps, UnidentifiedImageError
 from PIL.Image import DecompressionBombError
 
 from app.core.config import settings
@@ -95,6 +95,13 @@ def save_clean_image(upload: UploadFile) -> str:
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="That image could not be read. Try taking the photo again.",
         )
+
+    # Phones store "which way up" in EXIF rather than rotating the pixels. Apply it
+    # before the EXIF is dropped below, or portrait photos are kept sideways.
+    try:
+        image = ImageOps.exif_transpose(image)
+    except Exception:  # damaged EXIF: keep the photo as stored rather than refuse it
+        pass
 
     # Re-encode into a fresh RGB JPEG. Nothing from the original container
     # survives this step -- no EXIF, no appended payload, no alternate stream.
