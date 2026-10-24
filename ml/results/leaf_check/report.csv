@@ -1,0 +1,10 @@
+set,photos,really leaves,passed as leaf,correct
+leaves: test split,2441,True,0.9946743138058173,0.9946743138058173
+leaves: PlantDoc (internet field photos),953,True,0.8835257082896117,0.8835257082896117
+leaves: selection set (unseen field sources),3821,True,0.9672860507720492,0.9672860507720492
+"COCO everyday, held-out test",830,False,0.0,1.0
+"COCO plant-like (potted plant, broccoli)",242,False,0.0,1.0
+"COCO fruit (apple, orange, banana)",181,False,0.0,1.0
+COCO food,427,False,0.0,1.0
+own photos: leaves,0,True,,
+own photos: not leaves,28,False,0.0,1.0
