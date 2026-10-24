@@ -162,6 +162,39 @@ def late_fusion_logits(image_logits: np.ndarray, text_log_probs: np.ndarray, has
     return out  # log-probabilities, which work as logits
 
 
+def crop_fusion_probabilities(probs: np.ndarray, text_log_probs: np.ndarray, has: np.ndarray, disease: np.ndarray,
+                              class_crops, photo_crops, weight: float = 1.0, within_crop: bool = True,
+                              gate: float | None = None) -> np.ndarray:
+    """Late fusion as the app would use it (notebook 20): calibrated image probabilities in,
+    probabilities out.
+
+    ``weight`` scales the text's vote (the text's probabilities are raised to that power;
+    1.0 is the plain product of ``late_fusion_logits``, 0 ignores the text). With
+    ``within_crop`` only the diseases of the farmer's crop are re-ranked and their total
+    stays as the image says; otherwise all diseases are (the notebook 11 setup). Healthy
+    classes are never changed. With ``gate``, text acts only on photos whose image
+    confidence for the farmer's crop is below it, so confident answers are left alone.
+    """
+    class_crops = np.asarray(class_crops)
+    log_p = np.log(np.asarray(probs, dtype=np.float64) + 1e-12)
+    active = np.asarray(has) > 0
+    if gate is not None:
+        from .calibration import crop_confidence
+
+        active &= crop_confidence(probs, class_crops, photo_crops)[0] < gate
+    if within_crop:
+        allowed = class_crops[disease][None, :] == np.asarray(photo_crops)[:, None]
+    else:
+        allowed = np.ones((len(log_p), len(disease)), dtype=bool)
+    d = log_p[:, disease]
+    combined = np.where(allowed, d + weight * text_log_probs, -np.inf)
+    mass = np.logaddexp.reduce(np.where(allowed, d, -np.inf), axis=1, keepdims=True)
+    combined += mass - np.logaddexp.reduce(combined, axis=1, keepdims=True)
+    out = log_p.copy()
+    out[:, disease] = np.where(active[:, None] & allowed, combined, d)
+    return np.exp(out)
+
+
 # ----------------------------------------------------------------------- training
 
 @dataclass
