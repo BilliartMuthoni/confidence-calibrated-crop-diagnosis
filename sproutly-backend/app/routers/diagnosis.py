@@ -9,6 +9,7 @@ from app.core.counties import COUNTIES
 from app.core.deps import get_current_user
 from app.core.image_intake import save_clean_image
 from app.core.knowledge_base import display_name, get_guidance
+from app.core.leaf_check import NOT_A_LEAF, is_leaf
 from app.core.limiter import limiter
 from app.core.referrals import expire_overdue, open_referral
 from app.db.session import get_db
@@ -93,6 +94,17 @@ def _diagnose(db: Session, user: User, crop: Optional[CropType], image_path: str
     return _response(db, record, prediction)
 
 
+def _require_leaf(image_path: str) -> None:
+    """Leaf check (D15) before the disease model: a photo that is not a leaf gets no
+    diagnosis and no referral, and is not kept."""
+    if not is_leaf(image_path):
+        try:
+            os.remove(image_path)
+        except OSError:
+            pass
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=NOT_A_LEAF)
+
+
 def _remember_county(db: Session, user: User, county: Optional[str]) -> None:
     """The app may send the farmer's county with a photo; it decides who sees their referrals."""
     if county:
@@ -119,6 +131,7 @@ def create_diagnosis(
 ):
     _remember_county(db, current_user, county)
     image_path = save_clean_image(image)
+    _require_leaf(image_path)
     # Image-only model for now; symptoms_text is stored and used by the fusion model in Sprint 3.
     return _diagnose(db, current_user, crop, image_path, symptoms_text, share_with_officer, allow_contact)
 
@@ -138,7 +151,7 @@ def create_batch(
     """Several photos at once (#43). With a crop, every photo is that crop; without one
     (mixed or not sure), each photo's crop is detected and can be corrected afterwards.
     Each photo becomes its own diagnosis, so history needs no changes. A photo that
-    cannot be read is reported and skipped; the others are still checked."""
+    cannot be read, or is not a leaf, is reported and skipped; the others are still checked."""
     if not 1 <= len(images) <= MAX_BATCH_PHOTOS:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -150,6 +163,7 @@ def create_batch(
     for index, image in enumerate(images):
         try:
             image_path = save_clean_image(image)
+            _require_leaf(image_path)
         except HTTPException as exc:
             results.append(BatchItem(index=index, error=exc.detail))
             continue

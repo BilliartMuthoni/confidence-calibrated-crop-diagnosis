@@ -128,6 +128,12 @@ const PATTERNS = [
         retryable: false,
     },
     {
+        match: /look like a leaf/i,
+        title: 'This is not a leaf photo',
+        message: 'Sproutly checks leaves of maize, tomato and potato. Take a close-up photo of one leaf in good light and try again.',
+        retryable: false,
+    },
+    {
         match: /not a jpeg|could not be read|dimensions are too large|file is empty/i,
         title: 'That photo would not work',
         message: 'Take the photo again with your camera and try once more.',
