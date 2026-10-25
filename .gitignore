@@ -34,3 +34,5 @@ Thumbs.db
 .DS_Store
 # Model files copied in for the backend (from Drive or ml/results); never committed.
 sproutly-backend/models/
+# Assistant evaluation output (python -m app.scripts.evaluate_assistant); results go in the report.
+sproutly-backend/assistant_evaluation_*.csv

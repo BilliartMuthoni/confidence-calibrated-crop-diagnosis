@@ -32,6 +32,7 @@ export const PAGES = {
                 'You.',
                 "Extension officers in your county, only for cases you chose to send. They see your phone number only if you also ticked \"The officer may phone me\".",
                 'The Sproutly administrators, to run and check the service.',
+                'If you use "Ask about this result": your question and the result (never your name, number or photo) go to Groq, an AI service in the United States, which only chooses which of the Sproutly advice to show. Groq does not keep them.',
                 'Nobody else. Your data is not sold, and your photos are not used to train the model.',
             ]],
             ['How long', [

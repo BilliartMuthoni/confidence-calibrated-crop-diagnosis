@@ -4,6 +4,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
 from sqlalchemy.orm import Session
 
+from app.core.assistant import answer
 from app.core.classifier import Prediction, model_version, predict
 from app.core.counties import COUNTIES
 from app.core.deps import get_current_user
@@ -17,6 +18,8 @@ from app.models.diagnosis import CropType, Diagnosis
 from app.models.referral import Referral
 from app.models.user import User, UserRole
 from app.schemas.diagnosis import (
+    AssistantQuestion,
+    AssistantReply,
     BatchItem,
     BatchResponse,
     CropCorrection,
@@ -173,6 +176,18 @@ def create_batch(
     return BatchResponse(results=results)
 
 
+def _own_diagnosis(db: Session, diagnosis_id: int, user: User) -> Diagnosis:
+    record = (
+        db.query(Diagnosis)
+        .filter(Diagnosis.diagnosis_id == diagnosis_id, Diagnosis.user_id == user.user_id)
+        .first()
+    )
+    if not record:
+        # Same answer for "not yours" and "does not exist": never confirm other users' records.
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Diagnosis not found")
+    return record
+
+
 @router.post("/{diagnosis_id}/crop", response_model=DiagnosisResponse)
 @limiter.limit("30/minute")
 def correct_crop(
@@ -184,14 +199,7 @@ def correct_crop(
 ):
     """The farmer says the detected crop was wrong: check the same photo again with their crop.
     With the farmer's crop, accuracy on unfamiliar photos rises from 28% to 40% (see classifier)."""
-    record = (
-        db.query(Diagnosis)
-        .filter(Diagnosis.diagnosis_id == diagnosis_id, Diagnosis.user_id == current_user.user_id)
-        .first()
-    )
-    if not record:
-        # Same answer for "not yours" and "does not exist": never confirm other users' records.
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Diagnosis not found")
+    record = _own_diagnosis(db, diagnosis_id, current_user)
     if not os.path.exists(record.image_path):
         raise HTTPException(
             status_code=status.HTTP_410_GONE,
@@ -205,6 +213,28 @@ def correct_crop(
     # Re-checked with the right crop and now referred: it can still go to an officer.
     _share(db, record, current_user)
     return _response(db, record, prediction)
+
+
+@router.post("/{diagnosis_id}/ask", response_model=AssistantReply)
+# The free provider allows about 30 requests a minute for everyone together.
+@limiter.limit("6/minute")
+def ask_assistant(
+    request: Request,
+    diagnosis_id: int,
+    payload: AssistantQuestion,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """A question about one of the farmer's results (D9). The model only chooses what to
+    show: library advice, a fixed question, a hand-over to the officer, or "not about this"."""
+    record = _own_diagnosis(db, diagnosis_id, current_user)
+    if record.is_referred or not record.top_class:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="This photo has no diagnosis to ask about. Please ask your extension officer.",
+        )
+    reply = answer(db, record.top_class, payload.question, [t.model_dump() for t in payload.history])
+    return AssistantReply(kind=reply.kind, message=reply.message, advice=reply.advice, choices=reply.choices)
 
 
 @router.get("/history", response_model=List[DiagnosisListItem])
