@@ -25,7 +25,7 @@ build downloads them at the exact version written in `model_revision.txt`.
    ```
    pip install huggingface_hub
    hf auth login
-   hf upload <your-username>/sproutly-models models . --repo-type model --include "d17_resnet50_seed44/*" "d22_convnext_tiny_lr1e-04/*" "d22_efficientnet_b0/*" "leaf_check.json"
+   hf upload <your-username>/sproutly-models models . --repo-type model --include "d17_resnet50_seed44/*" --include "d22_convnext_tiny_lr1e-04/*" --include "d22_efficientnet_b0/*" --include "leaf_check.json"
    ```
 
    (Only these four: the `models` folder also holds older models the backend no longer uses.)
@@ -42,7 +42,7 @@ build downloads them at the exact version written in `model_revision.txt`.
 
 Check: the four files show in the repository, and it says **Private**.
 
-## 2. Azure (region South Africa North, one resource group `sproutly-rg`)
+## 2. Azure (region Italy North, one resource group `sproutly-rg`)
 
 ### 2a. Database: Azure Database for PostgreSQL, flexible server
 
@@ -60,7 +60,7 @@ postgresql+psycopg2://<admin>:<password>@<server>.postgres.database.azure.com:54
 
 ### 2b. Backend: Web App
 
-- **Create -> Web App**: publish **Container**, operating system **Linux**, region South Africa
+- **Create -> Web App**: publish **Container**, operating system **Linux**, region Italy
   North, pricing plan **Basic B1**.
 - Container: choose the quickstart image for now; the first deployment replaces it.
 - After it is created, **Deployment Center -> Settings**: registry **Private registry**,
