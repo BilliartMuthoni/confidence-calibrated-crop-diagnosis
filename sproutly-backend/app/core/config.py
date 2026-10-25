@@ -61,6 +61,14 @@ class Settings(BaseSettings):
     # ml/results/leaf_check/leaf_check.json here; blank switches the check off.
     leaf_check_path: str = "models/leaf_check.json"
 
+    # Assistant (D9, app/core/assistant.py): the language model only chooses a tool. "groq" is
+    # the only provider for now; any other value switches the assistant off (the app then
+    # points to the advice on the result and to the officer). Without a key it is off too.
+    assistant_provider: str = "groq"
+    groq_api_key: str = ""
+    groq_model: str = "openai/gpt-oss-20b"
+    assistant_timeout_seconds: float = 15.0
+
     # Admin portal and staff accounts.
     # Where the portal runs: one-time links for new officers and password resets point here.
     admin_portal_url: str = "http://localhost:5173"

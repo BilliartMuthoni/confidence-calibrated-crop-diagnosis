@@ -1,8 +1,9 @@
-import React from 'react';
-import { View, Text, ScrollView, Image, Linking } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { View, Text, ScrollView, Image, Linking, KeyboardAvoidingView, Keyboard } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
+import AssistantBox from '../../components/AssistantBox';
 import ScreenHeader from '../../components/ScreenHeader';
 import { PrimaryButton, SecondaryButton, TextButton } from '../../components/Buttons';
 import { COLORS, CROP_LABELS } from '../../constants/theme';
@@ -36,7 +37,7 @@ function Sources({ items }) {
     return (
         <View className="mt-6 pt-5" style={{ borderTopWidth: 1, borderTopColor: COLORS.divider }}>
             <Text className="text-sm font-bold mb-2" style={{ color: COLORS.muted }}>
-                Where this advice comes from
+                Where this advice comes from (tap a source to open it)
             </Text>
             {items.map((source) => {
                 const at = source.lastIndexOf(': http');
@@ -46,7 +47,7 @@ function Sources({ items }) {
                     <Text
                         key={source}
                         className="text-sm leading-5 mb-2"
-                        style={{ color: url ? COLORS.brand : COLORS.muted }}
+                        style={{ color: url ? COLORS.brand : COLORS.muted, textDecorationLine: url ? 'underline' : 'none' }}
                         onPress={url ? () => Linking.openURL(url) : undefined}
                         accessibilityRole={url ? 'link' : undefined}
                     >
@@ -72,11 +73,27 @@ export default function ResultScreen({ route, navigation }) {
     const home = () => navigation.popToTop();
     const openSupport = () => navigation.navigate('SupportContacts');
 
+    // The assistant's box is at the bottom: when its keyboard opens, or a reply arrives, scroll
+    // so the box stays in view. Android draws apps edge to edge (Expo 57), so the screen is no
+    // longer resized for the keyboard by the system and padding is used on both platforms.
+    const scrollRef = useRef(null);
+    const asking = useRef(false);
+    const toBottom = () => scrollRef.current?.scrollToEnd({ animated: true });
+    useEffect(() => {
+        const shown = Keyboard.addListener('keyboardDidShow', () => asking.current && toBottom());
+        const hidden = Keyboard.addListener('keyboardDidHide', () => (asking.current = false));
+        return () => {
+            shown.remove();
+            hidden.remove();
+        };
+    }, []);
+
     return (
         <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }}>
             <StatusBar style="dark" />
             <ScreenHeader title="Result" icon="close" onBack={home} />
-            <ScrollView contentContainerClassName="pb-10">
+            <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
+            <ScrollView ref={scrollRef} contentContainerClassName="pb-10" keyboardShouldPersistTaps="handled">
                 {imageUri && <Image source={{ uri: imageUri }} className="w-full h-56" resizeMode="cover" />}
 
                 <View className="px-5 pt-5">
@@ -139,6 +156,15 @@ export default function ResultScreen({ route, navigation }) {
                             )}
                             <Steps title="Stopping it coming back" items={result.guidance?.prevention} />
                             <Sources items={result.guidance?.sources} />
+                            <AssistantBox
+                                diagnosisId={result.diagnosis_id}
+                                onSupport={openSupport}
+                                onFocus={() => {
+                                    asking.current = true;
+                                    toBottom();
+                                }}
+                                onReply={() => setTimeout(toBottom, 100)}
+                            />
                         </>
                     )}
                 </View>
@@ -171,6 +197,7 @@ export default function ResultScreen({ route, navigation }) {
                     )}
                 </View>
             </ScrollView>
+            </KeyboardAvoidingView>
         </SafeAreaView>
     );
 }

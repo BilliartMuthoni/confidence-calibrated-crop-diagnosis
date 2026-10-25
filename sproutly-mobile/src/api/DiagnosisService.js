@@ -95,6 +95,21 @@ export async function correctCrop({ token, diagnosisId, crop }) {
     }
 }
 
+/** A question about one diagnosis (D9). The reply is library advice, a fixed question with
+ *  reply buttons, a hand-over to the officer, or "not about this"; never written by the model. */
+export async function askAssistant({ token, diagnosisId, question, history }) {
+    try {
+        const { data } = await client.post(
+            `/diagnose/${diagnosisId}/ask`,
+            { question, history },
+            { headers: { Authorization: `Bearer ${token}` } }
+        );
+        return data;
+    } catch (error) {
+        throw new Error(extractErrorMessage(error));
+    }
+}
+
 export async function fetchHistory({ token }) {
     try {
         const { data } = await client.get('/diagnose/history', {

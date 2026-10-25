@@ -1,7 +1,7 @@
 from datetime import datetime
-from typing import Optional, List
+from typing import Literal, Optional, List
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.models.diagnosis import CropType
 
@@ -51,6 +51,33 @@ class BatchResponse(BaseModel):
 
 class CropCorrection(BaseModel):
     crop: CropType
+
+
+class AssistantTurn(BaseModel):
+    role: Literal["farmer", "assistant"]
+    text: str = Field(max_length=500)
+
+
+class AssistantQuestion(BaseModel):
+    question: str = Field(min_length=1, max_length=300)
+    # Earlier turns of this conversation, oldest first (only the last few are used).
+    history: List[AssistantTurn] = Field(default=[], max_length=12)
+
+
+class AdviceItem(BaseModel):
+    text: str
+    kind: str
+    source: str
+
+
+class AssistantReply(BaseModel):
+    # advice, question, officer, out_of_scope, or unavailable (the app then shows the advice
+    # already on the result and the way to an officer).
+    kind: str
+    message: str
+    advice: List[AdviceItem] = []
+    # Replies the app offers as buttons when the assistant asks a question.
+    choices: List[str] = []
 
 
 class DiagnosisListItem(BaseModel):
