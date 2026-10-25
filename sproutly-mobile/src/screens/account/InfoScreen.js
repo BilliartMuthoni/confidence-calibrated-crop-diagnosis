@@ -1,14 +1,21 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import ScreenHeader from '../../components/ScreenHeader';
 import { COLORS } from '../../constants/theme';
 import { APP_VERSION, CONTACT_EMAIL, PAGES } from '../../constants/accountText';
+import { fetchServerVersion } from '../../api/DiagnosisService';
 
 /** Privacy policy, terms of use, help and about: plain reading pages (text in constants/accountText.js). */
 export default function InfoScreen({ route, navigation }) {
     const page = PAGES[route.params.page];
+    const about = route.params.page === 'about';
+    // The About page also says which model the server runs, so a result can be traced to it.
+    const [server, setServer] = useState(null);
+    useEffect(() => {
+        if (about) fetchServerVersion().then(setServer);
+    }, [about]);
     return (
         <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }}>
             <StatusBar style="dark" />
@@ -39,9 +46,17 @@ export default function InfoScreen({ route, navigation }) {
                         Questions about your data: {CONTACT_EMAIL}
                     </Text>
                 )}
-                {route.params.page === 'about' && (
+                {about && (
                     <Text className="text-center text-xs mt-8" style={{ color: COLORS.faint }}>
                         Sproutly · version {APP_VERSION}
+                    </Text>
+                )}
+                {about && server?.model_version && (
+                    <Text className="text-center text-xs mt-2 leading-4" style={{ color: COLORS.faint }}>
+                        Model: {server.model_version}
+                        {server.model_revision && server.model_revision !== 'local'
+                            ? ` · files ${server.model_revision.slice(0, 7)}`
+                            : ''}
                     </Text>
                 )}
             </ScrollView>

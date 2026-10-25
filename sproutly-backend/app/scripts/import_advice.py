@@ -3,6 +3,10 @@
 Run inside sproutly-backend:
 
     python -m app.scripts.import_advice path/to/advice.csv
+    python -m app.scripts.import_advice path/to/advice.csv --if-empty
+
+--if-empty imports only into an empty library (the deployed server runs it at every start: the
+first start fills a new database; later starts never re-add an entry an admin has corrected).
 
 The CSV has a header row with: disease, kind, text, source_title, source_url, licence.
 disease is a model class name (e.g. Tomato___Early_blight), kind is treatment or prevention,
@@ -24,10 +28,13 @@ from app.models.user import User  # noqa: F401
 from app.schemas.admin import AdviceIn
 
 
-def main(path: str) -> int:
+def main(path: str, if_empty: bool = False) -> int:
     db = SessionLocal()
     added, skipped, problems = 0, 0, []
     try:
+        if if_empty and db.query(AdviceEntry).first() is not None:
+            print("The advice library already has entries; nothing imported.")
+            return 0
         with open(path, newline="", encoding="utf-8") as handle:
             for line, row in enumerate(csv.DictReader(handle), start=2):
                 try:
@@ -68,7 +75,10 @@ def main(path: str) -> int:
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 2:
+    args = sys.argv[1:]
+    if_empty = "--if-empty" in args
+    paths = [a for a in args if a != "--if-empty"]
+    if len(paths) != 1:
         print(__doc__)
         sys.exit(1)
-    sys.exit(main(sys.argv[1]))
+    sys.exit(main(paths[0], if_empty))
