@@ -110,6 +110,16 @@ export async function askAssistant({ token, diagnosisId, question, history }) {
     }
 }
 
+/** Which model the server runs (no sign-in needed); null if the server cannot be reached. */
+export async function fetchServerVersion() {
+    try {
+        const { data } = await client.get('/health', { timeout: 10000 });
+        return data;
+    } catch {
+        return null;
+    }
+}
+
 export async function fetchHistory({ token }) {
     try {
         const { data } = await client.get('/diagnose/history', {

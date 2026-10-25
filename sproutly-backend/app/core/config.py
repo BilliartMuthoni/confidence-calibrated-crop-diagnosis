@@ -68,6 +68,9 @@ class Settings(BaseSettings):
     groq_api_key: str = ""
     groq_model: str = "openai/gpt-oss-20b"
     assistant_timeout_seconds: float = 15.0
+    # Which version of the model files this server runs: the Hugging Face commit the Docker image
+    # was built from (sproutly-backend/model_revision.txt); "local" on a laptop.
+    model_revision: str = "local"
 
     # Admin portal and staff accounts.
     # Where the portal runs: one-time links for new officers and password resets point here.

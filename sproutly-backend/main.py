@@ -2,14 +2,15 @@ import asyncio
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
+from sqlalchemy import text
 
-from app.core.classifier import load_model
+from app.core.classifier import load_model, model_version
 from app.core.leaf_check import load_leaf_check
 from app.core.config import settings
 from app.core.limiter import limiter
@@ -73,6 +74,20 @@ app.include_router(oauth_router)
 app.include_router(admin_router)
 app.include_router(admin_content_router)
 app.include_router(contacts_router)
+
+@app.get("/health")
+def health():
+    """Readiness check for Azure and the app's About screen. The models load before the server
+    accepts requests, so any answer means they are loaded; the database is checked each time."""
+    db = SessionLocal()
+    try:
+        db.execute(text("SELECT 1"))
+    except Exception:
+        raise HTTPException(status_code=503, detail="Database not reachable")
+    finally:
+        db.close()
+    return {"status": "ok", "model_version": model_version(), "model_revision": settings.model_revision}
+
 
 @app.get("/")
 def message():
