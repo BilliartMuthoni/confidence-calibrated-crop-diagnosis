@@ -9,7 +9,7 @@ const YEAR = new Date().getFullYear()
 
 // Dark glass inputs on the green, as on the mobile login screen.
 const input =
-  'h-11 w-full rounded-xl border border-white/10 bg-black/20 px-4 text-[15px] text-white outline-none transition placeholder:text-white/40 focus:border-white/40 focus:ring-4 focus:ring-white/10'
+  'glass-input h-11 w-full rounded-xl border border-white/10 bg-black/20 px-4 text-[15px] text-white outline-none transition placeholder:text-white/40 focus:border-white/40 focus:ring-4 focus:ring-white/10'
 
 // Same idea as the mobile app's eye-outline / eye-off-outline icons.
 function EyeIcon({ open }) {
@@ -154,7 +154,7 @@ export default function LoginPage() {
                          onChange={(e) => setPassword(e.target.value)} onKeyUp={watchCaps} onKeyDown={watchCaps} />
                   <button type="button" onClick={() => setShowPassword((v) => !v)}
                           aria-label={showPassword ? 'Hide password' : 'Show password'} aria-pressed={showPassword}
-                          className="absolute inset-y-0 right-0 flex w-12 items-center justify-center rounded-r-xl text-white/60 hover:text-white focus:text-white focus:outline-none">
+                          className="absolute inset-y-0 right-0 flex w-12 items-center justify-center rounded-r-xl text-white/85 hover:text-white focus:text-white focus:outline-none">
                     <EyeIcon open={!showPassword} />
                   </button>
                 </div>

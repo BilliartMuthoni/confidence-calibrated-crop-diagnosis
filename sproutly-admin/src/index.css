@@ -32,3 +32,20 @@
 body {
   @apply bg-surface text-body antialiased;
 }
+
+/* Dark sign-in boxes (LoginPage, SetPasswordPage). When the browser fills in a saved email or
+   password it paints the box in its own light colour, which hid the white text and the white
+   show-password button. Keep the dark box: white text and cursor, and the browser's colour held
+   off (Chrome and Edge only apply it through a background transition). */
+.glass-input:-webkit-autofill,
+.glass-input:-webkit-autofill:hover,
+.glass-input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #ffffff;
+  caret-color: #ffffff;
+  transition: background-color 600000s 0s, color 600000s 0s;
+}
+.glass-input:autofill {
+  box-shadow: 0 0 0 1000px #183326 inset;
+  -webkit-text-fill-color: #ffffff;
+  caret-color: #ffffff;
+}

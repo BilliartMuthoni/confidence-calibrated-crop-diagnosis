@@ -5,7 +5,7 @@ import { setStaffPassword } from '../api/admin.js'
 
 const MIN = 12
 const input =
-  'h-11 w-full rounded-xl border border-white/10 bg-black/20 px-4 text-[15px] text-white outline-none transition placeholder:text-white/40 focus:border-white/40 focus:ring-4 focus:ring-white/10'
+  'glass-input h-11 w-full rounded-xl border border-white/10 bg-black/20 px-4 text-[15px] text-white outline-none transition placeholder:text-white/40 focus:border-white/40 focus:ring-4 focus:ring-white/10'
 
 /** Opened from a one-time invite or reset link an admin passed on: choose a password, then sign in. */
 export default function SetPasswordPage() {
