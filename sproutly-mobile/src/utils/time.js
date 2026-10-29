@@ -6,6 +6,25 @@ export function parseUtc(value) {
 
 const clock = (date) => date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
 
+/** "Wednesday 29 October 2026, 14:05": the date shown on a past result. */
+export function fullDateLabel(value) {
+    const date = parseUtc(value);
+    return `${date.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}, ${clock(date)}`;
+}
+
+/** Start of this week (Monday) and of this month, in the phone's time zone, for the history filters. */
+export function startOfWeek() {
+    const date = new Date();
+    date.setHours(0, 0, 0, 0);
+    date.setDate(date.getDate() - ((date.getDay() + 6) % 7));
+    return date;
+}
+
+export function startOfMonth() {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1);
+}
+
 /** "Today, 12:08", "Yesterday, 18:40", or "17 Oct, 09:15": the actual time, not "x ago". */
 export function whenLabel(value) {
     const date = parseUtc(value);

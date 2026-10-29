@@ -2,8 +2,10 @@ import os
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
+from app.core import audit
 from app.core.assistant import answer
 from app.core.classifier import Prediction, model_version, predict
 from app.core.counties import COUNTIES
@@ -19,13 +21,16 @@ from app.models.referral import Referral
 from app.models.user import User, UserRole
 from app.schemas.diagnosis import (
     AssistantQuestion,
+    AdviceItem,
     AssistantReply,
     BatchItem,
     BatchResponse,
     CropCorrection,
+    DiagnosisDetail,
     DiagnosisListItem,
     DiagnosisResponse,
     Guidance,
+    OfficerReply,
 )
 
 router = APIRouter(prefix="/diagnose", tags=["diagnosis"])
@@ -256,3 +261,69 @@ def list_diagnoses(
             update={"referral_status": referral_status.value if referral_status else None})
         for record, referral_status in rows
     ]
+
+
+def _officer_reply(db: Session, referral: Optional[Referral], record: Diagnosis) -> Optional[OfficerReply]:
+    """The officer's message and attached advice, as sent; older replies only kept the text."""
+    if referral and referral.replied_at:
+        officer = db.get(User, referral.replied_by_id) if referral.replied_by_id else None
+        advice = [
+            AdviceItem(text=a["text"], kind=a["kind"],
+                       source=f"{a['source_title']} ({a['licence']})" + (f": {a['source_url']}" if a.get("source_url") else ""))
+            for a in referral.reply_advice or []
+        ]
+        return OfficerReply(text=referral.reply_text or "", officer=audit.label(officer) if officer else "",
+                            replied_at=referral.replied_at, advice=advice)
+    if record.officer_response:
+        return OfficerReply(text=record.officer_response, officer="", replied_at=record.responded_at)
+    return None
+
+
+@router.get("/{diagnosis_id}", response_model=DiagnosisDetail)
+def get_diagnosis(
+    diagnosis_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """One of the farmer's own checks with everything about it: the result and its advice, what
+    they described, and what happened to the referral. Someone else's check is 404."""
+    expire_overdue(db)
+    record = _own_diagnosis(db, diagnosis_id, current_user)
+    referral = db.query(Referral).filter(Referral.diagnosis_id == record.diagnosis_id).first()
+    common = dict(
+        diagnosis_id=record.diagnosis_id,
+        crop=record.crop,
+        confidence=record.confidence,
+        is_referred=record.is_referred,
+        created_at=record.created_at,
+        symptoms_text=record.symptoms_text,
+        referral_status=referral.status.value if referral else None,
+        officer_reply=_officer_reply(db, referral, record),
+        photo_available=bool(record.image_path) and os.path.exists(record.image_path),
+    )
+    if record.is_referred:
+        return DiagnosisDetail(
+            **common,
+            referral_message=REFERRAL_MESSAGE,
+            crop_mismatch=record.crop_probability is not None and record.crop_probability < 0.5,
+            sent_to_officer=referral is not None,
+        )
+    guidance = get_guidance(record.top_class, db) if record.top_class else None
+    return DiagnosisDetail(
+        **common,
+        predicted_disease=record.predicted_disease,
+        guidance=Guidance(**guidance) if guidance else None,
+    )
+
+
+@router.get("/{diagnosis_id}/photo")
+def diagnosis_photo(
+    diagnosis_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """The farmer's own photo of a check, until it is deleted (PHOTO_DAYS after the check)."""
+    record = _own_diagnosis(db, diagnosis_id, current_user)
+    if not record.image_path or not os.path.exists(record.image_path):
+        raise HTTPException(status_code=status.HTTP_410_GONE, detail="The photo is no longer stored")
+    return FileResponse(record.image_path, headers={"Cache-Control": "private, no-store"})

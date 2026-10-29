@@ -94,3 +94,21 @@ class DiagnosisListItem(BaseModel):
     referral_status: Optional[str] = None
 
     model_config = {"from_attributes": True}
+
+
+class OfficerReply(BaseModel):
+    text: str
+    officer: str
+    replied_at: Optional[datetime] = None
+    # Advice library entries the officer attached, as they were when sent.
+    advice: List[AdviceItem] = []
+
+
+class DiagnosisDetail(DiagnosisResponse):
+    """One past check with everything about it (GET /diagnose/{id})."""
+    symptoms_text: Optional[str] = None
+    # new / in_review / answered / expired when the case went to an officer; None otherwise.
+    referral_status: Optional[str] = None
+    officer_reply: Optional[OfficerReply] = None
+    # False once the photo has been deleted (PHOTO_DAYS after the check).
+    photo_available: bool = False

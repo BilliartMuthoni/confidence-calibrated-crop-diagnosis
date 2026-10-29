@@ -6,7 +6,7 @@ import { whenLabel } from '../utils/time';
 
 /** What happened to a check, in a few words and its colour. */
 export function outcome(item) {
-    if (item.officer_response) return { text: 'Officer replied. Tap to read', color: COLORS.referral, kind: 'officer' };
+    if (item.officer_response) return { text: 'Officer replied', color: COLORS.referral, kind: 'officer' };
     if (item.referral_status === 'new' || item.referral_status === 'in_review') {
         return { text: 'Waiting for a county officer', color: COLORS.referral, kind: 'officer' };
     }
@@ -20,54 +20,45 @@ export function outcome(item) {
     return { text: disease, color: COLORS.disease, kind: 'disease' };
 }
 
-/** One check in the history; a check with an officer's reply opens to show it. */
-export default function CheckRow({ item, first, open, onToggle }) {
+/** One check in a list; tapping it opens the full result. An officer's reply gets a badge. */
+export default function CheckRow({ item, first, onPress }) {
     const result = outcome(item);
-    const hasReply = Boolean(item.officer_response);
+    const replied = Boolean(item.officer_response);
+    const crop = CROP_LABELS[item.crop] || item.crop;
+    const when = whenLabel(item.created_at);
     return (
-        <View style={{ borderTopWidth: first ? 0 : 1, borderTopColor: COLORS.divider }}>
-            <TouchableOpacity
-                disabled={!hasReply}
-                onPress={onToggle}
-                activeOpacity={0.7}
-                accessibilityRole={hasReply ? 'button' : undefined}
-                accessibilityState={hasReply ? { expanded: open } : undefined}
-                className="flex-row items-center py-4"
-            >
-                <View className="w-2.5 h-2.5 rounded-full mr-4" style={{ backgroundColor: result.color }} />
-                <View className="flex-1">
-                    <Text className="text-base font-semibold" style={{ color: COLORS.ink }}>
-                        {CROP_LABELS[item.crop] || item.crop}
-                    </Text>
-                    <Text className="text-sm mt-0.5" style={{ color: result.color }}>
-                        {open ? 'Officer replied' : result.text}
-                    </Text>
-                </View>
-                <Text className="text-xs" style={{ color: COLORS.faint }}>
-                    {whenLabel(item.created_at)}
+        <TouchableOpacity
+            onPress={onPress}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel={`${crop}, ${result.text}, ${when}. Open the full result`}
+            className="flex-row items-center py-4"
+            style={{ borderTopWidth: first ? 0 : 1, borderTopColor: COLORS.divider }}
+        >
+            <View className="w-2.5 h-2.5 rounded-full mr-4" style={{ backgroundColor: result.color }} />
+            <View className="flex-1">
+                <Text className="text-base font-semibold" style={{ color: COLORS.ink }}>
+                    {crop}
                 </Text>
-                {hasReply && (
-                    <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={16} color={COLORS.faint} style={{ marginLeft: 6 }} />
+                {replied ? (
+                    <View className="flex-row mt-1">
+                        <View className="flex-row items-center rounded-full px-2.5 py-0.5" style={{ backgroundColor: '#EAF1F8' }}>
+                            <Ionicons name="chatbubble-ellipses" size={12} color={COLORS.referral} />
+                            <Text className="text-xs font-bold ml-1" style={{ color: COLORS.referral }}>
+                                Officer replied
+                            </Text>
+                        </View>
+                    </View>
+                ) : (
+                    <Text className="text-sm mt-0.5" style={{ color: result.color }}>
+                        {result.text}
+                    </Text>
                 )}
-            </TouchableOpacity>
-            {open && (
-                <View
-                    className="mb-4 rounded-xl px-4 py-3"
-                    style={{ backgroundColor: '#EAF1F8', borderWidth: 1, borderColor: '#C9DAEC' }}
-                >
-                    <Text className="text-xs font-bold tracking-wider" style={{ color: COLORS.referral }}>
-                        ADVICE FROM A COUNTY OFFICER
-                    </Text>
-                    <Text className="text-base mt-2 leading-6" style={{ color: COLORS.text }}>
-                        {item.officer_response}
-                    </Text>
-                    {item.responded_at && (
-                        <Text className="text-xs mt-2" style={{ color: COLORS.faint }}>
-                            Replied {whenLabel(item.responded_at)}
-                        </Text>
-                    )}
-                </View>
-            )}
-        </View>
+            </View>
+            <Text className="text-xs" style={{ color: COLORS.faint }}>
+                {when}
+            </Text>
+            <Ionicons name="chevron-forward" size={16} color={COLORS.faint} style={{ marginLeft: 6 }} />
+        </TouchableOpacity>
     );
 }

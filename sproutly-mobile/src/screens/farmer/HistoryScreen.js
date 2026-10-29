@@ -6,10 +6,17 @@ import { useFocusEffect } from '@react-navigation/native';
 import { AuthContext } from '../../context/AuthContext';
 import { fetchHistory } from '../../api/DiagnosisService';
 import { toFriendlyError } from '../../utils/errorMessages';
+import { parseUtc, startOfMonth, startOfWeek } from '../../utils/time';
 import ErrorBanner from '../../components/ErrorBanner';
 import BottomBar from '../../components/BottomBar';
 import CheckRow, { outcome } from '../../components/CheckRow';
 import { COLORS } from '../../constants/theme';
+
+const PERIODS = [
+    { id: 'all', label: 'All time', from: () => null },
+    { id: 'week', label: 'This week', from: startOfWeek },
+    { id: 'month', label: 'This month', from: startOfMonth },
+];
 
 const FILTERS = [
     { id: 'all', label: 'All' },
@@ -19,15 +26,15 @@ const FILTERS = [
     { id: 'referred', label: 'Not diagnosed' },
 ];
 
-/** Every check (the backend keeps the latest 50), with the officer's replies. */
+/** Every check (the backend keeps the latest 50); tapping one opens its full result. */
 export default function HistoryScreen({ navigation }) {
     const { userToken } = useContext(AuthContext);
     const [history, setHistory] = useState([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState(null);
+    const [period, setPeriod] = useState('all');
     const [filter, setFilter] = useState('all');
-    const [openReply, setOpenReply] = useState(null);
 
     const load = useCallback(async () => {
         setError(null);
@@ -47,7 +54,10 @@ export default function HistoryScreen({ navigation }) {
         }, [load])
     );
 
-    const shown = history.filter((item) => filter === 'all' || outcome(item).kind === filter);
+    const from = PERIODS.find((p) => p.id === period).from();
+    const shown = history.filter(
+        (item) => (!from || parseUtc(item.created_at) >= from) && (filter === 'all' || outcome(item).kind === filter)
+    );
 
     return (
         <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }} edges={['top']}>
@@ -59,7 +69,33 @@ export default function HistoryScreen({ navigation }) {
                 <Text className="text-2xl font-bold pt-4" style={{ color: COLORS.ink }}>
                     Your checks
                 </Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mt-4 -mx-5" contentContainerClassName="px-5">
+
+                <View
+                    className="flex-row mt-4 rounded-xl p-1"
+                    style={{ backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.divider }}
+                    accessibilityRole="radiogroup"
+                    accessibilityLabel="When"
+                >
+                    {PERIODS.map((p) => {
+                        const selected = p.id === period;
+                        return (
+                            <TouchableOpacity
+                                key={p.id}
+                                onPress={() => setPeriod(p.id)}
+                                accessibilityRole="radio"
+                                accessibilityState={{ selected }}
+                                className="flex-1 items-center py-2 rounded-lg"
+                                style={{ backgroundColor: selected ? COLORS.brand : 'transparent' }}
+                            >
+                                <Text className="text-sm font-semibold" style={{ color: selected ? '#FFFFFF' : COLORS.text }}>
+                                    {p.label}
+                                </Text>
+                            </TouchableOpacity>
+                        );
+                    })}
+                </View>
+
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mt-3 -mx-5" contentContainerClassName="px-5">
                     {FILTERS.map((f) => {
                         const selected = f.id === filter;
                         return (
@@ -92,7 +128,7 @@ export default function HistoryScreen({ navigation }) {
                         <ErrorBanner error={error} onRetry={load} />
                     ) : shown.length === 0 ? (
                         <Text className="text-base py-6 leading-6" style={{ color: COLORS.muted }}>
-                            {history.length === 0 ? 'No checks yet. Your results will appear here.' : 'No checks of this kind.'}
+                            {history.length === 0 ? 'No checks yet. Your results will appear here.' : 'No checks match these filters.'}
                         </Text>
                     ) : (
                         shown.map((item, index) => (
@@ -100,8 +136,7 @@ export default function HistoryScreen({ navigation }) {
                                 key={item.diagnosis_id}
                                 item={item}
                                 first={index === 0}
-                                open={openReply === item.diagnosis_id}
-                                onToggle={() => setOpenReply(openReply === item.diagnosis_id ? null : item.diagnosis_id)}
+                                onPress={() => navigation.navigate('Result', { diagnosisId: item.diagnosis_id })}
                             />
                         ))
                     )}
