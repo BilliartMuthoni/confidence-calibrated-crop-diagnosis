@@ -78,6 +78,16 @@ class AssistantReply(BaseModel):
     advice: List[AdviceItem] = []
     # Replies the app offers as buttons when the assistant asks a question.
     choices: List[str] = []
+    # The farmer's choice about keeping their questions: None until asked (the app then asks
+    # once), True when this question and reply were kept with the check.
+    keep_questions: Optional[bool] = None
+
+
+class SavedTurnItem(BaseModel):
+    """A kept question and the reply that was shown."""
+    question: str
+    reply: AssistantReply
+    asked_at: datetime
 
 
 class DiagnosisListItem(BaseModel):
@@ -112,3 +122,5 @@ class DiagnosisDetail(DiagnosisResponse):
     officer_reply: Optional[OfficerReply] = None
     # False once the photo has been deleted (PHOTO_DAYS after the check).
     photo_available: bool = False
+    # Questions the farmer asked about this result, oldest first, if they chose to keep them.
+    questions: List[SavedTurnItem] = []

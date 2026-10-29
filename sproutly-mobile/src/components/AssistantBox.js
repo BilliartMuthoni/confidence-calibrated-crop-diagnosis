@@ -1,8 +1,9 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, Linking } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { AuthContext } from '../context/AuthContext';
 import { askAssistant } from '../api/DiagnosisService';
+import { fetchCurrentUser, setKeepQuestions } from '../api/AuthService';
 import { toFriendlyError } from '../utils/errorMessages';
 import { COLORS } from '../constants/theme';
 
@@ -80,28 +81,98 @@ function Reply({ reply, onChoice, onSupport, busy }) {
     );
 }
 
-/** "Ask about this result" (D9): the farmer's questions and the assistant's replies.
- *  onFocus and onReply let the screen scroll the box into view above the keyboard. */
-export default function AssistantBox({ diagnosisId, onSupport, onFocus, onReply }) {
+/** Asked once per account, before the first question is kept: keep questions with the check? */
+function KeepCard({ onChoose, busy }) {
+    return (
+        <View className="rounded-xl px-4 py-3 mb-3" style={{ backgroundColor: '#EAF1F8' }}>
+            <Text className="text-base font-bold leading-6" style={{ color: COLORS.ink }}>
+                Keep your questions with this check?
+            </Text>
+            <Text className="text-sm leading-5 mt-1" style={{ color: COLORS.text }}>
+                Then you can read them again later in Your checks. Only you can see them. You can change this or
+                delete them in Account, Privacy.
+            </Text>
+            <View className="flex-row mt-3">
+                <TouchableOpacity
+                    onPress={() => onChoose(true)}
+                    disabled={busy}
+                    accessibilityRole="button"
+                    className="mr-2 px-4 py-2 rounded-full"
+                    style={{ backgroundColor: COLORS.brand }}
+                >
+                    <Text className="text-sm font-semibold" style={{ color: '#FFFFFF' }}>
+                        Keep them
+                    </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                    onPress={() => onChoose(false)}
+                    disabled={busy}
+                    accessibilityRole="button"
+                    className="px-4 py-2 rounded-full"
+                    style={{ borderWidth: 1, borderColor: COLORS.brand }}
+                >
+                    <Text className="text-sm font-semibold" style={{ color: COLORS.brand }}>
+                        No thanks
+                    </Text>
+                </TouchableOpacity>
+            </View>
+        </View>
+    );
+}
+
+/** "Ask about this result" (D9): the farmer's questions and the assistant's replies, starting
+ *  with the ones kept earlier (saved, on a past result). onFocus and onReply let the screen
+ *  scroll the box into view above the keyboard. */
+export default function AssistantBox({ diagnosisId, saved, onSupport, onFocus, onReply }) {
     const { userToken } = useContext(AuthContext);
-    const [turns, setTurns] = useState([]); // { question, reply } in order
+    const [turns, setTurns] = useState(() => (saved || []).map(({ question, reply }) => ({ question, reply })));
     const [question, setQuestion] = useState('');
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState(null);
+    // The farmer's choice about keeping questions: undefined while loading, null if not asked yet.
+    const [keep, setKeep] = useState(undefined);
+    const earlier = saved?.length || 0;
+
+    useEffect(() => {
+        let live = true;
+        fetchCurrentUser({ token: userToken })
+            .then((me) => live && setKeep(me.keep_questions ?? null))
+            .catch(() => live && setKeep(false)); // not known: nothing is kept, and the card is not shown
+        return () => {
+            live = false;
+        };
+    }, [userToken]);
+
+    const choose = async (value) => {
+        setBusy(true);
+        setError(null);
+        try {
+            await setKeepQuestions({ token: userToken, keep: value });
+            setKeep(value);
+        } catch (e) {
+            setError(toFriendlyError(e).message);
+        } finally {
+            setBusy(false);
+        }
+    };
 
     const send = async (text) => {
         const asked = text.trim();
         if (!asked || busy) return;
         setBusy(true);
         setError(null);
-        // What the farmer saw before, so a reply to the assistant's question makes sense.
-        const history = turns.flatMap(({ question: q, reply }) => [
-            { role: 'farmer', text: q },
-            { role: 'assistant', text: [reply.message, ...reply.advice.map((a) => a.text)].join(' ').slice(0, 500) },
-        ]);
+        // What the farmer saw before, so a reply to the assistant's question makes sense
+        // (the backend takes the last 12 lines).
+        const history = turns
+            .flatMap(({ question: q, reply }) => [
+                { role: 'farmer', text: q },
+                { role: 'assistant', text: [reply.message, ...reply.advice.map((a) => a.text)].join(' ').slice(0, 500) },
+            ])
+            .slice(-12);
         try {
             const reply = await askAssistant({ token: userToken, diagnosisId, question: asked, history });
             setTurns((current) => [...current, { question: asked, reply }]);
+            if (reply.keep_questions !== undefined) setKeep(reply.keep_questions);
             setQuestion('');
             onReply?.();
         } catch (e) {
@@ -122,12 +193,19 @@ export default function AssistantBox({ diagnosisId, onSupport, onFocus, onReply 
             </Text>
             <Text className="text-sm leading-5 mt-2 mb-3" style={{ color: COLORS.muted }}>
                 Answers come only from the sourced advice for this result. For sprays and doses, ask your agrovet or
-                extension officer. Your question is sent to an AI service (Groq) to choose the answer; it is not
-                stored there.
+                extension officer. Your question is sent to an AI service (Groq) to choose the answer; Groq does not
+                keep it. Sproutly keeps it only if you agree.
             </Text>
+
+            {keep === null && <KeepCard onChoose={choose} busy={busy} />}
 
             {turns.map(({ question: q, reply }, index) => (
                 <View key={index}>
+                    {earlier > 0 && index === 0 && (
+                        <Text className="text-xs font-bold tracking-wider mb-2" style={{ color: COLORS.muted }}>
+                            YOUR EARLIER QUESTIONS
+                        </Text>
+                    )}
                     <View className="self-end rounded-xl px-4 py-2 mb-2 max-w-[85%]" style={{ backgroundColor: COLORS.brand }}>
                         <Text className="text-base leading-6" style={{ color: '#FFFFFF' }}>
                             {q}
@@ -176,6 +254,13 @@ export default function AssistantBox({ diagnosisId, onSupport, onFocus, onReply 
                     {busy ? <ActivityIndicator color="#FFFFFF" /> : <Ionicons name="send" size={20} color="#FFFFFF" />}
                 </TouchableOpacity>
             </View>
+            {(keep === true || keep === false) && (
+                <Text className="text-xs leading-4 mt-2" style={{ color: COLORS.faint }}>
+                    {keep
+                        ? 'Your questions are kept with this check. Change this in Account, Privacy.'
+                        : 'Your questions are not kept. Change this in Account, Privacy.'}
+                </Text>
+            )}
         </View>
     );
 }

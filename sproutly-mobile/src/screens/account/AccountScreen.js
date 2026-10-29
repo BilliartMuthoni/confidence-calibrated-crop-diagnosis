@@ -3,14 +3,14 @@ import { View, Text, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { AuthContext } from '../../context/AuthContext';
-import { fetchCurrentUser, setMyCounty } from '../../api/AuthService';
+import { deleteSavedQuestions, fetchCurrentUser, setKeepQuestions, setMyCounty } from '../../api/AuthService';
 import { toFriendlyError } from '../../utils/errorMessages';
 import { loadCounty, saveCounty } from '../../utils/farmerCounty';
 import ErrorBanner from '../../components/ErrorBanner';
 import ScreenHeader from '../../components/ScreenHeader';
 import CountyPicker from '../../components/CountyPicker';
 import BottomBar from '../../components/BottomBar';
-import { Group, InfoRow, NavRow } from '../../components/SettingsRows';
+import { Group, InfoRow, NavRow, SwitchRow } from '../../components/SettingsRows';
 import { COLORS } from '../../constants/theme';
 import { APP_VERSION } from '../../constants/accountText';
 
@@ -62,6 +62,44 @@ export default function AccountScreen({ route, navigation }) {
             setCounty(before);
             setCountyError(toFriendlyError(e));
         }
+    };
+
+    const [privacyError, setPrivacyError] = useState(null);
+    const [savingKeep, setSavingKeep] = useState(false);
+
+    const changeKeep = async (value) => {
+        setSavingKeep(true);
+        setPrivacyError(null);
+        try {
+            setProfile(await setKeepQuestions({ token: userToken, keep: value }));
+        } catch (e) {
+            setPrivacyError(toFriendlyError(e));
+        } finally {
+            setSavingKeep(false);
+        }
+    };
+
+    const confirmDeleteQuestions = () => {
+        Alert.alert(
+            'Delete your saved questions?',
+            'The questions you asked about your results, and the replies, are deleted from every check. Your checks stay.',
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Delete',
+                    style: 'destructive',
+                    onPress: async () => {
+                        setPrivacyError(null);
+                        try {
+                            await deleteSavedQuestions({ token: userToken });
+                            Alert.alert('Deleted', 'Your saved questions have been deleted.');
+                        } catch (e) {
+                            setPrivacyError(toFriendlyError(e));
+                        }
+                    },
+                },
+            ]
+        );
     };
 
     const confirmLogout = () => {
@@ -162,12 +200,22 @@ export default function AccountScreen({ route, navigation }) {
                         </Group>
 
                         <Group title="Privacy">
+                            <SwitchRow icon="chatbubbles-outline" label="Keep my assistant questions"
+                                       hint="Read them again in Your checks. Only you see them."
+                                       value={profile.keep_questions === true} onChange={changeKeep} disabled={savingKeep} />
+                            <NavRow icon="trash-outline" label="Delete my saved questions" hint="Your checks stay"
+                                    onPress={confirmDeleteQuestions} />
                             <NavRow icon="shield-checkmark-outline" label="Privacy policy" hint="What Sproutly keeps and who sees it"
                                     onPress={go('Info', { page: 'privacy' })} />
                             <NavRow icon="document-text-outline" label="Terms of use" onPress={go('Info', { page: 'terms' })} />
                             <NavRow icon="trash-outline" label="Delete my account" hint="Your photos, checks and account"
                                     color={COLORS.disease} onPress={go('DeleteAccount', { googleOnly: !profile.has_password })} last />
                         </Group>
+                        {privacyError && (
+                            <View className="px-5 mt-3">
+                                <ErrorBanner error={privacyError} onDismiss={() => setPrivacyError(null)} />
+                            </View>
+                        )}
 
                         <Group title="Help">
                             <NavRow icon="help-circle-outline" label="Help and common questions" onPress={go('Info', { page: 'help' })} />

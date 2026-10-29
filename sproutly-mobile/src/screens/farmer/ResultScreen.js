@@ -308,6 +308,7 @@ export default function ResultScreen({ route, navigation }) {
                             <Sources items={result.guidance?.sources} />
                             <AssistantBox
                                 diagnosisId={result.diagnosis_id}
+                                saved={result.questions}
                                 onSupport={openSupport}
                                 onFocus={() => {
                                     asking.current = true;

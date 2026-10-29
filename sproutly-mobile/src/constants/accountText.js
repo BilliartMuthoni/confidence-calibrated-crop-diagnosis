@@ -1,5 +1,5 @@
 // The words on the Privacy, Terms, Help and About screens, kept in one place so they can be
-// reviewed together. They describe what the app and backend actually do (checked 20 Oct 2026):
+// reviewed together. They describe what the app and backend actually do (checked 29 Oct 2026):
 // change them whenever that changes.
 import Constants from 'expo-constants';
 
@@ -20,6 +20,7 @@ export const PAGES = {
                 'The key of your authenticator app, stored encrypted.',
                 'The leaf photos you check, made smaller and with location (GPS) details removed, plus any description you type.',
                 "Each check's result: the disease, how sure Sproutly was, and any reply from an extension officer.",
+                'The questions you ask about a result and the replies you were shown, only if you chose "Keep them". You can turn this off at any time.',
                 'If you use Continue with Google: the email and account number Google gives us. Never your Google password.',
             ]],
             ['Why', [
@@ -27,18 +28,21 @@ export const PAGES = {
                 'To send a case to an extension officer in your county, only when you tick that box.',
                 'To show the support contacts for your county.',
                 'To keep your account safe.',
+                'To let you read your questions about a result again, if you chose to keep them.',
             ]],
             ['Who can see it', [
                 'You.',
                 "Extension officers in your county, only for cases you chose to send. They see your phone number only if you also ticked \"The officer may phone me\".",
                 'The Sproutly administrators, to run and check the service.',
                 'If you use "Ask about this result": your question and the result (never your name, number or photo) go to Groq, an AI service in the United States, which only chooses which of the Sproutly advice to show. Groq does not keep them.',
+                'Questions you chose to keep are shown only to you, never to extension officers.',
                 'Nobody else. Your data is not sold, and your photos are not used to train the model.',
             ]],
             ['How long', [
                 'Photos are deleted 30 days after the check. The result and any officer\'s reply stay in "Your checks".',
+                'Questions you chose to keep stay with their check until you delete them: Account, then Delete my saved questions. Turning "Keep my assistant questions" off stops new ones being kept.',
                 'Everything else is kept while you have an account.',
-                'When you delete your account, your photos, checks, cases and account are deleted at once. Only a record that "an account was deleted" and when stays, with nothing that identifies you.',
+                'When you delete your account, your photos, checks, cases, saved questions and account are deleted at once. Only a record that "an account was deleted" and when stays, with nothing that identifies you.',
             ]],
             ['Your rights', [
                 "Under Kenya's Data Protection Act (2019) you can see, correct and delete your data.",
