@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react'
 
 import { listAdvice, retireAdvice, saveAdvice } from '../api/admin.js'
 import { useAuth } from '../auth/context.js'
-import { Badge, Button, Card, Empty, ErrorBox, Field, Loading, PageHeader, inputClass } from '../components/ui.jsx'
+import { Badge, Button, Card, Empty, ErrorBox, Field, Loading, PageHeader, filterClass, inputClass } from '../components/ui.jsx'
 import { DISEASES, diseaseName, formatDate } from '../lib/format.js'
 import { useLoad } from '../lib/useLoad.js'
 
@@ -22,19 +22,19 @@ function Coverage({ entries }) {
   return (
     <Card className="mb-6">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="font-bold text-ink">Missing advice</h2>
+        <h2 className="text-base font-semibold text-ink">Missing advice</h2>
         <p className="text-sm text-muted">{total - gaps.length} of {total} covered</p>
       </div>
       {gaps.length === 0 ? (
         <p className="mt-2 text-sm text-muted">Every result has the advice it needs.</p>
       ) : (
         <>
-          <p className="mt-1 text-sm leading-6 text-muted">
+          <p className="mt-1 text-sm text-muted">
             A farmer who gets one of these results is shown the county contacts instead of advice.
           </p>
           <ul className="mt-3 flex flex-wrap gap-2">
             {gaps.map(([cls, kind]) => (
-              <li key={`${cls}-${kind}`} className="rounded-full bg-attention/10 px-3 py-1 text-xs font-semibold text-attention">
+              <li key={`${cls}-${kind}`} className="rounded bg-attention-tint px-2 py-0.5 text-xs font-semibold text-attention-ink">
                 {diseaseName(cls)}: {kind}
               </li>
             ))}
@@ -72,8 +72,8 @@ function EntryForm({ initial, onDone, onCancel }) {
 
   return (
     <Card className="mb-6">
-      <h2 className="font-bold text-ink">{correcting ? `Correct entry (now version ${initial.version})` : 'Add an advice entry'}</h2>
-      <p className="mt-1 text-sm leading-6 text-muted">
+      <h2 className="text-base font-semibold text-ink">{correcting ? `Correct entry (now version ${initial.version})` : 'Add an advice entry'}</h2>
+      <p className="mt-1 text-sm text-muted">
         Every entry is an excerpt copied word for word from a cited, openly licensed source, never advice written here.
         A correction saves a new version; farmers who already saw the old wording keep a record of it.
       </p>
@@ -131,11 +131,11 @@ function Entry({ entry, isAdmin, onEdit, onChanged }) {
   return (
     <li className="px-5 py-4">
       <div className="flex flex-wrap items-center gap-2">
-        <Badge tone={entry.kind === 'treatment' ? 'disease' : 'neutral'}>{entry.kind}</Badge>
-        <Badge tone={entry.status}>{entry.status}</Badge>
-        <span className="text-xs text-faint">version {entry.version}</span>
+        <span className="text-xs font-semibold text-ink">{entry.kind === 'treatment' ? 'Treatment' : 'Prevention'}</span>
+        {entry.status === 'retired' && <Badge tone="retired">Retired</Badge>}
+        <span className="text-xs text-muted">Version {entry.version}</span>
       </div>
-      <p className={`mt-2 leading-7 ${entry.status === 'retired' ? 'text-faint line-through' : 'text-body'}`}>{entry.text}</p>
+      <p className={`mt-1.5 text-sm leading-6 ${entry.status === 'retired' ? 'text-muted line-through' : 'text-body'}`}>{entry.text}</p>
       <p className="mt-1 text-xs text-muted">
         Source: <a href={entry.source_url} target="_blank" rel="noreferrer" className="underline">{entry.source_title}</a> ({entry.licence})
       </p>
@@ -146,7 +146,7 @@ function Entry({ entry, isAdmin, onEdit, onChanged }) {
         {isAdmin && entry.status === 'active' && (
           <>
             <button type="button" className="font-semibold text-primary underline" onClick={() => onEdit(entry)}>Correct</button>
-            <button type="button" className="font-semibold text-attention underline" onClick={retire}>Retire</button>
+            <button type="button" className="font-semibold text-attention-ink underline" onClick={retire}>Retire</button>
           </>
         )}
       </div>
@@ -177,7 +177,7 @@ export default function AdvicePage() {
     <>
       <PageHeader
         title="Advice library"
-        subtitle="The treatment and prevention advice shown to farmers after a diagnosis, word for word with its source. The assistant's search uses the same entries."
+        subtitle="Treatment and prevention advice shown to farmers, word for word with its source. The assistant uses the same entries."
       >
         {isAdmin && !editing && <Button onClick={() => setEditing(BLANK)}>Add an entry</Button>}
       </PageHeader>
@@ -190,7 +190,7 @@ export default function AdvicePage() {
       {data && <Coverage entries={data} />}
 
       <div className="mb-4 flex flex-wrap items-center gap-4">
-        <select className={`${inputClass} w-auto`} value={disease} onChange={(e) => setDisease(e.target.value)} aria-label="Disease">
+        <select className={filterClass} value={disease} onChange={(e) => setDisease(e.target.value)} aria-label="Disease">
           <option value="">All results</option>
           {Object.keys(DISEASES).map((c) => <option key={c} value={c}>{diseaseName(c)}</option>)}
         </select>
@@ -201,12 +201,12 @@ export default function AdvicePage() {
       </div>
 
       {loading ? <Loading /> : error ? <ErrorBox error={error} onRetry={reload} /> : groups.length === 0 ? (
-        <Card><Empty>No advice entries for this disease yet. Until there are, farmers see the support contacts instead.</Empty></Card>
+        <Card><Empty title="No advice for this result yet">Until there is, farmers see the support contacts instead.</Empty></Card>
       ) : (
         <div className="space-y-6">
           {groups.map(([cls, list]) => (
             <Card key={cls} className="p-0">
-              <h2 className="border-b border-divider px-5 py-3 font-bold text-ink">{diseaseName(cls)}</h2>
+              <h2 className="border-b border-divider px-5 py-3 font-semibold text-ink">{diseaseName(cls)}</h2>
               <ul className="divide-y divide-divider">
                 {list.map((entry) => (
                   <Entry key={entry.id} entry={entry} isAdmin={isAdmin} onEdit={setEditing} onChanged={reload} />

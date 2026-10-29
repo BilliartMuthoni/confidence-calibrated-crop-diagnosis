@@ -6,6 +6,9 @@ import { Card, ErrorBox, Loading, PageHeader } from '../components/ui.jsx'
 import { percent } from '../lib/format.js'
 import { useLoad } from '../lib/useLoad.js'
 
+// Each part's commit opens on GitHub, where its notebook and results can be read.
+const REPO = 'https://github.com/BilliartMuthoni/confidence-calibrated-crop-diagnosis'
+
 function Part({ part }) {
   return (
     <div className="grid gap-1 py-4 sm:grid-cols-[14rem_1fr]">
@@ -14,7 +17,13 @@ function Part({ part }) {
         <span className="font-semibold text-ink">{typeof part.value === 'number' ? percent(part.value, 1) : part.value}</span>
         {part.note && <span className="mt-0.5 block text-sm text-body">{part.note}</span>}
         <span className="mt-1 block text-xs leading-5 text-faint">
-          {part.source} - results in <code>{part.results}</code>, commit <code>{part.commit}</code>, {part.date}
+          {part.source} - results in <code>{part.results}</code>, commit{' '}
+          {/^[0-9a-f]{7,40}$/.test(part.commit) ? (
+            <a href={`${REPO}/commit/${part.commit}`} target="_blank" rel="noreferrer"
+               className="font-mono font-semibold text-primary underline" title="Open this commit on GitHub">
+              {part.commit}
+            </a>
+          ) : <code>{part.commit}</code>}, {part.date}
         </span>
       </dd>
     </div>
@@ -35,7 +44,7 @@ export default function ModelSettingsPage() {
     <>
       <PageHeader
         title="Model settings"
-        subtitle="What the diagnosis currently runs on, and where each part came from. These change only through the training notebooks and a reviewed update, not from this portal."
+        subtitle="What the diagnosis runs on, and where each part came from. Changed only through the notebooks and a reviewed update."
       />
       <Card>
         <dl className="divide-y divide-divider">

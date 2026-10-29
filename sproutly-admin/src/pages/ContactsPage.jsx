@@ -2,9 +2,10 @@ import { useCallback, useState } from 'react'
 
 import { listContacts, markContactChecked, saveContact, setContactActive } from '../api/admin.js'
 import { useAuth } from '../auth/context.js'
-import { Badge, Button, Card, Empty, ErrorBox, Field, Loading, PageHeader, inputClass } from '../components/ui.jsx'
+import { Badge, Button, Card, Empty, ErrorBox, Field, Loading, PageHeader, Pagination, filterClass, inputClass } from '../components/ui.jsx'
 import { CONTACT_KINDS, COUNTIES, daysSince, parseUtc } from '../lib/format.js'
 import { useLoad } from '../lib/useLoad.js'
+import { usePaged } from '../lib/usePaged.js'
 
 const BLANK = {
   county: '', kind: 'office', name: '', role: '', organisation: 'County Department of Agriculture', phone: '',
@@ -24,7 +25,7 @@ function Checked({ value }) {
   const days = daysSince(value)
   const label = days === 0 ? 'today' : days === 1 ? 'yesterday' : `${days} days ago`
   return days > STALE_DAYS
-    ? <span className="font-semibold text-attention">{label}, check again</span>
+    ? <span className="font-semibold text-attention-ink">{label}, check again</span>
     : <span className="text-muted">{label}</span>
 }
 
@@ -54,7 +55,7 @@ function ContactForm({ initial, onDone, onCancel }) {
 
   return (
     <Card className="mb-6">
-      <h2 className="mb-4 font-bold text-ink">{initial.id ? 'Edit contact' : 'Add a contact'}</h2>
+      <h2 className="mb-4 font-semibold text-ink">{initial.id ? 'Edit contact' : 'Add a contact'}</h2>
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="County">
           <select className={inputClass} value={form.county} onChange={set('county')}>
@@ -85,7 +86,7 @@ function ContactForm({ initial, onDone, onCancel }) {
           </select>
         </Field>
         {personal && (
-          <label className="flex gap-3 rounded-xl border border-attention/30 bg-attention/5 px-4 py-3 text-sm sm:col-span-2">
+          <label className="flex gap-3 rounded-md border border-attention-ink/25 bg-attention-tint px-4 py-3 text-sm sm:col-span-2">
             <input type="checkbox" className="mt-1" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
             <span className="text-body">
               <span className="font-semibold text-ink">This person agreed to have their own mobile shown to farmers in {form.county || 'this county'}.</span>{' '}
@@ -142,13 +143,14 @@ export default function ContactsPage() {
   }
 
   const shown = (data ?? []).filter((c) => !county || c.county === county).filter((c) => isAdmin || c.active)
+  const paged = usePaged(shown, county)
   const stale = shown.filter((c) => c.active && daysSince(c.checked_on) > STALE_DAYS).length
 
   return (
     <>
       <PageHeader
         title="County contacts"
-        subtitle="Who farmers are shown when a case is referred: the Support contacts screen in the app lists the contacts for the farmer's county."
+        subtitle="Shown to farmers on the app's Support contacts screen, for their county."
       >
         {isAdmin && !editing && <Button onClick={() => setEditing(BLANK)}>Add a contact</Button>}
       </PageHeader>
@@ -159,34 +161,34 @@ export default function ContactsPage() {
       )}
 
       <div className="mb-4 flex flex-wrap items-center gap-4">
-        <select className={`${inputClass} w-auto`} value={county} onChange={(e) => setCounty(e.target.value)} aria-label="County">
+        <select className={filterClass} value={county} onChange={(e) => setCounty(e.target.value)} aria-label="County">
           <option value="">All counties</option>
           {COUNTIES.map((c) => <option key={c}>{c}</option>)}
         </select>
         {isAdmin && stale > 0 && (
-          <p className="text-sm font-semibold text-attention">
+          <p className="text-sm font-semibold text-attention-ink">
             {stale} shown {stale === 1 ? 'contact has' : 'contacts have'} not been checked for over 6 months.
           </p>
         )}
       </div>
 
       {loading ? <Loading /> : error ? <ErrorBox error={error} onRetry={reload} /> : shown.length === 0 ? (
-        <Card><Empty>No contacts for this county yet. Farmers there are shown the general advice to visit the county agriculture office.</Empty></Card>
+        <Card><Empty title="No contacts for this county yet">Farmers there are told to visit the county agriculture office.</Empty></Card>
       ) : (
         <Card className="overflow-x-auto p-0">
           <table className="w-full text-left text-sm">
-            <thead className="border-b border-divider text-xs uppercase tracking-wider text-faint">
+            <thead className="border-b border-divider bg-surface/60 text-xs text-muted">
               <tr>
-                <th className="px-5 py-3 font-semibold">County</th>
-                <th className="px-5 py-3 font-semibold">Contact</th>
-                <th className="px-5 py-3 font-semibold">How to reach</th>
-                <th className="px-5 py-3 font-semibold">Last checked</th>
-                <th className="px-5 py-3 font-semibold">Status</th>
+                <th className="px-5 py-2.5 font-semibold">County</th>
+                <th className="px-5 py-2.5 font-semibold">Contact</th>
+                <th className="px-5 py-2.5 font-semibold">How to reach</th>
+                <th className="px-5 py-2.5 font-semibold">Last checked</th>
+                <th className="px-5 py-2.5 font-semibold">Status</th>
                 {isAdmin && <th className="px-5 py-3" />}
               </tr>
             </thead>
             <tbody className="divide-y divide-divider">
-              {shown.map((c) => (
+              {paged.rows.map((c) => (
                 <tr key={c.id}>
                   <td className="px-5 py-3">
                     <span className="block text-body">{c.county}</span>
@@ -198,7 +200,7 @@ export default function ContactsPage() {
                   </td>
                   <td className="min-w-48 px-5 py-3 text-body">
                     {c.phone}
-                    <span className={`block text-xs ${c.phone_type === 'personal' ? 'text-attention' : 'text-faint'}`}>
+                    <span className={`block text-xs ${c.phone_type === 'personal' ? 'text-attention-ink' : 'text-faint'}`}>
                       {PHONE_TYPES[c.phone_type] ?? 'Office line'}
                       {c.personal_consent_on && `, consent ${parseUtc(c.personal_consent_on).toLocaleDateString()}`}
                     </span>
@@ -206,19 +208,19 @@ export default function ContactsPage() {
                     <span className="block text-muted">{c.hours}</span>
                   </td>
                   <td className="px-5 py-3"><Checked value={c.checked_on} /></td>
-                  <td className="px-5 py-3"><Badge tone={c.active ? 'active' : 'inactive'}>{c.active ? 'shown' : 'hidden'}</Badge></td>
+                  <td className="px-5 py-3">{c.active ? <span className="text-body">Shown</span> : <Badge>Hidden</Badge>}</td>
                   {isAdmin && (
                     <td className="px-5 py-3 text-right">
                       <div className="flex flex-col items-end gap-1 whitespace-nowrap">
                         {daysSince(c.checked_on) === 0 ? (
-                          <span className="font-semibold text-healthy">Checked today</span>
+                          <span className="font-semibold text-healthy-ink">Checked today</span>
                         ) : (
                           <button type="button" className="font-semibold text-primary underline disabled:opacity-50"
                                   disabled={checking === c.id} onClick={() => checked(c)}>
                             {checking === c.id ? 'Saving…' : 'Mark checked'}
                           </button>
                         )}
-                        {checkFailed === c.id && <span role="alert" className="text-xs text-attention">Couldn't save. Try again.</span>}
+                        {checkFailed === c.id && <span role="alert" className="text-xs text-attention-ink">Couldn't save. Try again.</span>}
                         <button type="button" className="font-semibold text-primary underline" onClick={() => setEditing(c)}>Edit</button>
                         <button type="button" className="font-semibold text-muted underline" onClick={() => toggle(c)}>
                           {c.active ? 'Hide' : 'Show'}
@@ -230,6 +232,7 @@ export default function ContactsPage() {
               ))}
             </tbody>
           </table>
+          <Pagination paged={paged} />
         </Card>
       )}
     </>

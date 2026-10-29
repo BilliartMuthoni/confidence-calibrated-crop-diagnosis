@@ -1,27 +1,53 @@
 import { useCallback, useState } from 'react'
-import { Link } from 'react-router'
+import { Link, useNavigate } from 'react-router'
 
 import { listReferrals } from '../api/admin.js'
 import { useAuth } from '../auth/context.js'
-import { Badge, Card, Empty, ErrorBox, Loading, PageHeader, inputClass } from '../components/ui.jsx'
-import { COUNTIES, CROPS, REFERRAL_STATUS, daysLeft, judgementName, timeAgo } from '../lib/format.js'
+import { Badge, Empty, ErrorBox, Loading, PageHeader, Pagination, SortHeader, TableBox, Tabs, filterClass, inputClass } from '../components/ui.jsx'
+import { COUNTIES, CROPS, judgementName, parseUtc, timeAgo, timeLeft } from '../lib/format.js'
 import { useLoad } from '../lib/useLoad.js'
+import { usePaged } from '../lib/usePaged.js'
 
 // "Mine" = cases I have claimed or answered.
-const TABS = [['new', 'New'], ['in_review', 'In review'], ['answered', 'Answered'], ['expired', 'Expired'], ['mine', 'Mine'], ['', 'All']]
-const DOT = { new: 'bg-expert', in_review: 'bg-attention', answered: 'bg-healthy', expired: 'bg-faint' }
+const OFFICER_TABS = [['new', 'Open'], ['in_review', 'In review'], ['mine', 'Mine'], ['answered', 'Answered'], ['expired', 'Expired'], ['', 'All']]
+const ADMIN_TABS = [['new', 'Waiting'], ['in_review', 'In review'], ['answered', 'Answered'], ['expired', 'Expired'], ['', 'All']]
+const OPEN = ['new', 'in_review']
 
 // The model's guess is left out of the list on purpose: officers judge each case before
 // they see it (see ReferralDetailPage), so their judgements stay independent of the model.
-function Summary({ referral: r, meId }) {
-  if (r.status === 'answered') return <>Answered by {r.reply.officer}: {judgementName(r.reply.judgement)}</>
-  if (r.status === 'in_review') return <>Being reviewed by {r.claimed_by.id === meId ? 'you' : r.claimed_by.name}</>
-  if (r.status === 'expired') return <>No reply within 7 days</>
-  return <>{r.symptoms_text ? 'Photo and the farmer\'s description' : 'Photo only'}</>
+function Who({ referral: r, meId }) {
+  if (r.status === 'answered') return <>{r.reply.officer}: {judgementName(r.reply.judgement)}</>
+  if (r.status === 'in_review') return <>{r.claimed_by.id === meId ? 'You' : r.claimed_by.name}</>
+  if (r.status === 'expired') return <span className="text-muted">Nobody replied</span>
+  return <span className="text-muted">Not claimed</span>
 }
+
+function State({ referral: r }) {
+  if (r.status === 'answered') return <Badge tone="answered">Answered</Badge>
+  if (r.status === 'expired') return <Badge tone="expired">Expired</Badge>
+  const left = timeLeft(r.expires_at)
+  return <Badge tone={left.urgent ? 'urgent' : 'neutral'}>{left.text}</Badge>
+}
+
+// Time left: open cases with the least time left first; closed ones newest first.
+const byUrgency = (a, b) => {
+  const aOpen = OPEN.includes(a.status)
+  const bOpen = OPEN.includes(b.status)
+  if (aOpen !== bOpen) return aOpen ? -1 : 1
+  return aOpen
+    ? parseUtc(a.expires_at) - parseUtc(b.expires_at)
+    : parseUtc(b.created_at) - parseUtc(a.created_at)
+}
+// Received: oldest first when ascending.
+const byReceived = (a, b) => parseUtc(a.created_at) - parseUtc(b.created_at)
+
+// Matches the case number, crop or county someone types.
+const matches = (r, q) => !q || `#${r.id} ${r.id} ${CROPS[r.crop]} ${r.county ?? ''}`.toLowerCase().includes(q)
 
 export default function ReferralsPage() {
   const { token, user } = useAuth()
+  const navigate = useNavigate()
+  const isAdmin = user.role === 'admin'
   const [tab, setTab] = useState('new')
   const [county, setCounty] = useState('')
   const load = useCallback(
@@ -29,65 +55,87 @@ export default function ReferralsPage() {
     [token, tab, county],
   )
   const { data, error, loading, reload } = useLoad(load)
+  const [search, setSearch] = useState('')
+  const [sort, setSort] = useState({ key: 'left', dir: 'asc' })
+  const compare = sort.key === 'received' ? byReceived : byUrgency
+  const q = search.trim().toLowerCase()
+  const rows = (data ?? [])
+    .filter((r) => matches(r, q))
+    .sort((a, b) => (sort.dir === 'asc' ? compare(a, b) : compare(b, a)))
+  const paged = usePaged(rows, `${tab}|${county}|${q}|${sort.key}|${sort.dir}`)
+  const head = 'px-4 py-2.5'
 
   return (
     <>
       <PageHeader
         title="Referrals"
-        subtitle={
-          user.role === 'admin'
-            ? 'Every county\'s cases, for oversight. Extension officers claim and answer them; you can release a case an officer has left in review.'
-            : `Cases from ${user.county} that the model was not confident about. Claim a case before you answer it, so no one else answers it too.`
-        }
-      />
-
-      <div className="mb-4 flex flex-wrap items-center gap-2">
-        {TABS.filter(([value]) => value !== 'mine' || user.role === 'officer').map(([value, label]) => (
-          <button key={label} type="button" onClick={() => setTab(value)}
-                  className={`rounded-full px-3.5 py-1.5 text-sm font-semibold ${tab === value ? 'bg-primary text-white' : 'bg-white text-muted hover:text-ink'}`}>
-            {label}
-          </button>
-        ))}
-        {user.role === 'admin' && (
-          <select className={`${inputClass} ml-auto w-auto`} value={county} onChange={(e) => setCounty(e.target.value)}
-                  aria-label="County">
+        subtitle={isAdmin
+          ? 'Every county\'s cases. Officers claim and answer them.'
+          : `Cases from ${user.county} the model was not sure about. Claim one before you answer it.`}
+      >
+        {isAdmin && (
+          <select className={filterClass} value={county} onChange={(e) => setCounty(e.target.value)} aria-label="County">
             <option value="">All counties</option>
             {COUNTIES.map((c) => <option key={c}>{c}</option>)}
           </select>
         )}
+      </PageHeader>
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <Tabs label="Which cases" tabs={isAdmin ? ADMIN_TABS : OFFICER_TABS} value={tab} onChange={setTab} />
+        <input className={`${inputClass} sm:max-w-64`} type="search" value={search} onChange={(e) => setSearch(e.target.value)}
+               placeholder={isAdmin ? 'Search case, crop or county' : 'Search case or crop'} aria-label="Search referrals" />
       </div>
 
-      {loading ? <Loading /> : error ? <ErrorBox error={error} onRetry={reload} /> : data.length === 0 ? (
-        <Card><Empty>No referrals here. New cases appear when the model is not confident and the farmer agrees to share the photo.</Empty></Card>
-      ) : (
-        <Card className="p-0">
-          <ul className="divide-y divide-divider">
-            {data.map((r) => {
-              const open = r.status === 'new' || r.status === 'in_review'
-              const urgent = open && daysLeft(r.expires_at) <= 2
-              return (
-                <li key={r.id}>
-                  <Link to={`/referrals/${r.id}`} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-5 py-4 hover:bg-surface">
-                    <span className={`h-2.5 w-2.5 rounded-full ${DOT[r.status]}`} />
-                    <span className="min-w-0 flex-1">
-                      <span className="block font-semibold text-ink">{CROPS[r.crop]} - {r.county}</span>
-                      <span className="block text-sm text-muted"><Summary referral={r} meId={user.id} /></span>
-                    </span>
-                    <span className="text-right text-xs text-faint">
-                      {timeAgo(r.created_at)}
-                      {open && (
-                        <span className={`block ${urgent ? 'font-semibold text-attention' : ''}`}>
-                          {daysLeft(r.expires_at)} days left to answer
-                        </span>
-                      )}
-                    </span>
-                    <Badge tone={r.status}>{REFERRAL_STATUS[r.status]}</Badge>
-                  </Link>
-                </li>
-              )
-            })}
-          </ul>
-        </Card>
+      <div className="mt-4">
+        {loading ? <Loading /> : error ? <ErrorBox error={error} onRetry={reload} /> : rows.length === 0 ? (
+          <TableBox>
+            {q ? (
+              <Empty title="No cases match your search" />
+            ) : (
+              <Empty title={tab === 'new' ? 'No cases waiting' : 'Nothing here'}>
+                New cases arrive when the model is not sure and the farmer agrees to share the photo.
+              </Empty>
+            )}
+          </TableBox>
+        ) : (
+          <TableBox>
+            <table className="w-full min-w-[720px] text-sm">
+              <caption className="sr-only">Referral cases</caption>
+              <thead className="border-b border-divider bg-surface/60 text-xs text-muted">
+                <tr>
+                  <th scope="col" className={head}>Case</th>
+                  {isAdmin && <th scope="col" className={head}>County</th>}
+                  <SortHeader label="Received" column="received" sort={sort} onSort={setSort} className={head} />
+                  <th scope="col" className={head}>From the farmer</th>
+                  <SortHeader label="Time left" column="left" sort={sort} onSort={setSort} className={head} />
+                  <th scope="col" className={head}>Claimed or answered by</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-divider">
+                {paged.rows.map((r) => (
+                  <tr key={r.id} className="cursor-pointer" onClick={() => navigate(`/referrals/${r.id}`)}>
+                    <td className="px-4 py-3">
+                      <Link to={`/referrals/${r.id}`} className="font-semibold text-ink hover:underline" onClick={(e) => e.stopPropagation()}>
+                        {CROPS[r.crop]}
+                      </Link>
+                      <span className="block text-xs text-muted">Case #{r.id}</span>
+                    </td>
+                    {isAdmin && <td className="px-4 py-3">{r.county}</td>}
+                    <td className="whitespace-nowrap px-4 py-3 text-muted">{timeAgo(r.created_at)}</td>
+                    <td className="px-4 py-3 text-muted">{r.symptoms_text ? 'Photo and description' : 'Photo only'}</td>
+                    <td className="px-4 py-3"><State referral={r} /></td>
+                    <td className="px-4 py-3"><Who referral={r} meId={user.id} /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <Pagination paged={paged} />
+          </TableBox>
+        )}
+      </div>
+      {!isAdmin && (
+        <p className="mt-3 text-xs text-muted">The model's guess is not shown here. You see it on the case after you give your own diagnosis.</p>
       )}
     </>
   )

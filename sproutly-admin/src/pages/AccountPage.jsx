@@ -55,7 +55,7 @@ function PasswordCard() {
 
   return (
     <Card>
-      <h2 className="font-bold text-ink">Password</h2>
+      <h2 className="text-base font-semibold text-ink">Password</h2>
       <div className="mt-4 grid gap-4 sm:grid-cols-3">
         <Field label="Current password">
           <input className={inputClass} type="password" autoComplete="current-password" value={form.current} onChange={set('current')} />
@@ -73,7 +73,7 @@ function PasswordCard() {
                 disabled={!form.current || form.next.length < MIN_PASSWORD || form.next !== form.again}>
           Change password
         </Button>
-        {done && <span className="text-sm font-semibold text-healthy">Password changed.</span>}
+        {done && <span className="text-sm font-semibold text-healthy-ink">Password changed.</span>}
       </div>
     </Card>
   )
@@ -105,8 +105,8 @@ function AuthenticatorCard() {
 
   return (
     <Card>
-      <h2 className="font-bold text-ink">Authenticator app</h2>
-      <p className="mt-1 text-sm leading-6 text-muted">
+      <h2 className="text-base font-semibold text-ink">Authenticator app</h2>
+      <p className="mt-1 text-sm text-muted">
         Got a new phone? Move your sign-in codes to it here while you still have the old one. If the old phone is lost,
         sign in with a backup code, or ask an administrator to reset your authenticator.
       </p>
@@ -117,7 +117,7 @@ function AuthenticatorCard() {
         </div>
       ) : (
         <div className="mt-4 space-y-4">
-          <div className="inline-block rounded-xl border border-divider bg-white p-3">
+          <div className="inline-block rounded-md border border-divider bg-white p-3">
             {setup.qr_code
               ? <img src={setup.qr_code} alt="QR code for your authenticator app" className="h-32 w-32" />
               : <p className="text-sm text-muted">Setup key: <code className="font-semibold text-ink">{setup.secret}</code></p>}
@@ -131,7 +131,7 @@ function AuthenticatorCard() {
         </div>
       )}
       <div className="mt-4"><ErrorBox error={error} /></div>
-      {done && <p className="mt-2 text-sm font-semibold text-healthy">Your new phone is set up.</p>}
+      {done && <p className="mt-2 text-sm font-semibold text-healthy-ink">Your new phone is set up.</p>}
     </Card>
   )
 }
@@ -153,14 +153,14 @@ function BackupCodesCard({ left, onChange }) {
 
   return (
     <Card>
-      <h2 className="font-bold text-ink">Backup codes</h2>
-      <p className="mt-1 text-sm leading-6 text-muted">
+      <h2 className="text-base font-semibold text-ink">Backup codes</h2>
+      <p className="mt-1 text-sm text-muted">
         Each code signs you in once if you lose your phone. You have <span className="font-semibold text-ink">{left}</span> unused.
         Making new codes cancels all the old ones.
       </p>
       {codes ? (
         <div className="mt-4">
-          <p className="text-sm font-semibold text-attention">Write these down or print them now. They are not shown again.</p>
+          <p className="text-sm font-semibold text-attention-ink">Write these down or print them now. They are not shown again.</p>
           <ul className="mt-3 grid max-w-md grid-cols-2 gap-2 font-mono text-sm text-ink">
             {codes.map((c) => <li key={c} className="rounded-lg bg-surface px-3 py-1.5">{c}</li>)}
           </ul>
@@ -187,7 +187,7 @@ export default function AccountPage() {
 
   return (
     <>
-      <PageHeader title="My account" subtitle="Your sign-in details. Every change here is recorded in the audit log." />
+      <PageHeader title="My account" subtitle="Changes here are recorded in the audit log." />
 
       <div className="space-y-6">
         <Card>
@@ -208,12 +208,12 @@ export default function AccountPage() {
           <>
             <BackupCodesCard left={data.backup_codes_left} onChange={reload} />
             <Card>
-              <h2 className="font-bold text-ink">Recent sign-ins</h2>
+              <h2 className="text-base font-semibold text-ink">Recent sign-ins</h2>
               <p className="mt-1 text-sm text-muted">If you don't recognise one, change your password and tell an administrator.</p>
               <ul className="mt-3 divide-y divide-divider text-sm">
                 {data.recent_sign_ins.map((e) => (
                   <li key={e.id} className="flex justify-between gap-4 py-2">
-                    <span className={e.action === 'sign_in_failed' ? 'font-semibold text-attention' : 'text-body'}>
+                    <span className={e.action === 'sign_in_failed' ? 'font-semibold text-attention-ink' : 'text-body'}>
                       {AUDIT_ACTIONS[e.action]}{e.detail && `: ${e.detail}`}
                     </span>
                     <span className="tabular-nums text-muted">{formatDate(e.at)}</span>

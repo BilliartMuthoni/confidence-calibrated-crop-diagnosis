@@ -1,5 +1,6 @@
 @import "tailwindcss";
-/* Roboto, the mobile app's font on Android, bundled with the portal (no requests to Google). */
+/* Roboto, the mobile app's font on Android, bundled with the portal (no requests to Google).
+   Public Sans was tried on 29 Oct and dropped: Roboto matches the app. */
 @import "@fontsource/roboto/400.css";
 @import "@fontsource/roboto/500.css";
 @import "@fontsource/roboto/700.css";
@@ -7,11 +8,12 @@
 /* Shared with the mobile app (sproutly-mobile/src/constants/Colors.js and theme.js). */
 @theme {
   --font-sans: "Roboto", system-ui, sans-serif;
-  /* One step larger than Tailwind's defaults (14 and 12 px), which read too small on a dashboard. */
-  --text-sm: 0.9375rem;
-  --text-sm--line-height: 1.45;
-  --text-xs: 0.8125rem;
-  --text-xs--line-height: 1.4;
+  /* Body text 14/20 and small text 12/16, the sizes data-heavy design systems use (Atlassian,
+     Fluent). An earlier 15 px step made every line and table feel loose. */
+  --text-sm: 0.875rem;
+  --text-sm--line-height: 1.25rem;
+  --text-xs: 0.75rem;
+  --text-xs--line-height: 1rem;
   /* Roboto has no 600 weight; Android uses medium (500) for emphasis, so semibold does too. */
   --font-weight-semibold: 500;
   --color-forest-deep: #0b1a13;
@@ -25,27 +27,87 @@
   --color-ink: #0b1a13;
   --color-body: #1f2a24;
   --color-muted: #5f6b65;
-  --color-faint: #8a9690;
-  --color-divider: #e2e7e3;
+  /* Was #8a9690 (3:1 on white, too faint for small text); this passes 4.5:1. */
+  --color-faint: #6a7570;
+  --color-divider: #e6eae7;
+  --color-divider-strong: #d3d9d5;
+  /* The one solid badge, for what needs action now (under a day left): 5.3:1 with white text. */
+  --color-attention-strong: #a5571f;
+  /* Badge pairs: a light tint with dark text of the same colour. The orange itself is 4.45:1 on
+     white, just under the 4.5:1 minimum for small text, so text uses the darker shade. */
+  --color-attention-tint: #f8e9de;
+  --color-attention-ink: #8a4a1f;
+  --color-expert-tint: #e6edf6;
+  --color-expert-ink: #2c5684;
+  --color-healthy-tint: #e3f0e7;
+  --color-healthy-ink: #22603c;
+  --color-neutral-tint: #eef1ee;
+  --color-neutral-ink: #3f4a44;
 }
 
 body {
   @apply bg-surface text-body antialiased;
 }
 
-/* Dark sign-in boxes (LoginPage, SetPasswordPage). When the browser fills in a saved email or
-   password it paints the box in its own light colour, which hid the white text and the white
-   show-password button. Keep the dark box: white text and cursor, and the browser's colour held
-   off (Chrome and Edge only apply it through a background transition). */
-.glass-input:-webkit-autofill,
-.glass-input:-webkit-autofill:hover,
-.glass-input:-webkit-autofill:focus {
-  -webkit-text-fill-color: #ffffff;
-  caret-color: #ffffff;
-  transition: background-color 600000s 0s, color 600000s 0s;
+/* Tables: numbers line up, quiet headings in sentence case, and the row under the pointer shows. */
+@layer base {
+  table td {
+    font-variant-numeric: tabular-nums;
+  }
+  table th {
+    font-weight: 500;
+    text-align: left;
+  }
+  /* Rows at least 52 px tall: room to read across a wide table. */
+  table tbody tr {
+    height: 3.25rem;
+  }
+  table tbody tr:hover {
+    background: color-mix(in srgb, var(--color-surface) 70%, white);
+  }
 }
-.glass-input:autofill {
-  box-shadow: 0 0 0 1000px #183326 inset;
-  -webkit-text-fill-color: #ffffff;
-  caret-color: #ffffff;
+
+/* Dropdown lists drawn in the portal's colours instead of the system's blue (Chrome and Edge
+   135+; other browsers keep their own list, which still works). */
+@supports (appearance: base-select) {
+  select,
+  ::picker(select) {
+    appearance: base-select;
+  }
+  ::picker(select) {
+    border: 1px solid var(--color-divider-strong);
+    border-radius: 0.375rem;
+    box-shadow: 0 8px 24px rgb(11 26 19 / 0.12);
+    padding: 0.25rem;
+    max-height: 20rem;
+  }
+  select option {
+    padding: 0.375rem 0.625rem;
+    border-radius: 0.25rem;
+    font-size: 0.875rem;
+  }
+  select option:hover,
+  select option:focus-visible {
+    background: var(--color-neutral-tint);
+    outline: none;
+  }
+  select option:checked {
+    background: var(--color-healthy-tint);
+    color: var(--color-ink);
+    font-weight: 500;
+  }
+  select option::checkmark {
+    color: var(--color-primary);
+  }
+  select optgroup {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--color-muted);
+  }
 }
+
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
