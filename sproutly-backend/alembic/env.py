@@ -20,6 +20,7 @@ from app.models.contact import SupportContact # type: ignore
 from app.models.advice import AdviceEntry, AdviceVersion # type: ignore
 from app.models.audit import AuditEntry # type: ignore
 from app.models.staff_auth import BackupCode, StaffLink # type: ignore
+from app.models.saved_turn import SavedTurn # type: ignore
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

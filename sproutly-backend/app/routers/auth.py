@@ -37,6 +37,7 @@ from app.models.audit import AuditEntry
 from app.models.diagnosis import Diagnosis
 from app.models.oauth_flow import OAuthFlow
 from app.models.referral import Referral
+from app.models.saved_turn import SavedTurn
 from app.models.staff_auth import BackupCode
 from app.models.user import User, UserRole
 from app.core.deps import get_current_user, get_token_claims
@@ -49,6 +50,7 @@ from app.schemas.auth import (
     CodeRequest,
     CountyUpdate,
     DeleteAccountRequest,
+    KeepQuestionsUpdate,
     PasswordChangeRequest,
     ReenrolConfirmRequest,
     ReenrolStart,
@@ -371,6 +373,25 @@ def set_my_county(payload: CountyUpdate, db: Session = Depends(get_db), current_
     return _me(current_user)
 
 
+@router.post("/me/privacy", response_model=CurrentUserResponse)
+def set_my_privacy(payload: KeepQuestionsUpdate, db: Session = Depends(get_db),
+                   current_user: User = Depends(get_current_user)):
+    """The farmer's choice about keeping their assistant questions (asked once in the app, then
+    changed in Account, Privacy). Saying no stops new saving; the kept ones stay until deleted."""
+    current_user.keep_questions = payload.keep_questions
+    db.commit()
+    return _me(current_user)
+
+
+@router.post("/me/questions/delete", status_code=status.HTTP_204_NO_CONTENT)
+@limiter.limit("5/minute")
+def delete_my_questions(request: Request, db: Session = Depends(get_db),
+                        current_user: User = Depends(get_current_user)):
+    """Delete every question the farmer kept, on all their checks. The checks themselves stay."""
+    db.query(SavedTurn).filter(SavedTurn.user_id == current_user.user_id).delete(synchronize_session=False)
+    db.commit()
+
+
 # --- Staff passwords from one-time links ---
 
 @router.post("/staff/password", status_code=status.HTTP_204_NO_CONTENT)
@@ -437,7 +458,7 @@ RECENT_SIGN_IN_SECONDS = 300
 def delete_my_account(request: Request, payload: DeleteAccountRequest, db: Session = Depends(get_db),
                       current_user: User = Depends(get_current_user), claims: dict = Depends(get_token_claims)):
     """A farmer deletes their account and its data: photos (the files too), checks, referrals,
-    backup codes and sign-in attempts, then the account (Kenya Data Protection Act 2019, s.40,
+    kept assistant questions, backup codes and sign-in attempts, then the account (Kenya Data Protection Act 2019, s.40,
     right to erasure; Google Play requires deletion inside the app). It asks for proof first:
     the password and authenticator code, or for an account made with Google, a Google sign-in
     in the last 5 minutes (a renewed session doesn't count). One audit entry records that an
@@ -458,6 +479,7 @@ def delete_my_account(request: Request, payload: DeleteAccountRequest, db: Sessi
         if diagnosis.image_path and os.path.isfile(diagnosis.image_path) and inside_uploads(diagnosis.image_path):
             os.remove(diagnosis.image_path)
     ids = [d.diagnosis_id for d in diagnoses]
+    db.query(SavedTurn).filter(SavedTurn.user_id == user_id).delete(synchronize_session=False)
     if ids:
         db.query(Referral).filter(Referral.diagnosis_id.in_(ids)).delete(synchronize_session=False)
         db.query(Diagnosis).filter(Diagnosis.diagnosis_id.in_(ids)).delete(synchronize_session=False)

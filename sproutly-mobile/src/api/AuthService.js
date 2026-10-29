@@ -167,6 +167,16 @@ export function deleteAccount({ token, password, code }) {
     return authorizedPost('/auth/me/delete', token, body);
 }
 
+/** Keep the questions asked about results (true) or stop keeping new ones (false). Answers the profile. */
+export function setKeepQuestions({ token, keep }) {
+    return authorizedPost('/auth/me/privacy', token, { keep_questions: keep });
+}
+
+/** Delete every kept question on all checks; the checks themselves stay. */
+export function deleteSavedQuestions({ token }) {
+    return authorizedPost('/auth/me/questions/delete', token, {});
+}
+
 /** Connect Google, step 1: password and code first. Answers { authorization_url } (Google's page). */
 export function startConnect({ token, provider, password, code, redirectUri, codeChallenge }) {
     return authorizedPost(`/auth/oauth/${provider}/connect`, token,

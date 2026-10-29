@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity, Switch } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../constants/theme';
 
@@ -37,6 +37,32 @@ export function InfoRow({ label, value, last }) {
             <Text className="text-base font-semibold" style={{ color: COLORS.ink, flexShrink: 1, textAlign: 'right' }}>
                 {value}
             </Text>
+        </View>
+    );
+}
+
+/** A setting that is on or off. */
+export function SwitchRow({ icon, label, hint, value, onChange, disabled, last }) {
+    return (
+        <View className="flex-row items-center py-4 ml-5 pr-4" style={rowLine(last)}>
+            <Ionicons name={icon} size={20} color={COLORS.brand} />
+            <View className="flex-1 ml-3 mr-3">
+                <Text className="text-base" style={{ color: COLORS.ink }}>
+                    {label}
+                </Text>
+                {hint && (
+                    <Text className="text-sm mt-0.5" style={{ color: COLORS.faint }}>
+                        {hint}
+                    </Text>
+                )}
+            </View>
+            <Switch
+                value={value}
+                onValueChange={onChange}
+                disabled={disabled}
+                trackColor={{ true: COLORS.brand }}
+                accessibilityLabel={label}
+            />
         </View>
     );
 }

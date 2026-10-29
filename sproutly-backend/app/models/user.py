@@ -43,6 +43,10 @@ class User(Base):
     # sign-in replaces it (ending older sessions), and log out or reuse of an old one clears it.
     refresh_token_id = Column(String, nullable=True)
 
+    # Keep the farmer's assistant questions and replies (SavedTurn)? None until they are asked
+    # once, then their answer; they can change it in Account, Privacy.
+    keep_questions = Column(Boolean, nullable=True)
+
     is_active = Column(Boolean, default=True)
     # Plain UTC (see Diagnosis.created_at).
     created_at = Column(DateTime, default=utcnow)

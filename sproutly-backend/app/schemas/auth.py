@@ -195,8 +195,14 @@ class CurrentUserResponse(BaseModel):
     has_password: bool = False
     mfa_enabled: bool = False
     google_connected: bool = False
+    # Keep assistant questions with the checks? None until the farmer is asked.
+    keep_questions: Optional[bool] = None
 
     model_config = {"from_attributes": True}
+
+
+class KeepQuestionsUpdate(BaseModel):
+    keep_questions: bool
 
 
 class DeleteAccountRequest(BaseModel):

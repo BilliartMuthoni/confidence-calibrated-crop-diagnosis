@@ -18,6 +18,7 @@ from app.core.referrals import expire_overdue, open_referral
 from app.db.session import get_db
 from app.models.diagnosis import CropType, Diagnosis
 from app.models.referral import Referral
+from app.models.saved_turn import SavedTurn
 from app.models.user import User, UserRole
 from app.schemas.diagnosis import (
     AssistantQuestion,
@@ -31,6 +32,7 @@ from app.schemas.diagnosis import (
     DiagnosisResponse,
     Guidance,
     OfficerReply,
+    SavedTurnItem,
 )
 
 router = APIRouter(prefix="/diagnose", tags=["diagnosis"])
@@ -231,7 +233,8 @@ def ask_assistant(
     current_user: User = Depends(get_current_user),
 ):
     """A question about one of the farmer's results (D9). The model only chooses what to
-    show: library advice, a fixed question, a hand-over to the officer, or "not about this"."""
+    show: library advice, a fixed question, a hand-over to the officer, or "not about this".
+    The question and reply are kept with the check only if the farmer agreed (keep_questions)."""
     record = _own_diagnosis(db, diagnosis_id, current_user)
     if record.is_referred or not record.top_class:
         raise HTTPException(
@@ -239,7 +242,13 @@ def ask_assistant(
             detail="This photo has no diagnosis to ask about. Please ask your extension officer.",
         )
     reply = answer(db, record.top_class, payload.question, [t.model_dump() for t in payload.history])
-    return AssistantReply(kind=reply.kind, message=reply.message, advice=reply.advice, choices=reply.choices)
+    shown = AssistantReply(kind=reply.kind, message=reply.message, advice=reply.advice, choices=reply.choices)
+    # "Not available right now" is not worth reading again, so only real answers are kept.
+    if current_user.keep_questions and shown.kind != "unavailable":
+        db.add(SavedTurn(diagnosis_id=record.diagnosis_id, user_id=current_user.user_id,
+                         question=payload.question, reply=shown.model_dump(exclude={"keep_questions"})))
+        db.commit()
+    return shown.model_copy(update={"keep_questions": current_user.keep_questions})
 
 
 @router.get("/history", response_model=List[DiagnosisListItem])
@@ -300,6 +309,12 @@ def get_diagnosis(
         referral_status=referral.status.value if referral else None,
         officer_reply=_officer_reply(db, referral, record),
         photo_available=bool(record.image_path) and os.path.exists(record.image_path),
+        questions=[
+            SavedTurnItem(question=t.question, reply=AssistantReply(**t.reply), asked_at=t.asked_at)
+            for t in db.query(SavedTurn)
+            .filter(SavedTurn.diagnosis_id == record.diagnosis_id, SavedTurn.user_id == current_user.user_id)
+            .order_by(SavedTurn.asked_at, SavedTurn.turn_id)
+        ],
     )
     if record.is_referred:
         return DiagnosisDetail(
