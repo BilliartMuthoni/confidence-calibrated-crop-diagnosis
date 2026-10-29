@@ -134,8 +134,14 @@ def decrypt_secret(encrypted: str) -> str:
 
 
 def provisioning_uri(secret: str, account_name: str) -> str:
-    """otpauth:// link that Google Authenticator and Microsoft Authenticator both read."""
-    return pyotp.TOTP(secret).provisioning_uri(name=account_name, issuer_name=settings.totp_issuer)
+    """otpauth:// link that Google Authenticator and Microsoft Authenticator both read. On a
+    public (https) deployment it also names the Sproutly logo, which some authenticator apps
+    (FreeOTP, 2FAS, Aegis) show beside the codes; Google's and Microsoft's show only icons from
+    their own lists, so there it stays a letter."""
+    extra = {}
+    if settings.admin_portal_url.startswith("https://"):
+        extra["image"] = f"{settings.admin_portal_url.rstrip('/')}/sproutly-logo.png"
+    return pyotp.TOTP(secret).provisioning_uri(name=account_name, issuer_name=settings.totp_issuer, **extra)
 
 
 def qr_code_data_uri(uri: str) -> str:

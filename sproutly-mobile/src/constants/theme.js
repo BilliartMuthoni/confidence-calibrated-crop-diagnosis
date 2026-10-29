@@ -1,6 +1,7 @@
 // Colours for the farmer screens. Same palette as before, named by meaning so every
 // screen uses them the same way: brand green for actions, warm orange for a disease,
-// blue for a referral, green for a healthy leaf.
+// blue for a referral, green for a healthy leaf, and red only for actions that can't be
+// undone (log out, delete): orange means a disease, not "careful".
 export const COLORS = {
     background: '#F5F7F4',
     surface: '#FFFFFF',
@@ -14,6 +15,7 @@ export const COLORS = {
     disease: '#B4622A',
     referral: '#3A6EA5',
     healthy: '#2F7D4F',
+    danger: '#B3261E', // 6.5:1 with white text
 };
 
 export const CROP_LABELS = { maize: 'Maize', tomato: 'Tomato', potato: 'Potato' };

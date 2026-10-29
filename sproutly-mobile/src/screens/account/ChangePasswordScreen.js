@@ -1,5 +1,5 @@
 import React, { useState, useContext } from 'react';
-import { View, Text, TextInput, ScrollView, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TextInput, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { AuthContext } from '../../context/AuthContext';
@@ -9,6 +9,9 @@ import ErrorBanner from '../../components/ErrorBanner';
 import ScreenHeader from '../../components/ScreenHeader';
 import { PrimaryButton } from '../../components/Buttons';
 import { COLORS } from '../../constants/theme';
+import BusyOverlay from '../../components/BusyOverlay';
+import { showDialog } from '../../components/Dialog';
+import useKeyboardScroll from '../../utils/useKeyboardScroll';
 
 export const inputStyle = {
     backgroundColor: COLORS.surface,
@@ -34,6 +37,7 @@ export function Field({ label, ...input }) {
 
 /** Change the password; this phone gets a fresh sign-in and any other phone is signed out. */
 export default function ChangePasswordScreen({ navigation }) {
+    const scrollRef = useKeyboardScroll();
     const { userToken, userRoles, login } = useContext(AuthContext);
     const [current, setCurrent] = useState('');
     const [next, setNext] = useState('');
@@ -55,7 +59,7 @@ export default function ChangePasswordScreen({ navigation }) {
         try {
             const tokens = await changePassword({ token: userToken, currentPassword: current, newPassword: next });
             await login(tokens.access_token, userRoles, tokens.refresh_token);
-            Alert.alert('Password changed', 'Use your new password next time. Any other phone signed in to your account has been signed out.');
+            showDialog('Password changed', 'Use your new password next time. Any other phone signed in to your account has been signed out.');
             navigation.goBack();
         } catch (e) {
             setError(toFriendlyError(e));
@@ -67,9 +71,10 @@ export default function ChangePasswordScreen({ navigation }) {
     return (
         <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }}>
             <StatusBar style="dark" />
+            <BusyOverlay visible={loading} message="Changing your password" />
             <ScreenHeader title="Change password" onBack={() => navigation.goBack()} />
-            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
-                <ScrollView contentContainerClassName="px-5 pb-10" keyboardShouldPersistTaps="handled">
+            <KeyboardAvoidingView behavior="padding" className="flex-1">
+                <ScrollView ref={scrollRef} contentContainerClassName="px-5 pb-10" keyboardShouldPersistTaps="handled">
                     <Field label="Current password" secureTextEntry value={current} onChangeText={setCurrent} autoFocus />
                     <Field label="New password" secureTextEntry value={next} onChangeText={setNext} placeholder="At least 8 characters" />
                     <Field label="New password again" secureTextEntry value={again} onChangeText={setAgain} />

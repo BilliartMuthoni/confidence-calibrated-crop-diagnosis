@@ -1,5 +1,5 @@
 import React, { useState, useContext } from 'react';
-import { View, Text, ScrollView, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { AuthContext } from '../../context/AuthContext';
@@ -13,6 +13,9 @@ import CodeInput from '../../components/CodeInput';
 import { PrimaryButton } from '../../components/Buttons';
 import { Field } from './ChangePasswordScreen';
 import { COLORS } from '../../constants/theme';
+import BusyOverlay from '../../components/BusyOverlay';
+import { showDialog } from '../../components/Dialog';
+import useKeyboardScroll from '../../utils/useKeyboardScroll';
 
 const WHAT_GOES = [
     'Your account, phone number or email, and county',
@@ -27,6 +30,7 @@ const WHAT_GOES = [
  * Google sign-in from the last 5 minutes). Cannot be undone.
  */
 export default function DeleteAccountScreen({ route, navigation }) {
+    const scrollRef = useKeyboardScroll();
     const googleOnly = Boolean(route.params?.googleOnly);
     const { userToken, userRoles, login, logout } = useContext(AuthContext);
     const [password, setPassword] = useState('');
@@ -37,7 +41,7 @@ export default function DeleteAccountScreen({ route, navigation }) {
     const finished = async () => {
         // The session no longer exists on the server: just forget the keys on this phone.
         await clearTokens();
-        Alert.alert('Account deleted', 'Your account and its data have been deleted.');
+        showDialog('Account deleted', 'Your account and its data have been deleted.');
         await logout();
     };
 
@@ -79,7 +83,7 @@ export default function DeleteAccountScreen({ route, navigation }) {
     };
 
     const confirmThen = (action) => () =>
-        Alert.alert('Delete your account?', 'Everything listed will be deleted for good. This cannot be undone.', [
+        showDialog('Delete your account?', 'Everything listed will be deleted for good. This cannot be undone.', [
             { text: 'Cancel', style: 'cancel' },
             { text: 'Delete', style: 'destructive', onPress: action },
         ]);
@@ -87,9 +91,10 @@ export default function DeleteAccountScreen({ route, navigation }) {
     return (
         <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }}>
             <StatusBar style="dark" />
+            <BusyOverlay visible={loading} message="Deleting your account" />
             <ScreenHeader title="Delete my account" onBack={() => navigation.goBack()} />
-            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
-                <ScrollView contentContainerClassName="px-5 pb-10" keyboardShouldPersistTaps="handled">
+            <KeyboardAvoidingView behavior="padding" className="flex-1">
+                <ScrollView ref={scrollRef} contentContainerClassName="px-5 pb-10" keyboardShouldPersistTaps="handled">
                     <Text className="text-base font-bold mb-2" style={{ color: COLORS.ink }}>
                         This deletes, for good:
                     </Text>
@@ -123,10 +128,10 @@ export default function DeleteAccountScreen({ route, navigation }) {
                     )}
                     <View className="mt-6">
                         {googleOnly ? (
-                            <PrimaryButton label="Continue with Google and delete" icon="logo-google" color={COLORS.disease}
+                            <PrimaryButton label="Continue with Google and delete" icon="logo-google" color={COLORS.danger}
                                            onPress={confirmThen(deleteWithGoogle)} loading={loading} />
                         ) : (
-                            <PrimaryButton label="Delete my account" icon="trash-outline" color={COLORS.disease}
+                            <PrimaryButton label="Delete my account" icon="trash-outline" color={COLORS.danger}
                                            onPress={confirmThen(deleteWithPassword)} loading={loading}
                                            disabled={!password || code.length !== 6} />
                         )}

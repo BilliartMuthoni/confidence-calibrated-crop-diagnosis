@@ -1,13 +1,16 @@
 from datetime import datetime
 from typing import Literal, Optional
 
-from pydantic import BaseModel, EmailStr, field_validator, model_validator
+from pydantic import BaseModel, EmailStr, Field, TypeAdapter, field_validator, model_validator
 
 from app.core.counties import check_county
 from app.models.user import UserRole
 
 # Staff passwords are longer than farmers' (NIST SP 800-63B recommends length over complexity).
 STAFF_PASSWORD_MIN = 12
+
+# The same email check sign-up uses (EmailStr), for fields that may also be left empty.
+_EMAIL = TypeAdapter(EmailStr)
 
 
 def _six_digits(v: str) -> str:
@@ -203,6 +206,53 @@ class CurrentUserResponse(BaseModel):
 
 class KeepQuestionsUpdate(BaseModel):
     keep_questions: bool
+
+
+class ContactChangeRequest(BaseModel):
+    """A farmer's new phone number and email (both sent; empty removes one), with proof it's
+    them: password and authenticator code, or for an account made with Google, a Google
+    sign-in from the last 5 minutes. The new ones are not confirmed by a code until email and
+    SMS verification exist (t08, t22)."""
+
+    phone_number: Optional[str] = None
+    email: Optional[str] = None
+    password: Optional[str] = None
+    code: Optional[str] = None
+
+    @field_validator("phone_number")
+    @classmethod
+    def phone_looks_right(cls, v: Optional[str]) -> Optional[str]:
+        v = (v or "").replace(" ", "").strip()
+        if not v:
+            return None
+        if not v.lstrip("+").isdigit() or not 9 <= len(v.lstrip("+")) <= 15:
+            raise ValueError("Enter the phone number like 0712345678")
+        return v
+
+    @field_validator("email")
+    @classmethod
+    def email_looks_right(cls, v: Optional[str]) -> Optional[str]:
+        v = (v or "").strip()
+        if not v:
+            return None
+        return str(_EMAIL.validate_python(v))
+
+    @field_validator("code")
+    @classmethod
+    def code_is_six_digits(cls, v: Optional[str]) -> Optional[str]:
+        return _six_digits(v) if v else None
+
+
+class LocateRequest(BaseModel):
+    """The phone's position, used once to find the county and never stored."""
+
+    latitude: float = Field(ge=-90, le=90)
+    longitude: float = Field(ge=-180, le=180)
+
+
+class LocateResponse(BaseModel):
+    # None when the position is outside Kenya; the app then asks the farmer to choose.
+    county: Optional[str] = None
 
 
 class DeleteAccountRequest(BaseModel):

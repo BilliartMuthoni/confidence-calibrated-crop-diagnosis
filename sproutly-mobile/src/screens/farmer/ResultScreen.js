@@ -7,8 +7,9 @@ import ScreenHeader from '../../components/ScreenHeader';
 import ErrorBanner from '../../components/ErrorBanner';
 import { PrimaryButton, SecondaryButton, TextButton } from '../../components/Buttons';
 import { AuthContext } from '../../context/AuthContext';
-import { fetchDiagnosis, diagnosisPhotoSource } from '../../api/DiagnosisService';
+import { fetchDiagnosis, fetchDiagnosisPhoto } from '../../api/DiagnosisService';
 import { toFriendlyError } from '../../utils/errorMessages';
+import { markReplySeen } from '../../utils/seenReplies';
 import { fullDateLabel, whenLabel } from '../../utils/time';
 import { COLORS, CROP_LABELS } from '../../constants/theme';
 
@@ -162,7 +163,10 @@ export default function ResultScreen({ route, navigation }) {
     const load = useCallback(async () => {
         setError(null);
         try {
-            setResult(await fetchDiagnosis({ token: userToken, diagnosisId }));
+            const data = await fetchDiagnosis({ token: userToken, diagnosisId });
+            setResult(data);
+            // Opening the reply counts as reading it: Home stops showing it as new.
+            if (data.officer_reply) markReplySeen(diagnosisId);
         } catch (e) {
             setError(toFriendlyError(e));
         }
@@ -171,6 +175,24 @@ export default function ResultScreen({ route, navigation }) {
     useEffect(() => {
         if (past) load();
     }, [past, load]);
+
+    // A past check's photo is fetched like any other request (so an expired sign-in is renewed),
+    // with a spinner meanwhile and a visible retry if it fails, never a silent blank space.
+    const tokenRef = useRef(userToken);
+    tokenRef.current = userToken;
+    const wantsPhoto = past && Boolean(result?.photo_available);
+    const [photo, setPhoto] = useState({ state: 'idle', uri: null });
+    const loadPhoto = useCallback(async () => {
+        setPhoto({ state: 'loading', uri: null });
+        try {
+            setPhoto({ state: 'ready', uri: await fetchDiagnosisPhoto({ token: tokenRef.current, diagnosisId }) });
+        } catch {
+            setPhoto({ state: 'failed', uri: null });
+        }
+    }, [diagnosisId]);
+    useEffect(() => {
+        if (wantsPhoto) loadPhoto();
+    }, [wantsPhoto, loadPhoto]);
 
     // A new result goes back to the start; a past one back to the list it was opened from.
     const close = past ? () => navigation.goBack() : () => navigation.popToTop();
@@ -217,11 +239,7 @@ export default function ResultScreen({ route, navigation }) {
     const accent = referred ? COLORS.referral : healthy ? COLORS.healthy : COLORS.disease;
     const status = referred ? 'Not diagnosed' : healthy ? 'No disease found' : 'Diagnosis';
     const title = referred ? "We couldn't diagnose this reliably" : result.predicted_disease;
-    const photo = imageUri
-        ? { uri: imageUri }
-        : past && result.photo_available
-          ? diagnosisPhotoSource({ token: userToken, diagnosisId })
-          : null;
+    const photoUri = imageUri || (photo.state === 'ready' ? photo.uri : null);
 
     return (
         <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }}>
@@ -229,7 +247,22 @@ export default function ResultScreen({ route, navigation }) {
             <ScreenHeader title="Result" icon={past ? 'arrow-back' : 'close'} onBack={close} />
             <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
             <ScrollView ref={scrollRef} contentContainerClassName="pb-10" keyboardShouldPersistTaps="handled">
-                {photo && <Image source={photo} className="w-full h-56" resizeMode="cover" />}
+                {photoUri ? (
+                    <Image source={{ uri: photoUri }} className="w-full h-56" resizeMode="cover" accessibilityLabel="Your leaf photo" />
+                ) : wantsPhoto && photo.state === 'failed' ? (
+                    <View className="w-full h-56 items-center justify-center" style={{ backgroundColor: COLORS.surface }}>
+                        <Text className="text-sm" style={{ color: COLORS.muted }}>
+                            Couldn't load the photo.
+                        </Text>
+                        <Text className="text-sm font-bold mt-2" style={{ color: COLORS.brand }} onPress={loadPhoto} accessibilityRole="button">
+                            Try again
+                        </Text>
+                    </View>
+                ) : wantsPhoto ? (
+                    <View className="w-full h-56 items-center justify-center" style={{ backgroundColor: COLORS.surface }}>
+                        <ActivityIndicator color={COLORS.brand} />
+                    </View>
+                ) : null}
 
                 <View className="px-5 pt-5">
                     {past && !result.photo_available && (

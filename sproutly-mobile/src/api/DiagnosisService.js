@@ -2,6 +2,7 @@
 import axios from 'axios';
 import { API_BASE_URL } from '../constants/api';
 import { watchForExpiredSession } from './session';
+import { shrinkPhoto } from '../utils/shrinkPhoto';
 
 const client = axios.create({
     baseURL: API_BASE_URL,
@@ -37,7 +38,7 @@ export async function submitDiagnosis({ token, crop, imageUri, symptoms, sharing
         if (symptoms?.trim()) formData.append('symptoms_text', symptoms.trim());
         appendSharing(formData, sharing);
         formData.append('image', {
-            uri: imageUri,
+            uri: await shrinkPhoto(imageUri),
             name: 'leaf.jpg',
             type: 'image/jpeg',
         });
@@ -63,9 +64,10 @@ export async function submitBatch({ token, crop, imageUris, sharing }) {
         const formData = new FormData();
         if (crop) formData.append('crop', crop);
         appendSharing(formData, sharing);
-        imageUris.forEach((uri, i) => {
-            formData.append('images', { uri, name: `leaf-${i + 1}.jpg`, type: 'image/jpeg' });
-        });
+        // One at a time: shrinking ten full-size photos at once can run a cheap phone out of memory.
+        for (const [i, uri] of imageUris.entries()) {
+            formData.append('images', { uri: await shrinkPhoto(uri), name: `leaf-${i + 1}.jpg`, type: 'image/jpeg' });
+        }
 
         const { data } = await client.post('/diagnose/batch', formData, {
             headers: {
@@ -145,6 +147,22 @@ export async function fetchDiagnosis({ token, diagnosisId }) {
 }
 
 /** Image source for a check's photo: it is private, so the request carries the sign-in token. */
-export function diagnosisPhotoSource({ token, diagnosisId }) {
-    return { uri: `${API_BASE_URL}/diagnose/${diagnosisId}/photo`, headers: { Authorization: `Bearer ${token}` } };
+/** A check's photo, as a data URI the Image can show. It is private, so it goes through the same
+ *  client as every other request: an expired sign-in is renewed and the request sent again.
+ *  (Handing the Image a URL with the token left a blank space when the token had run out.) */
+export async function fetchDiagnosisPhoto({ token, diagnosisId }) {
+    try {
+        const { data } = await client.get(`/diagnose/${diagnosisId}/photo`, {
+            headers: { Authorization: `Bearer ${token}` },
+            responseType: 'blob',
+        });
+        return await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = () => reject(new Error('The photo could not be read.'));
+            reader.readAsDataURL(data);
+        });
+    } catch (error) {
+        throw new Error(extractErrorMessage(error));
+    }
 }

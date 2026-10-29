@@ -1,6 +1,6 @@
 // Contains information needed by the whole app eg usertoken
 import React, { createContext, useState, useEffect, useRef } from 'react';
-import { Alert } from 'react-native';
+import {  } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { onSessionExpired } from '../api/session';
 import {
@@ -12,6 +12,7 @@ import {
     renewSession,
     saveTokens,
 } from '../api/tokens';
+import { showDialog } from '../components/Dialog';
 
 export const AuthContext = createContext();
 
@@ -90,7 +91,7 @@ export const AuthProvider = ({ children }) => {
             if (!tokenRef.current) return; // several requests can fail at once; act only on the first
             tokenRef.current = null;
             logout();
-            Alert.alert('Please log in again', 'Your session has ended for security. Log in to continue.');
+            showDialog('Please log in again', 'Your session has ended for security. Log in to continue.');
         });
     }, []);
 

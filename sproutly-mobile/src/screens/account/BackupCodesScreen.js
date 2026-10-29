@@ -10,6 +10,7 @@ import ScreenHeader from '../../components/ScreenHeader';
 import CodeInput from '../../components/CodeInput';
 import { PrimaryButton, SecondaryButton } from '../../components/Buttons';
 import { COLORS } from '../../constants/theme';
+import BusyOverlay from '../../components/BusyOverlay';
 
 /**
  * Ten single-use codes for signing in without the authenticator (a lost or broken phone).
@@ -42,6 +43,7 @@ export default function BackupCodesScreen({ navigation }) {
     return (
         <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }}>
             <StatusBar style="dark" />
+            <BusyOverlay visible={loading} message="Making new backup codes" />
             <ScreenHeader title="Backup codes" onBack={() => navigation.goBack()} />
             <ScrollView contentContainerClassName="px-5 pb-10" keyboardShouldPersistTaps="handled">
                 {!codes ? (

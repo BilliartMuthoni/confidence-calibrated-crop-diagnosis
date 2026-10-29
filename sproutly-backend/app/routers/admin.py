@@ -314,10 +314,15 @@ def overview(db: Session = Depends(get_db), user: User = Depends(admin_only)):
 def _contact(user: User) -> str:
     if user.role != UserRole.farmer:
         return user.user_email or ""
-    # Farmers' numbers are personal data: admins see only enough to tell accounts apart.
+    # Farmers' numbers and emails are personal data: admins see only enough to tell accounts
+    # apart (first letter and the email's domain), and whether they sign in with Google.
     if user.user_phone_number:
         return f"{user.user_phone_number[:2]}xx xxx {user.user_phone_number[-3:]}"
-    return "email account"
+    if user.user_email and "@" in user.user_email:
+        local, domain = user.user_email.split("@", 1)
+        masked = f"{local[:1]}•••@{domain}"
+        return f"{masked} · Google" if user.google_id else masked
+    return "Google account" if user.google_id else "email account"
 
 
 def _user_out(user: User) -> UserOut:
@@ -448,12 +453,12 @@ def model_settings(user: User = Depends(admin_only)):
                       commit="e6fae75", date="2026-10-23",
                       note="The ensemble referred uncertain photos better than ResNet-50 alone (AURC 0.086 against "
                            "0.195 on unseen field photos)."),
-            ModelPart(label="Leaf check", value=_leaf_check_label(),
-                      source="Notebook 19 (leaf check)", results="ml/results/leaf_check",
-                      commit="e8ad7ba", date="2026-10-24",
-                      note="A frozen MobileNetV3 with one logistic layer stops photos that are not leaves before "
-                           "the disease model; on unseen field photos 96.7% of real leaves passed and every "
-                           "held-out non-leaf photo was stopped."),
+            ModelPart(label="Leaf check", value=_leaf_check_label(),
+                      source="Notebook 19 (leaf check)", results="ml/results/leaf_check",
+                      commit="e8ad7ba", date="2026-10-24",
+                      note="A frozen MobileNetV3 with one logistic layer stops photos that are not leaves before "
+                           "the disease model; on unseen field photos 96.7% of real leaves passed and every "
+                           "held-out non-leaf photo was stopped."),
             ModelPart(label="Symptom text model", value="BERT-base, late fusion (not used in the diagnosis)",
                       source="Notebook 18b (ensemble deployment)", results="ml/results/ensemble_deployment",
                       commit="eca05a0", date="2026-10-24",

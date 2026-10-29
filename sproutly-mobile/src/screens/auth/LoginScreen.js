@@ -17,8 +17,11 @@ import * as AuthService from '../../api/AuthService';
 import { toFriendlyError } from '../../utils/errorMessages';
 import ErrorBanner from '../../components/ErrorBanner';
 import SocialSignIn from '../../components/SocialSignIn';
+import BusyOverlay from '../../components/BusyOverlay';
+import useKeyboardScroll from '../../utils/useKeyboardScroll';
 
 export default function LoginScreen({ navigation }) {
+    const scrollRef = useKeyboardScroll();
     const [authMethod, setAuthMethod] = useState('phone');
     // An error belongs to the tab it came from; switching tabs clears it.
     const chooseMethod = (method) => {
@@ -67,11 +70,12 @@ export default function LoginScreen({ navigation }) {
     return (
         <LinearGradient colors={['#0B1A13', '#1B3D2F', '#2D5A43']} style={{ flex: 1 }}>
             <StatusBar style="light" />
+            <BusyOverlay visible={loading} message="Signing you in" />
             <KeyboardAvoidingView
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                behavior="padding"
                 className="flex-1"
             >
-                <ScrollView contentContainerClassName="flex-grow">
+                <ScrollView ref={scrollRef} contentContainerClassName="flex-grow">
                     <View className="pt-12 px-5">
                         <TouchableOpacity onPress={() => navigation.goBack()} className="p-2.5 self-start flex-row items-center">
                             <Ionicons name="arrow-back" size={20} color="#FFFFFF" />

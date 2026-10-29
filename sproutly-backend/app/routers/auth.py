@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.core import audit
 from app.core.config import settings
+from app.core.county_locator import county_at
 from app.core.limiter import limiter
 from app.core.lockout import ensure_not_locked, register_failure, register_success
 from app.core.security import (
@@ -48,9 +49,12 @@ from app.schemas.auth import (
     BackupCodeLoginRequest,
     BackupCodesResponse,
     CodeRequest,
+    ContactChangeRequest,
     CountyUpdate,
     DeleteAccountRequest,
     KeepQuestionsUpdate,
+    LocateRequest,
+    LocateResponse,
     PasswordChangeRequest,
     ReenrolConfirmRequest,
     ReenrolStart,
@@ -371,6 +375,57 @@ def set_my_county(payload: CountyUpdate, db: Session = Depends(get_db), current_
     current_user.county = payload.county
     db.commit()
     return _me(current_user)
+
+
+@router.post("/me/contact", response_model=TokenResponse)
+@limiter.limit("5/minute")
+def change_my_contact(request: Request, payload: ContactChangeRequest, db: Session = Depends(get_db),
+                      current_user: User = Depends(get_current_user), claims: dict = Depends(get_token_claims)):
+    """A farmer changes the phone number or email they log in with. The phone or email is the
+    account's sign-in name, so the same proof as deleting the account comes first (otherwise an
+    unlocked phone would be enough to move someone's account to another email). An email that
+    came from Google stays: Google recognises the account by it. This phone gets a fresh
+    sign-in and any other phone is signed out, as with a password change."""
+    user = current_user
+    if user.role != UserRole.farmer:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Ask an administrator to change a staff email")
+    if user.hashed_password:
+        check_password_and_code(db, user, payload.password, payload.code, request)
+    elif time.time() - float(claims.get("auth_time") or 0) > RECENT_SIGN_IN_SECONDS:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="For your safety, continue with Google again, then change it.")
+
+    phone, email = payload.phone_number, payload.email
+    if user.google_id and email != user.user_email:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="Your email comes from Google. Disconnect Google first to change it.")
+    if not phone and not email:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Keep a phone number or an email to log in with")
+    if phone == user.user_phone_number and email == user.user_email:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Nothing was changed")
+    taken = db.query(User).filter(User.user_id != user.user_id)
+    if phone and phone != user.user_phone_number and taken.filter(User.user_phone_number == phone).first():
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="That phone number already belongs to another account")
+    if email and email != user.user_email and taken.filter(User.user_email == email).first():
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="That email already belongs to another account")
+
+    changed = [name for name, old, new in (("phone number", user.user_phone_number, phone), ("email", user.user_email, email))
+               if old != new]
+    user.user_phone_number, user.user_email = phone, email
+    # Which details changed, never the old or new values themselves.
+    audit.record(db, user, "contact_change", "", f"Changed own {' and '.join(changed)}", request)
+    tokens = issue_tokens(user)
+    db.commit()
+    return tokens
+
+
+@router.post("/county/locate", response_model=LocateResponse)
+@limiter.limit("10/minute")
+def locate_county(request: Request, payload: LocateRequest, current_user: User = Depends(get_current_user)):
+    """Which county the phone is in, so a farmer need not find it in a list of 47. The position
+    is used for this one lookup and never stored or logged; the app then saves the county with
+    POST /auth/me/county as before. Outside Kenya the answer is empty and the farmer chooses."""
+    return LocateResponse(county=county_at(payload.latitude, payload.longitude))
 
 
 @router.post("/me/privacy", response_model=CurrentUserResponse)
