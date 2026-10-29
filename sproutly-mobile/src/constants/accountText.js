@@ -3,9 +3,9 @@
 // change them whenever that changes.
 import Constants from 'expo-constants';
 
-// Questions about personal data go here. Set before the app is given to farmers; while it is
-// null the screens leave the line out instead of showing a made-up address.
-export const CONTACT_EMAIL = null;
+// Questions about personal data, and deletion requests from people without the app, go here.
+// The same address is on the public pages (portal /privacy and /delete-account).
+export const CONTACT_EMAIL = 'sproutly.ke.support@gmail.com';
 
 export const APP_VERSION = Constants.expoConfig?.version || '1.0.0';
 
@@ -16,6 +16,7 @@ export const PAGES = {
         sections: [
             ['What Sproutly keeps', [
                 'Your phone number or email, and the county you choose.',
+                'If you tap "Use my location": your phone\'s position is used once to find your county and is not kept. Only the county is saved.',
                 'Your password, stored only in scrambled form (a hash): nobody can read it, including us.',
                 'The key of your authenticator app, stored encrypted.',
                 'The leaf photos you check, made smaller and with location (GPS) details removed, plus any description you type.',
@@ -47,6 +48,7 @@ export const PAGES = {
             ['Your rights', [
                 "Under Kenya's Data Protection Act (2019) you can see, correct and delete your data.",
                 'To delete everything: Account, then Delete my account.',
+                'No longer have the app? Email sproutly.ke.support@gmail.com from the email or phone number on your account, and everything is deleted within 7 days.',
             ]],
             ['Security', [
                 'Signing in needs your password and a code from your authenticator app.',

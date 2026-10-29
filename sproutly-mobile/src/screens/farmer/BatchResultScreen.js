@@ -10,6 +10,7 @@ import ErrorBanner from '../../components/ErrorBanner';
 import ScreenHeader from '../../components/ScreenHeader';
 import { PrimaryButton } from '../../components/Buttons';
 import { COLORS, CROP_LABELS } from '../../constants/theme';
+import BusyOverlay from '../../components/BusyOverlay';
 
 const GROUPS = [
     { key: 'check', title: 'Check the crop' },
@@ -190,11 +191,13 @@ export default function BatchResultScreen({ route, navigation }) {
     return (
         <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }}>
             <StatusBar style="dark" />
+            <BusyOverlay visible={busyIndex !== null} message="Checking the photo again" />
             <ScreenHeader title="Results" icon="close" onBack={home} />
             <ScrollView contentContainerClassName="px-5 pb-10">
                 <Text className="text-sm" style={{ color: COLORS.muted }}>
-                    {checked.length} {checked.length === 1 ? 'photo' : 'photos'} checked · {checked.length - referredCount}{' '}
-                    diagnosed · {referredCount} referred
+                    {checked.length === 0
+                        ? `None of the ${failed.length} ${failed.length === 1 ? 'photo' : 'photos'} could be checked. See why below.`
+                        : `${checked.length} ${checked.length === 1 ? 'photo' : 'photos'} checked · ${checked.length - referredCount} diagnosed · ${referredCount} referred${failed.length ? ` · ${failed.length} not checked` : ''}`}
                 </Text>
 
                 {GROUPS.map((group) => {
@@ -228,9 +231,14 @@ export default function BatchResultScreen({ route, navigation }) {
                         {failed.map((item) => (
                             <View key={item.index} className="flex-row items-center py-3" style={{ borderBottomWidth: 1, borderBottomColor: COLORS.divider }}>
                                 <Image source={{ uri: imageUris[item.index] }} className="w-14 h-14 rounded-lg" resizeMode="cover" />
-                                <Text className="text-sm flex-1 ml-3 leading-5" style={{ color: COLORS.text }}>
-                                    {toFriendlyError(item.error).message}
-                                </Text>
+                                <View className="flex-1 ml-3">
+                                    <Text className="text-sm font-bold" style={{ color: COLORS.ink }}>
+                                        {toFriendlyError(item.error).title}
+                                    </Text>
+                                    <Text className="text-sm leading-5 mt-0.5" style={{ color: COLORS.text }}>
+                                        {toFriendlyError(item.error).message}
+                                    </Text>
+                                </View>
                             </View>
                         ))}
                     </View>

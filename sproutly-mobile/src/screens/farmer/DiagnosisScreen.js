@@ -1,4 +1,4 @@
-import React, { useState, useContext, useEffect } from 'react';
+import React, { useState, useContext, useEffect, useRef } from 'react';
 import {
     View,
     Text,
@@ -6,7 +6,6 @@ import {
     ScrollView,
     TextInput,
     Image,
-    Alert,
     KeyboardAvoidingView,
     Platform,
 } from 'react-native';
@@ -18,11 +17,14 @@ import { AuthContext } from '../../context/AuthContext';
 import { submitDiagnosis, submitBatch } from '../../api/DiagnosisService';
 import { toFriendlyError } from '../../utils/errorMessages';
 import ErrorBanner from '../../components/ErrorBanner';
+import BusyOverlay from '../../components/BusyOverlay';
 import ScreenHeader from '../../components/ScreenHeader';
 import { PrimaryButton } from '../../components/Buttons';
 import CountyPicker from '../../components/CountyPicker';
 import { loadCounty, saveCounty } from '../../utils/farmerCounty';
 import { COLORS } from '../../constants/theme';
+import { showDialog } from '../../components/Dialog';
+import useKeyboardScroll from '../../utils/useKeyboardScroll';
 
 // "mixed" lets the model detect each photo's crop; the farmer can correct it on the results screen.
 const CROPS = [
@@ -83,6 +85,7 @@ function Tick({ checked, onPress, title, hint }) {
 }
 
 export default function DiagnosisScreen({ navigation }) {
+    const scrollRef = useKeyboardScroll();
     const { userToken } = useContext(AuthContext);
     const [crop, setCrop] = useState(null);
     const [photos, setPhotos] = useState([]);
@@ -115,7 +118,7 @@ export default function DiagnosisScreen({ navigation }) {
     const pickFromCamera = async () => {
         const permission = await ImagePicker.requestCameraPermissionsAsync();
         if (!permission.granted) {
-            Alert.alert(
+            showDialog(
                 'Camera access needed',
                 'Sproutly needs your camera to photograph the affected leaf. You can enable it in your phone settings.'
             );
@@ -126,7 +129,8 @@ export default function DiagnosisScreen({ navigation }) {
             // so cropping silently doubles as confirmation. The photo comes
             // straight into our own preview, which has an explicit remove button.
             mediaTypes: ['images'],
-            quality: 0.6,
+            // Full quality here; the photo is made smaller and compressed once before upload (shrinkPhoto).
+            quality: 1,
         });
         if (!result.canceled) addPhotos(result.assets);
     };
@@ -134,7 +138,7 @@ export default function DiagnosisScreen({ navigation }) {
     const pickFromGallery = async () => {
         const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (!permission.granted) {
-            Alert.alert(
+            showDialog(
                 'Photo access needed',
                 'Sproutly needs access to your photos to use an existing picture. You can enable it in your phone settings.'
             );
@@ -142,16 +146,16 @@ export default function DiagnosisScreen({ navigation }) {
         }
         const result = await ImagePicker.launchImageLibraryAsync({
             mediaTypes: ['images'],
-            // Several leaves at once; quality kept modest so up to 10 photos upload quickly.
+            // Several leaves at once; each is made smaller before upload (shrinkPhoto), so 10 still go quickly.
             allowsMultipleSelection: true,
             selectionLimit: room,
-            quality: 0.6,
+            quality: 1,
         });
         if (!result.canceled) addPhotos(result.assets);
     };
 
     const choosePhoto = () => {
-        Alert.alert('Add photos', `You can add ${room} more.`, [
+        showDialog('Add photos', `You can add ${room} more.`, [
             { text: 'Take photo', onPress: pickFromCamera },
             { text: 'Choose from gallery', onPress: pickFromGallery },
             { text: 'Cancel', style: 'cancel' },
@@ -186,6 +190,7 @@ export default function DiagnosisScreen({ navigation }) {
         });
         const merged = [];
         let firstError = null;
+        let answered = false; // the backend replied for at least one group
         for (const [key, indexes] of groups) {
             try {
                 const { results } = await submitBatch({
@@ -195,17 +200,26 @@ export default function DiagnosisScreen({ navigation }) {
                     sharing,
                 });
                 results.forEach((item) => merged.push({ ...item, index: indexes[item.index] }));
+                answered = true;
             } catch (e) {
                 // One crop's upload failed: report its photos, keep the others' results.
                 firstError = firstError || e;
                 indexes.forEach((i) => merged.push({ index: i, error: e.message }));
             }
         }
-        if (merged.every((item) => !item.result)) throw firstError || new Error('No photo could be checked');
+        // Only a failed upload is an error here. If the backend answered, even with every photo
+        // refused (none of them a leaf), the results page shows each photo and why.
+        if (!answered) throw firstError;
         return merged.sort((a, b) => a.index - b.index);
     };
 
+    // A ref, not state: two taps in the same instant both saw submitting === false and sent the
+    // same photo twice (the duplicate checks in Your checks). The ref is set before anything awaits.
+    const sending = useRef(false);
+
     const handleSubmit = async () => {
+        if (sending.current) return;
+        sending.current = true;
         setError(null);
         setSubmitting(true);
         try {
@@ -226,6 +240,7 @@ export default function DiagnosisScreen({ navigation }) {
         } catch (e) {
             setError(toFriendlyError(e));
         } finally {
+            sending.current = false;
             setSubmitting(false);
         }
     };
@@ -246,9 +261,14 @@ export default function DiagnosisScreen({ navigation }) {
     return (
         <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }}>
             <StatusBar style="dark" />
+            <BusyOverlay
+                visible={submitting}
+                message={photos.length > 1 ? `Checking your ${photos.length} photos` : 'Checking your leaf'}
+                detail="This usually takes a few seconds. Please keep the app open."
+            />
             <ScreenHeader title="Check a leaf" onBack={() => navigation.goBack()} />
-            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} className="flex-1">
-                <ScrollView contentContainerClassName="px-5 pb-8" keyboardShouldPersistTaps="handled">
+            <KeyboardAvoidingView behavior="padding" className="flex-1">
+                <ScrollView ref={scrollRef} contentContainerClassName="px-5 pb-8" keyboardShouldPersistTaps="handled">
                     {/* Crop */}
                     <View className="mt-2">
                         <Label

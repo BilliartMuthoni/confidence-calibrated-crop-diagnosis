@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext, useCallback } from 'react';
-import { View, Text, ScrollView, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, ScrollView, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { AuthContext } from '../../context/AuthContext';
@@ -13,11 +13,13 @@ import BottomBar from '../../components/BottomBar';
 import { Group, InfoRow, NavRow, SwitchRow } from '../../components/SettingsRows';
 import { COLORS } from '../../constants/theme';
 import { APP_VERSION } from '../../constants/accountText';
+import BusyOverlay from '../../components/BusyOverlay';
+import { showDialog } from '../../components/Dialog';
 
 /**
  * The Account tab: the farmer's profile and every setting, grouped like the account pages of
- * other professional apps (profile, security, privacy, help, about). Phone and email are
- * read-only for now: changing them safely needs re-verification.
+ * other professional apps (profile, security, privacy, help, about). Phone and email open
+ * EditContact, which asks for proof first (they are the account's sign-in name).
  */
 export default function AccountScreen({ route, navigation }) {
     const { userToken, logout } = useContext(AuthContext);
@@ -80,7 +82,7 @@ export default function AccountScreen({ route, navigation }) {
     };
 
     const confirmDeleteQuestions = () => {
-        Alert.alert(
+        showDialog(
             'Delete your saved questions?',
             'The questions you asked about your results, and the replies, are deleted from every check. Your checks stay.',
             [
@@ -92,7 +94,7 @@ export default function AccountScreen({ route, navigation }) {
                         setPrivacyError(null);
                         try {
                             await deleteSavedQuestions({ token: userToken });
-                            Alert.alert('Deleted', 'Your saved questions have been deleted.');
+                            showDialog('Deleted', 'Your saved questions have been deleted.');
                         } catch (e) {
                             setPrivacyError(toFriendlyError(e));
                         }
@@ -106,13 +108,19 @@ export default function AccountScreen({ route, navigation }) {
         const back = profile?.has_password
             ? 'You will need your password and a code from your authenticator app to get back in.'
             : 'You will need to continue with Google to get back in.';
-        Alert.alert('Log out?', back, [
+        showDialog('Log out?', back, [
             { text: 'Cancel', style: 'cancel' },
             { text: 'Log out', style: 'destructive', onPress: logout },
         ]);
     };
 
     const go = (name, params) => () => navigation.navigate(name, params);
+    const editContact = profile && {
+        phone: profile.user_phone_number,
+        email: profile.user_email,
+        googleConnected: profile.google_connected,
+        hasPassword: profile.has_password,
+    };
     const memberSince = profile?.created_at
         ? new Date(profile.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'long' })
         : '—';
@@ -123,6 +131,7 @@ export default function AccountScreen({ route, navigation }) {
     return (
         <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }} edges={['top']}>
             <StatusBar style="dark" />
+            <BusyOverlay visible={savingKeep} message="Saving your choice" />
             <ScreenHeader title="Account" />
             <ScrollView contentContainerClassName="pb-10">
                 {loading ? (
@@ -150,9 +159,11 @@ export default function AccountScreen({ route, navigation }) {
                             </View>
                         </View>
 
-                        <Group title="Profile">
-                            <InfoRow label="Phone" value={profile.user_phone_number || 'Not set'} />
-                            <InfoRow label="Email" value={profile.user_email || 'Not set'} last />
+                        <Group title="Profile" note="You log in with these. To change one, you confirm it's you first.">
+                            <NavRow icon="call-outline" label="Phone" hint={profile.user_phone_number || 'Not set'}
+                                    onPress={go('EditContact', editContact)} />
+                            <NavRow icon="mail-outline" label="Email" hint={profile.user_email || 'Not set'}
+                                    onPress={go('EditContact', editContact)} last />
                         </Group>
 
                         {/* County: routes referrals to that county's officers and picks the support contacts */}
@@ -209,7 +220,7 @@ export default function AccountScreen({ route, navigation }) {
                                     onPress={go('Info', { page: 'privacy' })} />
                             <NavRow icon="document-text-outline" label="Terms of use" onPress={go('Info', { page: 'terms' })} />
                             <NavRow icon="trash-outline" label="Delete my account" hint="Your photos, checks and account"
-                                    color={COLORS.disease} onPress={go('DeleteAccount', { googleOnly: !profile.has_password })} last />
+                                    color={COLORS.danger} onPress={go('DeleteAccount', { googleOnly: !profile.has_password })} last />
                         </Group>
                         {privacyError && (
                             <View className="px-5 mt-3">
@@ -230,7 +241,7 @@ export default function AccountScreen({ route, navigation }) {
                         </Group>
 
                         <Group>
-                            <NavRow icon="log-out-outline" label="Log out" color={COLORS.disease} onPress={confirmLogout} last />
+                            <NavRow icon="log-out-outline" label="Log out" color={COLORS.danger} onPress={confirmLogout} last />
                         </Group>
                     </>
                 )}

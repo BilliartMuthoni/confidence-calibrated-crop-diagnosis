@@ -17,10 +17,13 @@ import * as AuthService from '../../api/AuthService';
 import { toFriendlyError } from '../../utils/errorMessages';
 import ErrorBanner from '../../components/ErrorBanner';
 import CodeInput from '../../components/CodeInput';
+import BusyOverlay from '../../components/BusyOverlay';
+import useKeyboardScroll from '../../utils/useKeyboardScroll';
 
 // After Continue with Google, when the email already has a Sproutly password account: the farmer
 // proves it's theirs (password, plus the authenticator code if set up) and Google is joined to it.
 export default function LinkGoogleScreen({ route, navigation }) {
+    const scrollRef = useKeyboardScroll();
     const { linkToken, email, needsCode } = route.params;
     const { login } = useContext(AuthContext);
     const [password, setPassword] = useState('');
@@ -59,8 +62,9 @@ export default function LinkGoogleScreen({ route, navigation }) {
     return (
         <LinearGradient colors={['#0B1A13', '#1B3D2F', '#2D5A43']} style={{ flex: 1 }}>
             <StatusBar style="light" />
-            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
-                <ScrollView contentContainerClassName="flex-grow pb-10" keyboardShouldPersistTaps="handled">
+            <BusyOverlay visible={loading} message="Linking your Google account" />
+            <KeyboardAvoidingView behavior="padding" className="flex-1">
+                <ScrollView ref={scrollRef} contentContainerClassName="flex-grow pb-10" keyboardShouldPersistTaps="handled">
                     <View className="pt-12 px-5">
                         <TouchableOpacity onPress={() => navigation.goBack()} className="p-2.5 self-start flex-row items-center">
                             <Ionicons name="arrow-back" size={20} color="#FFFFFF" />

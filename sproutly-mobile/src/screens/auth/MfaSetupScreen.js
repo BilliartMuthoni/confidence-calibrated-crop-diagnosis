@@ -19,6 +19,8 @@ import * as AuthService from '../../api/AuthService';
 import { toFriendlyError } from '../../utils/errorMessages';
 import ErrorBanner from '../../components/ErrorBanner';
 import CodeInput from '../../components/CodeInput';
+import BusyOverlay from '../../components/BusyOverlay';
+import useKeyboardScroll from '../../utils/useKeyboardScroll';
 
 function StepTitle({ number, title }) {
     return (
@@ -35,6 +37,7 @@ function StepTitle({ number, title }) {
 // The authenticator app is usually on this same phone, so the QR code (which needs
 // a second screen) is hidden by default; the app link and the setup key come first.
 export default function MfaSetupScreen({ route, navigation }) {
+    const scrollRef = useKeyboardScroll();
     const { mfaToken, expiresInMinutes, setup } = route.params;
     const { login } = useContext(AuthContext);
     const [code, setCode] = useState('');
@@ -83,8 +86,9 @@ export default function MfaSetupScreen({ route, navigation }) {
     return (
         <LinearGradient colors={['#0B1A13', '#1B3D2F', '#2D5A43']} style={{ flex: 1 }}>
             <StatusBar style="light" />
-            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
-                <ScrollView contentContainerClassName="flex-grow pb-10" keyboardShouldPersistTaps="handled">
+            <BusyOverlay visible={loading} message="Checking your code" />
+            <KeyboardAvoidingView behavior="padding" className="flex-1">
+                <ScrollView ref={scrollRef} contentContainerClassName="flex-grow pb-10" keyboardShouldPersistTaps="handled">
                     <View className="pt-12 px-5">
                         <TouchableOpacity onPress={() => navigation.goBack()} className="p-2.5 self-start flex-row items-center">
                             <Ionicons name="arrow-back" size={20} color="#FFFFFF" />

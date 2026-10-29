@@ -17,8 +17,11 @@ import * as AuthService from '../../api/AuthService';
 import { toFriendlyError } from '../../utils/errorMessages';
 import ErrorBanner from '../../components/ErrorBanner';
 import SocialSignIn from '../../components/SocialSignIn';
+import BusyOverlay from '../../components/BusyOverlay';
+import useKeyboardScroll from '../../utils/useKeyboardScroll';
 
 export default function SignUpScreen({ navigation }) {
+    const scrollRef = useKeyboardScroll();
     const [authMethod, setAuthMethod] = useState('phone'); // 'phone' or 'email'
     // An error belongs to the tab it came from; switching tabs clears it.
     const chooseMethod = (method) => {
@@ -93,11 +96,12 @@ export default function SignUpScreen({ navigation }) {
     return (
         <LinearGradient colors={['#0B1A13', '#1B3D2F', '#2D5A43']} style={{ flex: 1 }}>
             <StatusBar style="light" />
+            <BusyOverlay visible={loading} message="Creating your account" />
             <KeyboardAvoidingView
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                behavior="padding"
                 className="flex-1"
             >
-                <ScrollView contentContainerClassName="flex-grow pb-10" keyboardShouldPersistTaps="handled">
+                <ScrollView ref={scrollRef} contentContainerClassName="flex-grow pb-10" keyboardShouldPersistTaps="handled">
                     <View className="pt-12 px-5">
                         <TouchableOpacity
                             onPress={() => navigation.goBack()}

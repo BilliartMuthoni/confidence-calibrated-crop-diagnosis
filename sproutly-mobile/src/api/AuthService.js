@@ -167,6 +167,20 @@ export function deleteAccount({ token, password, code }) {
     return authorizedPost('/auth/me/delete', token, body);
 }
 
+/** Change the phone number and email the farmer logs in with (empty removes one). Proof: password
+ *  and code, or nothing right after continuing with Google. Answers a fresh sign-in. */
+export function changeContact({ token, phoneNumber, email, password, code }) {
+    const body = { phone_number: phoneNumber || '', email: email || '' };
+    if (password) body.password = password;
+    if (code) body.code = code;
+    return authorizedPost('/auth/me/contact', token, body);
+}
+
+/** Which county a position is in ({ county }, null outside Kenya). The position is not kept. */
+export function locateCounty({ token, latitude, longitude }) {
+    return authorizedPost('/auth/county/locate', token, { latitude, longitude });
+}
+
 /** Keep the questions asked about results (true) or stop keeping new ones (false). Answers the profile. */
 export function setKeepQuestions({ token, keep }) {
     return authorizedPost('/auth/me/privacy', token, { keep_questions: keep });

@@ -16,6 +16,12 @@
     "expo-web-browser",
     "expo-secure-store",
     [
+      "expo-location",
+      {
+        "locationWhenInUsePermission": "Sproutly uses your location once to find your county. It is not kept."
+      }
+    ],
+    [
       "expo-splash-screen",
       {
         "image": "./assets/images/sproutly-logo.png",

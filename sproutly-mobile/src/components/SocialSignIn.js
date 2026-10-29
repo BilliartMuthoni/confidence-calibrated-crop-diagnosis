@@ -1,11 +1,11 @@
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext, useState } from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { AuthContext } from '../context/AuthContext';
-import { fetchSignInProviders } from '../api/AuthService';
 import { signInWith } from '../api/oauth';
 import { toFriendlyError } from '../utils/errorMessages';
 import ErrorBanner from './ErrorBanner';
+import BusyOverlay from './BusyOverlay';
 
 const PROVIDERS = {
     google: { label: 'Continue with Google', icon: 'logo-google' },
@@ -19,13 +19,12 @@ const PROVIDERS = {
  */
 export default function SocialSignIn({ navigation, onSignedIn }) {
     const { login } = useContext(AuthContext);
-    const [providers, setProviders] = useState([]);
+    // Google is switched on wherever Sproutly runs, so the button is part of the page from the
+    // first frame. (It used to wait for the backend to list the options, and popped in late.)
+    // A server without Google answers "Unknown sign-in option", shown as a clear message.
+    const providers = Object.keys(PROVIDERS);
     const [busy, setBusy] = useState(null);
     const [error, setError] = useState(null);
-
-    useEffect(() => {
-        fetchSignInProviders().then((list) => setProviders(list.filter((p) => PROVIDERS[p])));
-    }, []);
 
     const start = async (provider) => {
         setBusy(provider);
@@ -66,10 +65,9 @@ export default function SocialSignIn({ navigation, onSignedIn }) {
         }
     };
 
-    if (providers.length === 0) return null;
-
     return (
         <View>
+            <BusyOverlay visible={busy !== null} message="Signing you in with Google" />
             <View className="flex-row items-center my-6">
                 <View className="flex-1 h-px bg-white/20" />
                 <Text className="mx-4 text-white/40 text-sm">or</Text>

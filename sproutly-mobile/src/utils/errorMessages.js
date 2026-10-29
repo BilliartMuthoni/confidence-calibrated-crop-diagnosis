@@ -53,6 +53,49 @@ const PATTERNS = [
         retryable: false,
     },
     {
+        // Changing the phone or email of an account made with Google.
+        match: /continue with google again, then change it/i,
+        title: 'Confirm with Google first',
+        message: 'Tap the button to continue with Google, then your change is saved.',
+        retryable: false,
+    },
+    {
+        match: /already belongs to another account/i,
+        title: 'Already in use',
+        message: 'Another Sproutly account uses that. Check it, or keep your current one.',
+        retryable: false,
+    },
+    {
+        match: /email comes from google/i,
+        title: 'Your email comes from Google',
+        message: 'To change it, disconnect Google in Account first.',
+        retryable: false,
+    },
+    {
+        match: /keep a phone number or an email/i,
+        title: 'Keep one way to log in',
+        message: 'Leave a phone number or an email filled in.',
+        retryable: false,
+    },
+    {
+        match: /enter the phone number like/i,
+        title: 'Check the phone number',
+        message: 'Enter it like 0712345678.',
+        retryable: false,
+    },
+    {
+        match: /valid email|not a valid email|email address/i,
+        title: 'Check the email',
+        message: 'Enter it like you@example.com.',
+        retryable: false,
+    },
+    {
+        match: /nothing was changed/i,
+        title: 'Nothing to save',
+        message: 'Change the phone number or email first.',
+        retryable: false,
+    },
+    {
         match: /continue with google again/i,
         title: 'Confirm with Google first',
         message: 'For your safety, tap the button to continue with Google, then your account is deleted.',
@@ -116,6 +159,13 @@ const PATTERNS = [
         retryable: false,
     },
     {
+        // A server where Google sign-in isn't set up.
+        match: /unknown sign-in option/i,
+        title: 'Google sign-in is not available',
+        message: 'Log in with your phone number or email and your password instead.',
+        retryable: false,
+    },
+    {
         match: /^oauth |sign-in has expired/i,
         title: 'Sign-in did not finish',
         message: 'Something went wrong while signing in. Please try again.',
@@ -130,7 +180,7 @@ const PATTERNS = [
     {
         match: /look like a leaf/i,
         title: 'This is not a leaf photo',
-        message: 'Sproutly checks leaves of maize, tomato and potato. Take a close-up photo of one leaf in good light and try again.',
+        message: 'Take a close-up of one maize, tomato or potato leaf.',
         retryable: false,
     },
     {

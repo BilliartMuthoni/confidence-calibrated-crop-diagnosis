@@ -8,6 +8,7 @@ import * as AuthService from '../../api/AuthService';
 import { toFriendlyError } from '../../utils/errorMessages';
 import ErrorBanner from '../../components/ErrorBanner';
 import CodeInput from '../../components/CodeInput';
+import BusyOverlay from '../../components/BusyOverlay';
 
 // Second step of login: the password was right, now the code from the authenticator app.
 export default function MfaCodeScreen({ route, navigation }) {
@@ -58,7 +59,8 @@ export default function MfaCodeScreen({ route, navigation }) {
     return (
         <LinearGradient colors={['#0B1A13', '#1B3D2F', '#2D5A43']} style={{ flex: 1 }}>
             <StatusBar style="light" />
-            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
+            <BusyOverlay visible={loading} message="Checking your code" />
+            <KeyboardAvoidingView behavior="padding" className="flex-1">
                 <View className="pt-12 px-5">
                     <TouchableOpacity onPress={() => navigation.goBack()} className="p-2.5 self-start flex-row items-center">
                         <Ionicons name="arrow-back" size={20} color="#FFFFFF" />

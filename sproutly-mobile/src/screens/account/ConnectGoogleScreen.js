@@ -1,5 +1,5 @@
 import React, { useState, useContext } from 'react';
-import { View, Text, ScrollView, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { AuthContext } from '../../context/AuthContext';
@@ -12,6 +12,9 @@ import CodeInput from '../../components/CodeInput';
 import { PrimaryButton } from '../../components/Buttons';
 import { Field } from './ChangePasswordScreen';
 import { COLORS } from '../../constants/theme';
+import BusyOverlay from '../../components/BusyOverlay';
+import { showDialog } from '../../components/Dialog';
+import useKeyboardScroll from '../../utils/useKeyboardScroll';
 
 /**
  * Connect Google to this account, or disconnect it. Like GitHub's connected accounts: the
@@ -19,6 +22,7 @@ import { COLORS } from '../../constants/theme';
  * account can be picked, even one with a different email.
  */
 export default function ConnectGoogleScreen({ route, navigation }) {
+    const scrollRef = useKeyboardScroll();
     const disconnecting = Boolean(route.params?.disconnect);
     const { userToken } = useContext(AuthContext);
     const [password, setPassword] = useState('');
@@ -27,7 +31,7 @@ export default function ConnectGoogleScreen({ route, navigation }) {
     const [error, setError] = useState(null);
 
     const done = (title, message) => {
-        Alert.alert(title, message);
+        showDialog(title, message);
         // Back to Account, which loads the account again to show the change.
         navigation.navigate('Account', { refresh: Date.now() });
     };
@@ -58,9 +62,10 @@ export default function ConnectGoogleScreen({ route, navigation }) {
     return (
         <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }}>
             <StatusBar style="dark" />
+            <BusyOverlay visible={loading} message="Connecting Google" />
             <ScreenHeader title={disconnecting ? 'Disconnect Google' : 'Connect Google'} onBack={() => navigation.goBack()} />
-            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
-                <ScrollView contentContainerClassName="px-5 pb-10" keyboardShouldPersistTaps="handled">
+            <KeyboardAvoidingView behavior="padding" className="flex-1">
+                <ScrollView ref={scrollRef} contentContainerClassName="px-5 pb-10" keyboardShouldPersistTaps="handled">
                     <Text className="text-base leading-6 mb-5" style={{ color: COLORS.text }}>
                         {disconnecting
                             ? 'You will no longer be able to continue with Google. Your account, photos and checks stay.'
@@ -85,7 +90,7 @@ export default function ConnectGoogleScreen({ route, navigation }) {
                         <PrimaryButton
                             label={disconnecting ? 'Disconnect Google' : 'Continue with Google'}
                             icon={disconnecting ? 'unlink-outline' : 'logo-google'}
-                            color={disconnecting ? COLORS.disease : undefined}
+                            color={disconnecting ? COLORS.danger : undefined}
                             onPress={submit}
                             loading={loading}
                             disabled={!password || code.length !== 6}

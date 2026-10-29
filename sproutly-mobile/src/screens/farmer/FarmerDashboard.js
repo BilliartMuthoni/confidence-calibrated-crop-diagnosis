@@ -11,13 +11,14 @@ import ErrorBanner from '../../components/ErrorBanner';
 import BottomBar from '../../components/BottomBar';
 import CheckRow from '../../components/CheckRow';
 import { COLORS } from '../../constants/theme';
+import { loadSeenReplies } from '../../utils/seenReplies';
 
 // Home shows the latest few; the full list is on the Your checks tab.
 const LATEST = 3;
-
 export default function FarmerDashboard({ navigation }) {
     const { userToken } = useContext(AuthContext);
     const [history, setHistory] = useState([]);
+    const [seen, setSeen] = useState(new Set());
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState(null);
@@ -25,7 +26,9 @@ export default function FarmerDashboard({ navigation }) {
     const load = useCallback(async () => {
         setError(null);
         try {
-            setHistory(await fetchHistory({ token: userToken }));
+            const [checks, opened] = await Promise.all([fetchHistory({ token: userToken }), loadSeenReplies()]);
+            setHistory(checks);
+            setSeen(opened);
         } catch (e) {
             setError(toFriendlyError(e));
         } finally {
@@ -47,6 +50,8 @@ export default function FarmerDashboard({ navigation }) {
     };
 
     const seeAll = () => navigation.reset({ index: 1, routes: [{ name: 'FarmerHome' }, { name: 'History', params: { tab: true } }] });
+    const openCheck = (item) => navigation.navigate('Result', { diagnosisId: item.diagnosis_id });
+    const unread = history.filter((item) => item.officer_response && !seen.has(item.diagnosis_id)).length;
 
     return (
         <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }} edges={['top']}>
@@ -58,13 +63,32 @@ export default function FarmerDashboard({ navigation }) {
                 {/* Header */}
                 {/* Profile and settings live in the Account tab. */}
                 <View className="flex-row items-center pt-4">
-                    <Text className="text-2xl font-bold" style={{ color: COLORS.brand }}>
+                    <Text className="flex-1 text-2xl font-bold" style={{ color: COLORS.brand }}>
                         Sproutly
                     </Text>
+                    {/* The bell: officers' replies not opened yet. Push notifications will open the same list. */}
+                    <TouchableOpacity
+                        onPress={() => navigation.navigate('Notifications')}
+                        hitSlop={10}
+                        accessibilityRole="button"
+                        accessibilityLabel={unread ? `Notifications, ${unread} new` : 'Notifications'}
+                        className="p-1.5"
+                    >
+                        <Ionicons name={unread ? 'notifications' : 'notifications-outline'} size={26} color={COLORS.ink} />
+                        {unread > 0 && (
+                            <View
+                                className="absolute items-center justify-center rounded-full"
+                                style={{ top: 0, right: 0, minWidth: 18, height: 18, paddingHorizontal: 4, backgroundColor: COLORS.danger, borderWidth: 2, borderColor: COLORS.background }}
+                            >
+                                <Text style={{ color: '#FFFFFF', fontSize: 10, fontWeight: '700' }}>{unread > 9 ? '9+' : unread}</Text>
+                            </View>
+                        )}
+                    </TouchableOpacity>
                 </View>
                 <Text className="text-base mt-1" style={{ color: COLORS.muted }}>
                     What is affecting your crop today?
                 </Text>
+
 
                 {/* The one main action */}
                 <TouchableOpacity
@@ -116,7 +140,7 @@ export default function FarmerDashboard({ navigation }) {
                             key={item.diagnosis_id}
                             item={item}
                             first={index === 0}
-                            onPress={() => navigation.navigate('Result', { diagnosisId: item.diagnosis_id })}
+                            onPress={() => openCheck(item)}
                         />
                     ))
                 )}
