@@ -2,9 +2,10 @@ import { Fragment, useCallback, useState } from 'react'
 
 import { createOfficer, listUsers, resetAuthenticator, resetPassword, setOfficerCounty, setUserActive } from '../api/admin.js'
 import { useAuth } from '../auth/context.js'
-import { Badge, Button, Card, ErrorBox, Field, Loading, PageHeader, inputClass } from '../components/ui.jsx'
-import { COUNTIES, timeAgo } from '../lib/format.js'
+import { Badge, Button, Card, Empty, ErrorBox, Field, Loading, PageHeader, Pagination, SortHeader, filterClass, inputClass } from '../components/ui.jsx'
+import { COUNTIES, parseUtc, timeAgo } from '../lib/format.js'
 import { useLoad } from '../lib/useLoad.js'
+import { usePaged } from '../lib/usePaged.js'
 
 const ROLE_LABEL = { admin: 'Administrator', officer: 'Extension officer', farmer: 'Farmer' }
 
@@ -20,12 +21,12 @@ function OneTimeLink({ result, who }) {
     }
   }
   return (
-    <div className="rounded-xl border border-healthy/30 bg-healthy/5 p-4">
+    <div className="rounded-md border border-healthy-ink/25 bg-healthy-tint p-4">
       <p className="text-sm font-semibold text-ink">Send this link to {who}. It works once, for {result.expires_in_hours} hours.</p>
       <p className="mt-2 break-all rounded-lg bg-white px-3 py-2 font-mono text-xs text-body select-all">{result.link}</p>
       <div className="mt-2 flex items-center gap-3">
         <Button variant="secondary" onClick={copy}>Copy link</Button>
-        {copied && <span className="text-sm text-healthy">Copied</span>}
+        {copied && <span className="text-sm text-healthy-ink">Copied</span>}
       </div>
       <p className="mt-2 text-xs text-faint">Send it to a number or address you know is theirs, never one given in the same request.</p>
     </div>
@@ -76,7 +77,7 @@ function Manage({ user, onDone }) {
       {user.role === 'officer' && (
         <div className="flex flex-wrap items-end gap-2">
           <Field label="County">
-            <select className={`${inputClass} w-auto`} value={county} onChange={(e) => setCounty(e.target.value)}>
+            <select className={filterClass} value={county} onChange={(e) => setCounty(e.target.value)}>
               {COUNTIES.map((c) => <option key={c}>{c}</option>)}
             </select>
           </Field>
@@ -88,7 +89,7 @@ function Manage({ user, onDone }) {
       )}
       <p className="text-xs text-faint">Each of these is recorded in the audit log.</p>
       <ErrorBox error={error} />
-      {done && <p className="text-sm font-semibold text-healthy">{done}</p>}
+      {done && <p className="text-sm font-semibold text-healthy-ink">{done}</p>}
       {link && <OneTimeLink result={link} who={user.name} />}
     </div>
   )
@@ -118,7 +119,7 @@ function NewOfficer({ onDone, onCancel }) {
   if (created) {
     return (
       <Card className="mb-6 space-y-4">
-        <h2 className="font-bold text-ink">{created.user.name}'s account is ready</h2>
+        <h2 className="text-base font-semibold text-ink">{created.user.name}'s account is ready</h2>
         <OneTimeLink result={created} who={created.user.name} />
         <Button variant="secondary" onClick={onCancel}>Done</Button>
       </Card>
@@ -127,10 +128,10 @@ function NewOfficer({ onDone, onCancel }) {
 
   return (
     <Card className="mb-6">
-      <h2 className="font-bold text-ink">Create an officer account</h2>
-      <p className="mt-1 text-sm leading-6 text-muted">
-        Officers cannot sign themselves up. You get a one-time link to pass on; with it they choose a password, then set
-        up an authenticator app at their first sign-in. They see only their county's referrals.
+      <h2 className="text-base font-semibold text-ink">Create an officer account</h2>
+      <p className="mt-1 text-sm text-muted">
+        You get a one-time link to pass on. With it they choose a password, then set up an authenticator app. They see
+        only their county's referrals.
       </p>
       <div className="mt-4 grid gap-4 sm:grid-cols-3">
         <Field label="Full name"><input className={inputClass} value={form.name} onChange={set('name')} /></Field>
@@ -159,50 +160,74 @@ export default function UsersPage() {
   const { data, error, loading, reload } = useLoad(load)
   const [creating, setCreating] = useState(false)
   const [role, setRole] = useState('')
+  const [search, setSearch] = useState('')
   const [managing, setManaging] = useState(null)
 
   const toggle = async (u) => {
+    const verb = u.active ? 'Deactivate' : 'Reactivate'
+    const effect = u.active ? 'They can no longer sign in; their records are kept.' : 'They can sign in again.'
+    if (!window.confirm(`${verb} ${u.name}? ${effect}`)) return
     await setUserActive(token, u.id, !u.active)
     reload()
   }
 
-  const shown = (data ?? []).filter((u) => !role || u.role === role)
+  const [sort, setSort] = useState({ key: 'name', dir: 'asc' })
+  // Never signed in counts as the oldest sign-in.
+  const signedIn = (u) => (u.last_sign_in ? parseUtc(u.last_sign_in).getTime() : 0)
+  const compare = sort.key === 'last' ? (a, b) => signedIn(a) - signedIn(b) : (a, b) => a.name.localeCompare(b.name)
+
+  const q = search.trim().toLowerCase()
+  const shown = (data ?? [])
+    .filter((u) => !role || u.role === role)
+    .filter((u) => !q || u.name.toLowerCase().includes(q) || (u.contact ?? '').toLowerCase().includes(q))
+    .sort((a, b) => (sort.dir === 'asc' ? compare(a, b) : compare(b, a)))
+  const paged = usePaged(shown, `${role}|${q}|${sort.key}|${sort.dir}`)
 
   return (
     <>
-      <PageHeader
-        title="Users"
-        subtitle="Every account has the authenticator code switched on. Deactivating an account stops it signing in; its records are kept. Administrator accounts are managed only with the server command."
-      >
+      <PageHeader title="Users" subtitle="Officers, administrators and farmers. Every account uses an authenticator code.">
         {!creating && <Button onClick={() => setCreating(true)}>Create an officer account</Button>}
       </PageHeader>
 
       {creating && <NewOfficer onCancel={() => setCreating(false)} onDone={reload} />}
 
-      <div className="mb-4">
-        <select className={`${inputClass} w-auto`} value={role} onChange={(e) => setRole(e.target.value)} aria-label="Role">
-          <option value="">All roles</option>
-          <option value="admin">Administrators</option>
-          <option value="officer">Extension officers</option>
-          <option value="farmer">Farmers</option>
-        </select>
+      <div className="mb-4 flex flex-wrap items-center gap-3">
+        <input className={`${inputClass} max-w-72`} type="search" value={search} onChange={(e) => setSearch(e.target.value)}
+               placeholder="Search by name, email or phone" aria-label="Search users" />
+        <div role="group" aria-label="Role" className="inline-flex overflow-hidden rounded-md border border-divider-strong bg-white">
+          {[['', 'All'], ['officer', 'Officers'], ['admin', 'Admins'], ['farmer', 'Farmers']].map(([value, label]) => (
+            <button key={label} type="button" aria-pressed={role === value} onClick={() => setRole(value)}
+                    className={`h-9 border-r border-divider px-3 text-sm font-semibold last:border-r-0 ${
+                      role === value ? 'bg-healthy-tint text-primary' : 'text-muted hover:bg-neutral-tint hover:text-ink'
+                    }`}>
+              {label}
+            </button>
+          ))}
+        </div>
+        {data && <span className="ml-auto text-xs text-muted tabular-nums">{shown.length} of {data.length}</span>}
       </div>
 
-      {loading ? <Loading /> : error ? <ErrorBox error={error} onRetry={reload} /> : (
+      {loading ? <Loading /> : error ? <ErrorBox error={error} onRetry={reload} /> : shown.length === 0 ? (
+        <Card>
+          <Empty title="No users match" action={<Button variant="secondary" onClick={() => { setSearch(''); setRole('') }}>Clear filters</Button>}>
+            Try another name, or show every role.
+          </Empty>
+        </Card>
+      ) : (
         <Card className="overflow-x-auto p-0">
           <table className="w-full text-left text-sm">
-            <thead className="border-b border-divider text-xs uppercase tracking-wider text-faint">
+            <thead className="border-b border-divider bg-surface/60 text-xs text-muted">
               <tr>
-                <th className="px-5 py-3 font-semibold">Name</th>
-                <th className="px-5 py-3 font-semibold">Role</th>
-                <th className="px-5 py-3 font-semibold">Authenticator</th>
-                <th className="px-5 py-3 font-semibold">Last sign-in</th>
-                <th className="px-5 py-3 font-semibold">Status</th>
+                <SortHeader label="Name" column="name" sort={sort} onSort={setSort} className="px-5 py-2.5" />
+                <th className="px-5 py-2.5 font-semibold">Role</th>
+                <th className="px-5 py-2.5 font-semibold">Authenticator</th>
+                <SortHeader label="Last sign-in" column="last" sort={sort} onSort={setSort} className="px-5 py-2.5" />
+                <th className="px-5 py-2.5 font-semibold">Status</th>
                 <th className="px-5 py-3" />
               </tr>
             </thead>
             <tbody className="divide-y divide-divider">
-              {shown.map((u) => (
+              {paged.rows.map((u) => (
                 <Fragment key={u.id}>
                   <tr>
                     <td className="px-5 py-3">
@@ -214,10 +239,10 @@ export default function UsersPage() {
                       {u.county && <span className="block text-muted">{u.county}</span>}
                     </td>
                     <td className="px-5 py-3">
-                      <Badge tone={u.mfa ? 'active' : 'waiting'}>{u.mfa ? 'set up' : 'at next sign-in'}</Badge>
+                      {u.mfa ? <span className="text-body">Set up</span> : <Badge>At next sign-in</Badge>}
                     </td>
-                    <td className="whitespace-nowrap px-5 py-3 text-muted">{u.last_sign_in ? timeAgo(u.last_sign_in) : 'never'}</td>
-                    <td className="px-5 py-3"><Badge tone={u.active ? 'active' : 'inactive'}>{u.active ? 'active' : 'deactivated'}</Badge></td>
+                    <td className="whitespace-nowrap px-5 py-3 text-muted">{u.last_sign_in ? timeAgo(u.last_sign_in) : 'Never'}</td>
+                    <td className="px-5 py-3">{u.active ? <span className="text-body">Active</span> : <Badge>Deactivated</Badge>}</td>
                     <td className="px-5 py-3 text-right">
                       <div className="flex flex-col items-end gap-1 whitespace-nowrap">
                         {u.role === 'officer' && (
@@ -241,6 +266,7 @@ export default function UsersPage() {
               ))}
             </tbody>
           </table>
+          <Pagination paged={paged} />
         </Card>
       )}
     </>

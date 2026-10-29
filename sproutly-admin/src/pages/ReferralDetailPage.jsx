@@ -5,15 +5,15 @@ import {
   claimReferral, getReferral, listAdvice, recordJudgement, referralPhoto, releaseReferral, replyToReferral,
 } from '../api/admin.js'
 import { useAuth } from '../auth/context.js'
-import { Badge, Button, Card, ErrorBox, Field, Loading, inputClass } from '../components/ui.jsx'
+import { Badge, Button, ErrorBox, Loading, inputClass } from '../components/ui.jsx'
 import {
-  CROP_PREFIX, CROPS, DISEASES, JUDGEMENTS, REFERRAL_STATUS, daysLeft, diseaseName, formatDate, judgementName, percent,
+  CROP_PREFIX, CROPS, DISEASES, JUDGEMENTS, diseaseName, formatDate, judgementName, percent, timeLeft,
 } from '../lib/format.js'
 import { useLoad } from '../lib/useLoad.js'
 
 function Row({ label, children }) {
   return (
-    <div className="grid grid-cols-[9rem_1fr] gap-3 py-2 text-sm">
+    <div className="grid gap-1 py-2.5 text-sm sm:grid-cols-[10rem_1fr] sm:gap-4">
       <dt className="text-muted">{label}</dt>
       <dd className="text-body">{children}</dd>
     </div>
@@ -22,17 +22,18 @@ function Row({ label, children }) {
 
 function PhotoPlaceholder({ children }) {
   return (
-    <div className="flex aspect-[4/3] w-full flex-col items-center justify-center rounded-xl bg-surface text-faint">
+    <div className="flex aspect-[4/3] w-full flex-col items-center justify-center gap-2 rounded-lg bg-[#dfe7e0] text-[#46624f]">
       <svg viewBox="0 0 32 32" className="h-12 w-12" aria-hidden="true">
-        <path d="M9 23c0-9 5-14 15-15-1 10-6 15-15 15z" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
-        <path d="M10 22c3-3 6-7 8-11" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+        <path d="M9 23c0-9 5-14 15-15-1 10-6 15-15 15z" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+        <path d="M10 22c3-3 6-7 8-11" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
       </svg>
-      <span className="mt-2 text-xs">{children}</span>
+      <span className="text-sm">{children}</span>
     </div>
   )
 }
 
-// The farmer's photo. It needs the sign-in token, so it is fetched and shown from memory.
+// The farmer's photo. It needs the sign-in token, so it is fetched and shown from memory;
+// clicking it opens it full size in a new tab for a closer look.
 function Photo({ referral }) {
   const { token } = useAuth()
   const [state, setState] = useState({ url: null, failed: false })
@@ -52,18 +53,20 @@ function Photo({ referral }) {
   }, [live, token, referral.id])
 
   if (!live || state.failed) return <PhotoPlaceholder>The photo is no longer stored (deleted after 30 days)</PhotoPlaceholder>
-  if (!state.url) return <PhotoPlaceholder>Loading the photo...</PhotoPlaceholder>
-  return <img src={state.url} alt={`The farmer's ${referral.crop} photo`} className="w-full rounded-xl object-contain" />
+  if (!state.url) return <PhotoPlaceholder>Loading the photo</PhotoPlaceholder>
+  return (
+    <a href={state.url} target="_blank" rel="noreferrer" title="Open full size" className="block">
+      <img src={state.url} alt={`The farmer's ${referral.crop} photo`} className="max-h-[32rem] w-full rounded-lg bg-[#dfe7e0] object-contain" />
+    </a>
+  )
 }
 
 function ModelGuess({ guess }) {
   return (
     <>
-      {diseaseName(guess.disease)}, {percent(guess.confidence)} sure (below the threshold, so not shown to the farmer as a
-      diagnosis)
-      {guess.model_version && (
-        <span className="block text-sm text-muted mt-1">Model: {guess.model_version}</span>
-      )}
+      {diseaseName(guess.disease)}, <span className="tabular-nums">{percent(guess.confidence)}</span> sure. Below the
+      threshold, so the farmer was not shown it.
+      {guess.model_version && <span className="mt-1 block text-xs text-muted">Model: {guess.model_version}</span>}
     </>
   )
 }
@@ -86,20 +89,33 @@ function useAction(onDone) {
   return { busy, error, run }
 }
 
+function Panel({ children }) {
+  return <section className="space-y-6 rounded-lg border border-divider bg-white p-5 sm:p-6">{children}</section>
+}
+
+function Step({ number, title, children }) {
+  return (
+    <div className="space-y-2.5">
+      <h2 className="flex items-baseline gap-2.5 text-base font-semibold text-ink">
+        <span className="tabular-nums text-muted">{number}</span>{title}
+      </h2>
+      {children}
+    </div>
+  )
+}
+
 function ClaimCard({ referral, onChange }) {
   const { token } = useAuth()
   const { busy, error, run } = useAction(onChange)
   return (
-    <Card>
-      <h2 className="font-bold text-ink">Nobody is reviewing this case yet</h2>
-      <p className="mt-1 text-sm leading-6 text-muted">
-        Claim it to answer it. Other officers then see that you have it, so the farmer gets one reply, not two.
-      </p>
-      <div className="mt-4"><ErrorBox error={error} /></div>
-      <Button className="mt-4" variant="expert" busy={busy} onClick={() => run(() => claimReferral(token, referral.id))}>
-        Claim this case
-      </Button>
-    </Card>
+    <Panel>
+      <div>
+        <h2 className="text-base font-semibold text-ink">Nobody has claimed this case</h2>
+        <p className="mt-1 text-sm text-muted">Claim it to answer it. Other officers then see it is yours.</p>
+      </div>
+      <ErrorBox error={error} />
+      <Button busy={busy} onClick={() => run(() => claimReferral(token, referral.id))}>Claim this case</Button>
+    </Panel>
   )
 }
 
@@ -107,18 +123,32 @@ function ClaimedByOther({ referral, onChange }) {
   const { token, user } = useAuth()
   const { busy, error, run } = useAction(onChange)
   return (
-    <Card>
-      <h2 className="font-bold text-ink">Being reviewed by {referral.claimed_by.name}</h2>
-      <p className="mt-1 text-sm leading-6 text-muted">Claimed {formatDate(referral.claimed_by.at)}.</p>
+    <Panel>
+      <div>
+        <h2 className="text-base font-semibold text-ink">{referral.claimed_by.name} is answering this case</h2>
+        <p className="mt-1 text-sm text-muted">Claimed {formatDate(referral.claimed_by.at)}.</p>
+      </div>
       {user.role === 'admin' && (
         <>
-          <div className="mt-4"><ErrorBox error={error} /></div>
-          <Button className="mt-4" variant="secondary" busy={busy} onClick={() => run(() => releaseReferral(token, referral.id))}>
-            Release it so another officer can claim it
+          <ErrorBox error={error} />
+          <Button variant="secondary" busy={busy} onClick={() => run(() => releaseReferral(token, referral.id))}>
+            Release it for another officer
           </Button>
         </>
       )}
-    </Card>
+    </Panel>
+  )
+}
+
+function Choice({ value, label, checked, disabled, onPick }) {
+  return (
+    <label className={`flex min-h-10 cursor-pointer items-center gap-2.5 rounded-md border px-3 py-2 text-sm ${
+      checked ? 'border-primary bg-healthy-tint/60 text-ink' : 'border-divider bg-white hover:border-divider-strong'
+    } ${disabled ? 'cursor-default opacity-60' : ''}`}>
+      <input type="radio" name="judgement" value={value} checked={checked} disabled={disabled}
+             onChange={() => onPick(value)} className="accent-primary" />
+      {label}
+    </label>
   )
 }
 
@@ -143,86 +173,102 @@ function ReplyForm({ referral, onChange }) {
   const pick = (value) => { setChoice(value); setAdviceIds([]) }
 
   return (
-    <Card>
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <h2 className="font-bold text-ink">Your reply</h2>
-        <button type="button" className="text-sm font-semibold text-muted underline" disabled={release.busy}
-                onClick={() => release.run(() => releaseReferral(token, referral.id))}>
-          Release this case
-        </button>
-      </div>
-      <ErrorBox error={release.error} />
-
-      <div className="mt-4 space-y-5">
-        <Field label="1. What is it, in your judgement?"
-               hint="Decide from the photo and the farmer's description first. It is kept as a candidate label for later review, never used to retrain the model automatically.">
-          <select className={inputClass} value={judgement} onChange={(e) => pick(e.target.value)} disabled={revealed}>
-            <option value="">Choose one</option>
-            <optgroup label={CROPS[referral.crop]}>
-              {own.map((cls) => <option key={cls} value={cls}>{diseaseName(cls)}</option>)}
-            </optgroup>
-            <optgroup label="If the photo is another crop">
-              {others.map((cls) => <option key={cls} value={cls}>{diseaseName(cls)}</option>)}
-            </optgroup>
-            <optgroup label="Other answers">
-              {Object.entries(JUDGEMENTS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-            </optgroup>
-          </select>
-        </Field>
-
-        <div className="rounded-xl bg-surface px-4 py-3 text-sm">
-          {revealed && referral.guess ? (
-            <p className="text-body"><span className="font-semibold">Model's guess:</span> <ModelGuess guess={referral.guess} /></p>
-          ) : (
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <span className="text-muted">
-                {judgement ? 'Your judgement is locked once you look.' : 'Give your judgement first, then you can compare.'}
-              </span>
-              <Button variant="secondary" disabled={!judgement} busy={reveal.busy}
-                      onClick={() => reveal.run(() => recordJudgement(token, referral.id, judgement))}>
-                Show model's guess
-              </Button>
-            </div>
-          )}
-        </div>
-        <ErrorBox error={reveal.error} />
-
-        <Field label="2. Your reply to the farmer"
-               hint={'The farmer sees it on this check, labelled "Advice from a county officer", with your name and the time.'}>
-          <textarea className={`${inputClass} min-h-32`} value={text} onChange={(e) => setText(e.target.value)}
-                    placeholder="What you think it is, and what the farmer should do next. If you need to see the crop, say so." />
-        </Field>
-
-        {DISEASES[judgement] && !judgement.endsWith('healthy') && (
-          <fieldset>
-            <legend className="mb-1.5 text-sm font-semibold text-ink">3. Add advice from the library (optional)</legend>
-            {matching.length === 0 ? (
-              <p className="text-sm text-faint">No advice for {diseaseName(judgement)} in the library yet.</p>
-            ) : (
-              <ul className="space-y-2">
-                {matching.map((a) => (
-                  <li key={a.id}>
-                    <label className="flex gap-3 rounded-xl border border-divider px-3.5 py-2.5 text-sm">
-                      <input type="checkbox" className="mt-1" checked={adviceIds.includes(a.id)} onChange={() => toggleAdvice(a.id)} />
-                      <span>
-                        <span className="text-body">{a.text}</span>
-                        <span className="mt-0.5 block text-xs text-faint">{a.kind} - {a.source_title}</span>
-                      </span>
-                    </label>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </fieldset>
+    <Panel>
+      <Step number="1" title="Your diagnosis">
+        {revealed ? (
+          <p className="flex items-center gap-2.5 text-sm">
+            <span className="font-semibold text-ink">{judgementName(judgement)}</span><Badge>Saved</Badge>
+          </p>
+        ) : (
+          <>
+            <p className="text-sm text-muted">Decide from the photo and the description. It locks when you save it.</p>
+            <fieldset className="grid gap-2 sm:grid-cols-2">
+              <legend className="sr-only">Your diagnosis</legend>
+              {own.map((cls) => (
+                <Choice key={cls} value={cls} label={diseaseName(cls)} checked={judgement === cls} onPick={pick} />
+              ))}
+              {Object.entries(JUDGEMENTS).map(([value, label]) => (
+                <Choice key={value} value={value} label={label} checked={judgement === value} onPick={pick} />
+              ))}
+            </fieldset>
+            <label className="block text-sm">
+              <span className="text-muted">If the photo is another crop</span>
+              <select className={`${inputClass} mt-1`} value={others.includes(judgement) ? judgement : ''}
+                      onChange={(e) => e.target.value && pick(e.target.value)}>
+                <option value="">Choose a disease of another crop</option>
+                {others.map((cls) => <option key={cls} value={cls}>{diseaseName(cls)}</option>)}
+              </select>
+            </label>
+            <ErrorBox error={reveal.error} />
+            <Button disabled={!judgement} busy={reveal.busy}
+                    onClick={() => reveal.run(() => recordJudgement(token, referral.id, judgement))}>
+              Save diagnosis
+            </Button>
+          </>
         )}
+      </Step>
 
+      <Step number="2" title="Model's guess">
+        {revealed && referral.guess ? (
+          <>
+            <p className="text-sm text-body"><ModelGuess guess={referral.guess} /></p>
+            {DISEASES[judgement] && (
+              <Badge tone={judgement === referral.guess.disease ? 'active' : 'attention'}>
+                {judgement === referral.guess.disease ? 'Same as your diagnosis' : 'Different from your diagnosis'}
+              </Badge>
+            )}
+          </>
+        ) : (
+          <p className="text-sm text-muted">Shown after you save your diagnosis, so it does not sway you.</p>
+        )}
+      </Step>
+
+      <Step number="3" title="Reply to the farmer">
+        <label htmlFor="reply" className="block text-sm text-muted">
+          They see it on this check as advice from a county officer, with your name.
+        </label>
+        <textarea id="reply" className={`${inputClass} min-h-32`} value={text} onChange={(e) => setText(e.target.value)}
+                  disabled={!revealed} placeholder="What it is and what they should do next. If you need to see the crop, say so." />
+      </Step>
+
+      {DISEASES[judgement] && !judgement.endsWith('healthy') && (
+        <Step number="4" title={<>Attach advice <span className="text-sm font-normal text-muted">(optional)</span></>}>
+          {matching.length === 0 ? (
+            <p className="text-sm text-muted">No advice for {diseaseName(judgement)} in the library yet.</p>
+          ) : (
+            <ul className="space-y-2">
+              {matching.map((a) => (
+                <li key={a.id}>
+                  <label className="flex gap-3 rounded-md border border-divider px-3 py-2.5 text-sm">
+                    <input type="checkbox" className="mt-0.5 accent-primary" checked={adviceIds.includes(a.id)}
+                           onChange={() => toggleAdvice(a.id)} disabled={!revealed} />
+                    <span>
+                      <span className="text-body">{a.text}</span>
+                      <span className="mt-0.5 block text-xs text-muted">{a.kind === 'treatment' ? 'Treatment' : 'Prevention'}. {a.source_title}</span>
+                    </span>
+                  </label>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Step>
+      )}
+
+      <div className="space-y-3 border-t border-divider pt-5">
         <ErrorBox error={send.error} />
-        <Button onClick={() => send.run(() => replyToReferral(token, referral.id, { text: text.trim(), judgement, adviceIds }))}
-                busy={send.busy} disabled={!judgement || text.trim().length < 10} variant="expert">
-          Send reply
-        </Button>
+        <ErrorBox error={release.error} />
+        <div className="flex flex-wrap items-center gap-4">
+          <Button onClick={() => send.run(() => replyToReferral(token, referral.id, { text: text.trim(), judgement, adviceIds }))}
+                  busy={send.busy} disabled={!revealed || text.trim().length < 10}>
+            Send reply
+          </Button>
+          <button type="button" className="text-sm font-semibold text-primary underline" disabled={release.busy}
+                  onClick={() => release.run(() => releaseReferral(token, referral.id))}>
+            Release case
+          </button>
+        </div>
       </div>
-    </Card>
+    </Panel>
   )
 }
 
@@ -231,28 +277,29 @@ function SentReply({ referral }) {
   const loadAdvice = useCallback(() => listAdvice(token), [token])
   const advice = useLoad(loadAdvice)
   const attached = (advice.data ?? []).filter((a) => referral.reply.advice_ids?.includes(a.id))
+  const differs = DISEASES[referral.reply.judgement] || referral.reply.judgement === 'other_disease'
   return (
-    <Card>
-      <p className="text-xs font-bold uppercase tracking-wider text-expert">Advice from a county officer</p>
-      <p className="mt-2 leading-7 text-body">{referral.reply.text}</p>
-      {attached.length > 0 && (
-        <ul className="mt-3 space-y-2 border-l-2 border-expert/30 pl-3">
-          {attached.map((a) => (
-            <li key={a.id} className="text-sm text-body">
-              {a.text}
-              <span className="block text-xs text-faint">Source: {a.source_title} ({a.licence})</span>
-            </li>
-          ))}
-        </ul>
-      )}
-      <p className="mt-3 text-sm text-muted">{referral.reply.officer}, {formatDate(referral.reply.replied_at)}</p>
-      <p className="mt-3 text-xs text-faint">
-        Officer's judgement: {judgementName(referral.reply.judgement)}
-        {referral.reply.judgement === referral.guess.disease
-          ? ' (agrees with the model)'
-          : DISEASES[referral.reply.judgement] || referral.reply.judgement === 'other_disease' ? ' (differs from the model)' : ''}
+    <Panel>
+      <div className="space-y-3">
+        <h2 className="text-base font-semibold text-ink">Reply sent</h2>
+        <p className="text-sm leading-6 text-body">{referral.reply.text}</p>
+        {attached.length > 0 && (
+          <ul className="space-y-2 border-l-2 border-divider pl-3">
+            {attached.map((a) => (
+              <li key={a.id} className="text-sm text-body">
+                {a.text}
+                <span className="block text-xs text-muted">{a.source_title} ({a.licence})</span>
+              </li>
+            ))}
+          </ul>
+        )}
+        <p className="text-sm text-muted">{referral.reply.officer}, {formatDate(referral.reply.replied_at)}</p>
+      </div>
+      <p className="border-t border-divider pt-4 text-sm text-muted">
+        Officer's diagnosis: <span className="text-body">{judgementName(referral.reply.judgement)}</span>
+        {referral.reply.judgement === referral.guess.disease ? ', the same as the model.' : differs ? ', different from the model.' : '.'}
       </p>
-    </Card>
+    </Panel>
   )
 }
 
@@ -273,61 +320,67 @@ export default function ReferralDetailPage() {
   const open = referral.status === 'new' || referral.status === 'in_review'
   // The backend sends no guess for open cases until the reviewer's judgement is in.
   const showGuess = referral.guess && (!open || (mine && referral.judgement))
+  const left = timeLeft(referral.expires_at)
 
   return (
     <>
-      <Link to="/referrals" className="text-sm font-semibold text-primary underline">Back to referrals</Link>
-      <div className="mb-6 mt-3 flex flex-wrap items-center gap-3">
-        <h1 className="text-2xl font-bold text-ink">{CROPS[referral.crop]} case from {referral.county}</h1>
-        <Badge tone={referral.status}>{REFERRAL_STATUS[referral.status]}</Badge>
+      <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-sm">
+        <Link to="/referrals" className="font-semibold text-primary hover:underline">Referrals</Link>
+        <span className="text-muted" aria-hidden="true">/</span>
+        <span className="text-muted">Case #{referral.id}</span>
+      </nav>
+      <div className="mb-6 mt-2 flex flex-wrap items-center gap-3">
+        <h1 className="text-2xl font-semibold text-ink">{CROPS[referral.crop]} case from {referral.county}</h1>
+        {referral.status === 'answered' && <Badge tone="answered">Answered</Badge>}
+        {referral.status === 'expired' && <Badge tone="expired">Expired</Badge>}
+        {referral.status === 'in_review' && <Badge>{mine ? 'Claimed by you' : 'In review'}</Badge>}
+        {open && <Badge tone={left.urgent ? 'urgent' : 'neutral'}>{left.text}</Badge>}
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
-        <Card>
+      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
+        <section aria-label="What the farmer sent">
           <Photo referral={referral} />
           <dl className="mt-4 divide-y divide-divider">
             <Row label="Received">{formatDate(referral.created_at)}</Row>
             <Row label="Farmer">{referral.farmer}</Row>
-            <Row label="Photo shared">{referral.consent ? 'Yes, the farmer agreed to share it with an officer' : 'No'}</Row>
-            <Row label="Contact">
+            <Row label="What they described">{referral.symptoms_text ?? <span className="text-muted">Nothing written</span>}</Row>
+            <Row label="Phone">
               {referral.contact_consent
-                ? <>{referral.farmer_phone} <span className="text-faint">(the farmer agreed to be called)</span></>
-                : <span className="text-faint">The farmer did not agree to be called. Reply here; they see it in the app.</span>}
+                ? <>{referral.farmer_phone} <span className="text-muted">(agreed to be called)</span></>
+                : <span className="text-muted">Did not agree to be called. Reply here; they see it in the app.</span>}
             </Row>
-            <Row label="Farmer's description">{referral.symptoms_text ?? <span className="text-faint">None given</span>}</Row>
             {referral.crop_mismatch && (
-              <Row label="Note"><span className="text-attention">The photo may not be {referral.crop.toLowerCase()}: the model thought it looked more like another crop.</span></Row>
+              <Row label="Note"><span className="text-attention-ink">The photo may not be {referral.crop}: the model thought it looked more like another crop.</span></Row>
             )}
             <Row label="Model's guess">
-              {showGuess ? <ModelGuess guess={referral.guess} /> : <span className="text-faint">Hidden until you have given your judgement</span>}
+              {showGuess ? <ModelGuess guess={referral.guess} /> : <span className="text-muted">Hidden until you save your diagnosis</span>}
             </Row>
-            {open && (
-              <Row label="Time left">{daysLeft(referral.expires_at)} days. After 7 days the farmer is shown the county contacts instead.</Row>
-            )}
           </dl>
-        </Card>
+        </section>
 
         <div className="space-y-6">
           {referral.status === 'new' && (user.role === 'officer' ? <ClaimCard referral={referral} onChange={change} /> : (
             // Admins oversee the queue; only extension officers claim and answer cases.
-            <Card>
-              <h2 className="font-bold text-ink">Waiting for an officer{referral.county ? ` in ${referral.county}` : ''}</h2>
-              <p className="mt-1 text-sm leading-6 text-muted">
-                Only extension officers claim and answer cases. If the county has no officer, create one under Users;
-                otherwise the farmer is shown the county contacts after 7 days.
-              </p>
-            </Card>
+            <Panel>
+              <div>
+                <h2 className="text-base font-semibold text-ink">Waiting for an officer{referral.county ? ` in ${referral.county}` : ''}</h2>
+                <p className="mt-1 text-sm text-muted">
+                  Only officers answer cases. If the county has none, add one under Users; otherwise the farmer is shown the
+                  county contacts after 7 days.
+                </p>
+              </div>
+            </Panel>
           ))}
           {referral.status === 'in_review' && !mine && <ClaimedByOther referral={referral} onChange={change} />}
           {mine && <ReplyForm key={referral.claimed_by.at} referral={referral} onChange={change} />}
           {referral.reply && <SentReply referral={referral} />}
           {referral.status === 'expired' && (
-            <Card>
-              <p className="text-sm leading-6 text-muted">
-                No officer replied within 7 days, so the farmer was shown the county contacts. The photo is deleted 30
-                days after the case was received.
+            <Panel>
+              <p className="text-sm text-muted">
+                No officer replied within 7 days, so the farmer was shown the county contacts. The photo is deleted 30 days
+                after the case arrived.
               </p>
-            </Card>
+            </Panel>
           )}
         </div>
       </div>

@@ -39,7 +39,7 @@ export default function CodeBoxes({ value, onChange, onComplete, disabled }) {
             }
           }}
           onFocus={(e) => e.target.select()}
-          className="h-14 w-full min-w-0 rounded-xl border border-white/10 bg-black/20 text-center font-mono text-2xl text-white outline-none transition focus:border-white/40 focus:ring-4 focus:ring-white/10 disabled:opacity-60"
+          className="h-14 w-full min-w-0 rounded-md border border-divider-strong bg-white text-center font-mono text-2xl text-ink outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 disabled:opacity-60"
         />
       ))}
     </div>

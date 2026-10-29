@@ -50,6 +50,7 @@ export const AUDIT_ACTIONS = {
   sign_in: 'Signed in',
   sign_in_failed: 'Failed sign-in',
   password_change: 'Changed own password',
+  contact_change: 'Changed own phone or email',
   password_set: 'Chose a password from a link',
   mfa_reenrol: 'Set up authenticator again',
   backup_codes: 'Made new backup codes',
@@ -103,6 +104,16 @@ export function daysSince(value) {
 
 export function daysLeft(value) {
   return Math.ceil((parseUtc(value).getTime() - Date.now()) / 86400000)
+}
+
+// Time left before a referral expires, short ("18h left", "3d left"), and whether it is under a
+// day: only those are shown in orange, so the colour keeps its meaning.
+export function timeLeft(value) {
+  const hours = (parseUtc(value).getTime() - Date.now()) / 3600000
+  if (hours <= 0) return { text: 'Expired', urgent: false }
+  if (hours < 1) return { text: `${Math.max(1, Math.round(hours * 60))}m left`, urgent: true }
+  if (hours < 24) return { text: `${Math.floor(hours)}h left`, urgent: true }
+  return { text: `${Math.floor(hours / 24)}d left`, urgent: false }
 }
 
 export function percent(value, digits = 0) {
