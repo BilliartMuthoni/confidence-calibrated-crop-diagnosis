@@ -130,3 +130,21 @@ export async function fetchHistory({ token }) {
         throw new Error(extractErrorMessage(error));
     }
 }
+
+/** One past check with everything about it: the result and advice, what the farmer described,
+ *  the referral and the officer's reply. */
+export async function fetchDiagnosis({ token, diagnosisId }) {
+    try {
+        const { data } = await client.get(`/diagnose/${diagnosisId}`, {
+            headers: { Authorization: `Bearer ${token}` },
+        });
+        return data;
+    } catch (error) {
+        throw new Error(extractErrorMessage(error));
+    }
+}
+
+/** Image source for a check's photo: it is private, so the request carries the sign-in token. */
+export function diagnosisPhotoSource({ token, diagnosisId }) {
+    return { uri: `${API_BASE_URL}/diagnose/${diagnosisId}/photo`, headers: { Authorization: `Bearer ${token}` } };
+}

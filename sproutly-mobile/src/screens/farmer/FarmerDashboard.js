@@ -21,8 +21,6 @@ export default function FarmerDashboard({ navigation }) {
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState(null);
-    // The check whose officer reply is open.
-    const [openReply, setOpenReply] = useState(null);
 
     const load = useCallback(async () => {
         setError(null);
@@ -118,8 +116,7 @@ export default function FarmerDashboard({ navigation }) {
                             key={item.diagnosis_id}
                             item={item}
                             first={index === 0}
-                            open={openReply === item.diagnosis_id}
-                            onToggle={() => setOpenReply(openReply === item.diagnosis_id ? null : item.diagnosis_id)}
+                            onPress={() => navigation.navigate('Result', { diagnosisId: item.diagnosis_id })}
                         />
                     ))
                 )}
