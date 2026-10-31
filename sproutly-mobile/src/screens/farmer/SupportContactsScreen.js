@@ -15,6 +15,8 @@ import { COLORS } from '../../constants/theme';
 
 const KIND_LABELS = { office: 'Extension office', clinic: 'Plant clinic', agrovet: 'Agrovet', hotline: 'Hotline' };
 const PHONE_LABELS = { office: 'Office line', hotline: 'Hotline', business: 'Business line', personal: 'Mobile' };
+// Contacts for every county (the backend's NATIONWIDE), listed before the county's own.
+const NATIONWIDE = 'Nationwide';
 
 function Contact({ item }) {
     const call = () => Linking.openURL(`tel:${item.phone.replace(/\s/g, '')}`);
@@ -22,6 +24,7 @@ function Contact({ item }) {
         <View className="py-4" style={{ borderBottomWidth: 1, borderBottomColor: COLORS.divider }}>
             <Text className="text-xs font-bold tracking-wider" style={{ color: COLORS.brand }}>
                 {(KIND_LABELS[item.kind] || item.kind).toUpperCase()}
+                {item.county === NATIONWIDE ? ' · ALL COUNTIES' : ''}
             </Text>
             <Text className="text-base font-bold mt-1" style={{ color: COLORS.ink }}>
                 {item.name}
@@ -45,6 +48,12 @@ function Contact({ item }) {
             <Text className="text-xs mt-1" style={{ color: COLORS.faint }}>
                 {PHONE_LABELS[item.phone_type] || 'Office line'}
             </Text>
+            {item.email ? (
+                <Text className="text-sm font-semibold mt-2" style={{ color: COLORS.brand }}
+                      onPress={() => Linking.openURL(`mailto:${item.email}`)} accessibilityRole="link">
+                    {item.email}
+                </Text>
+            ) : null}
         </View>
     );
 }
@@ -74,13 +83,15 @@ export default function SupportContactsScreen({ navigation, route }) {
         [userToken]
     );
 
+    // Without a county the backend still sends the nationwide contacts.
     useEffect(() => {
         loadCounty().then((saved) => {
             setCounty(saved);
-            if (saved) load(saved);
-            else setLoading(false);
+            load(saved);
         });
     }, [load]);
+
+    const local = (contacts || []).filter((c) => c.county !== NATIONWIDE);
 
     const chooseCounty = (value) => {
         setCounty(value);
@@ -106,20 +117,19 @@ export default function SupportContactsScreen({ navigation, route }) {
                     <View className="mt-4">
                         <ErrorBanner error={error} onRetry={() => load(county)} />
                     </View>
-                ) : !county ? (
-                    <Text className="text-base mt-6 leading-6" style={{ color: COLORS.muted }}>
-                        Choose your county to see its contacts.
-                    </Text>
-                ) : contacts?.length ? (
+                ) : (
                     <View className="mt-2">
-                        {contacts.map((item) => (
+                        {(contacts || []).map((item) => (
                             <Contact key={item.id} item={item} />
                         ))}
+                        {local.length === 0 && (
+                            <Text className="text-base mt-6 leading-6" style={{ color: COLORS.muted }}>
+                                {county
+                                    ? `No office is listed for ${county} yet. Visit your county agriculture office or a local agrovet.`
+                                    : 'Choose your county to see its own contacts too.'}
+                            </Text>
+                        )}
                     </View>
-                ) : (
-                    <Text className="text-base mt-6 leading-6" style={{ color: COLORS.muted }}>
-                        No contacts are listed for {county} yet. Visit your county agriculture office or a local agrovet.
-                    </Text>
                 )}
             </ScrollView>
             {asTab && <BottomBar navigation={navigation} active="SupportContacts" />}

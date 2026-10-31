@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from app.core import audit
+from app.core.counties import NATIONWIDE
 from app.core.deps import get_current_user, require_role
 from app.core.knowledge_base import KNOWLEDGE_BASE, display_name
 from app.core.timeutil import utcnow
@@ -123,14 +124,14 @@ def set_contact_active(contact_id: int, payload: ActiveIn, request: Request, db:
 @public_router.get("", response_model=list[ContactOut])
 def contacts_for_farmer(county: Optional[str] = None, db: Session = Depends(get_db),
                         user: User = Depends(get_current_user)):
-    """The app's Support contacts screen: shown contacts for a county (default: the farmer's own)."""
+    """The app's Support contacts screen: the nationwide contacts first, then the shown contacts
+    of a county (default: the farmer's own). Without a county, only the nationwide ones."""
     county = county or user.county
-    if not county:
-        return []
+    counties = [NATIONWIDE, county] if county else [NATIONWIDE]
     contacts = (
         db.query(SupportContact)
-        .filter(SupportContact.county == county, SupportContact.active.is_(True))
-        .order_by(SupportContact.kind, SupportContact.name)
+        .filter(SupportContact.county.in_(counties), SupportContact.active.is_(True))
+        .order_by(SupportContact.county != NATIONWIDE, SupportContact.kind, SupportContact.name)
         .all()
     )
     return [_contact_out(c) for c in contacts]
