@@ -24,6 +24,8 @@ RUN python -c "from torchvision import models; models.mobilenet_v3_large(weights
 COPY sproutly-backend/ .
 # The reviewed advice file, imported into an empty library on the first start (start.sh).
 COPY ml/data/advice/advice.csv data/advice.csv
+# The sourced support contacts; any not yet in the table are added at every start (start.sh).
+COPY ml/data/contacts/support_contacts.csv data/support_contacts.csv
 
 # Which model files are inside, shown by /health and the app's About screen.
 ARG MODEL_REVISION=unknown

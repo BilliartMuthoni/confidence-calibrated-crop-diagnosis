@@ -3,7 +3,7 @@ import { useCallback, useState } from 'react'
 import { listContacts, markContactChecked, saveContact, setContactActive } from '../api/admin.js'
 import { useAuth } from '../auth/context.js'
 import { Badge, Button, Card, Empty, ErrorBox, Field, Loading, PageHeader, Pagination, filterClass, inputClass } from '../components/ui.jsx'
-import { CONTACT_KINDS, COUNTIES, daysSince, parseUtc } from '../lib/format.js'
+import { CONTACT_KINDS, COUNTIES, NATIONWIDE, daysSince, parseUtc } from '../lib/format.js'
 import { useLoad } from '../lib/useLoad.js'
 import { usePaged } from '../lib/usePaged.js'
 
@@ -60,6 +60,7 @@ function ContactForm({ initial, onDone, onCancel }) {
         <Field label="County">
           <select className={inputClass} value={form.county} onChange={set('county')}>
             <option value="">Choose a county</option>
+            <option value={NATIONWIDE}>Nationwide (every county)</option>
             {COUNTIES.map((c) => <option key={c}>{c}</option>)}
           </select>
         </Field>
@@ -89,7 +90,9 @@ function ContactForm({ initial, onDone, onCancel }) {
           <label className="flex gap-3 rounded-md border border-attention-ink/25 bg-attention-tint px-4 py-3 text-sm sm:col-span-2">
             <input type="checkbox" className="mt-1" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
             <span className="text-body">
-              <span className="font-semibold text-ink">This person agreed to have their own mobile shown to farmers in {form.county || 'this county'}.</span>{' '}
+              <span className="font-semibold text-ink">
+                This person agreed to have their own mobile shown to farmers {form.county === NATIONWIDE ? 'in every county' : `in ${form.county || 'this county'}`}.
+              </span>{' '}
               They were told why, and that they can withdraw at any time (then change it to an office line or hide the
               contact). Today's date and your name are recorded (Data Protection Act 2019, s.30 and s.32).
             </span>
@@ -150,7 +153,7 @@ export default function ContactsPage() {
     <>
       <PageHeader
         title="County contacts"
-        subtitle="Shown to farmers on the app's Support contacts screen, for their county."
+        subtitle="Shown to farmers on the app's Support contacts screen: nationwide ones to everyone, then their county's."
       >
         {isAdmin && !editing && <Button onClick={() => setEditing(BLANK)}>Add a contact</Button>}
       </PageHeader>
@@ -163,6 +166,7 @@ export default function ContactsPage() {
       <div className="mb-4 flex flex-wrap items-center gap-4">
         <select className={filterClass} value={county} onChange={(e) => setCounty(e.target.value)} aria-label="County">
           <option value="">All counties</option>
+          <option value={NATIONWIDE}>Nationwide</option>
           {COUNTIES.map((c) => <option key={c}>{c}</option>)}
         </select>
         {isAdmin && stale > 0 && (

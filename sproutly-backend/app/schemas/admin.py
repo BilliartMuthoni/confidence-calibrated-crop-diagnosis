@@ -6,7 +6,7 @@ from typing import Literal, Optional
 
 from pydantic import BaseModel, EmailStr, field_validator
 
-from app.core.counties import check_county
+from app.core.counties import check_contact_county, check_county
 from app.models.advice import AdviceKind, AdviceStatus
 from app.models.contact import ContactKind, PhoneType
 from app.models.referral import ReferralStatus
@@ -186,7 +186,7 @@ class ContactIn(BaseModel):
     @field_validator("county")
     @classmethod
     def county_is_real(cls, v: str) -> str:
-        return check_county(v)
+        return check_contact_county(v)
 
     @field_validator("name", "role", "organisation", "phone", "hours")
     @classmethod

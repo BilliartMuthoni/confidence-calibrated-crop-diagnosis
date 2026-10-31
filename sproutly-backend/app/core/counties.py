@@ -9,8 +9,17 @@ COUNTIES = [
 ]
 
 
+# A support contact for every county (e.g. the Ministry's toll-free line): shown to every farmer.
+NATIONWIDE = "Nationwide"
+
+
 def check_county(value: str) -> str:
     """For pydantic validators: the value unchanged if it is a county, else an error."""
     if value not in COUNTIES:
         raise ValueError("Not one of Kenya's 47 counties")
     return value
+
+
+def check_contact_county(value: str) -> str:
+    """A support contact belongs to one county, or to every county (NATIONWIDE)."""
+    return value if value == NATIONWIDE else check_county(value)

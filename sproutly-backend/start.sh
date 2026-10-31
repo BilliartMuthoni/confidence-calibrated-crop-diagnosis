@@ -11,9 +11,11 @@ if ! touch "$UPLOAD_DIR/.write-test" 2>/dev/null; then
 fi
 rm -f "$UPLOAD_DIR/.write-test"
 
-# Bring the database up to date, then fill the advice library if it is still empty.
+# Bring the database up to date, fill the advice library if it is still empty, and add any
+# sourced support contact not yet in the table (an admin's edits are kept).
 alembic upgrade head
 python -m app.scripts.import_advice data/advice.csv --if-empty
+python -m app.scripts.import_contacts data/support_contacts.csv || echo "Support contacts not imported; see the lines above." >&2
 
 # One process: the models take about 650 MB each time they are loaded, and one copy fits the
 # B1 plan's 1.75 GB. Azure ends HTTPS in front of the container, so its forwarded headers are

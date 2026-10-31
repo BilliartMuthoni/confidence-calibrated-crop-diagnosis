@@ -44,7 +44,10 @@ export function judgementName(value) {
 
 export const REFERRAL_STATUS = { new: 'new', in_review: 'in review', answered: 'answered', expired: 'expired' }
 
-export const CONTACT_KINDS = { office: 'Extension office', clinic: 'Plant clinic', agrovet: 'Agrovet', hotline: 'Hotline' }
+// A support contact shown to farmers in every county (the backend's NATIONWIDE).
+export const NATIONWIDE = 'Nationwide'
+
+export const CONTACT_KINDS ={ office: 'Extension office', clinic: 'Plant clinic', agrovet: 'Agrovet', hotline: 'Hotline' }
 
 export const AUDIT_ACTIONS = {
   sign_in: 'Signed in',
