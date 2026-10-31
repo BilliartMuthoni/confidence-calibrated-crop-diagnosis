@@ -117,7 +117,7 @@ export const PAGES = {
             ]],
             ['How it decides', [
                 'Three image models (ResNet-50, ConvNeXt-Tiny and EfficientNet-B0) look at the photo and their answers are combined. The combined confidence is calibrated on field photos the models never trained on.',
-                'Below 80% confidence it does not guess: the case can go to an extension officer instead. In testing on new field photos, the answers it did give were right 99.5% of the time.',
+                'Below 96% confidence it does not guess: the case can go to an extension officer instead. In testing on new field photos, the answers it did give were right 99.8% of the time.',
             ]],
             ['Data used to build the model', [
                 'PlantVillage, FieldPlant, a Tanzanian potato field dataset and openly licensed (CC BY 4.0) field photo collections from Mendeley Data and the University of Pretoria. Advice in replies comes from cited sources.',

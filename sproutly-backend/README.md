@@ -57,7 +57,9 @@ sproutly-backend/
 ## The model
 
 `app/core/classifier.py` loads the file at `ML_MODEL_PATH` once at startup (the server refuses
-to start without it), divides the model's scores by `TEMPERATURE` before softmax, and refers
-any photo whose confidence is below `CONFIDENCE_THRESHOLD`. These three settings come from the
-ML notebooks (09, 13, 13b); see [`ml/README.md`](../ml/README.md). Switching to another model
-means changing all three together.
+to start without it; several comma-separated paths run as an ensemble), calibrates the scores
+over all classes with `TEMPERATURE` to check the crop, and over the farmer's crop's classes with
+`CROP_TEMPERATURE` for the confidence shown, then refers any photo whose confidence is below
+`CONFIDENCE_THRESHOLD` or whose crop holds under half the probability. These settings come from
+the ML notebooks (18b, 21); see [`ml/README.md`](../ml/README.md). Switching to another model
+means changing all of them together.

@@ -133,8 +133,9 @@ Then sign in to the portal and set up the authenticator.
 ## Later changes
 
 - **Code**: merge a PR; the workflow builds and deploys it.
-- **Threshold or temperature**: change `CONFIDENCE_THRESHOLD` or `TEMPERATURE` in the Azure
-  settings and restart; no new image.
+- **Threshold or temperatures**: change `CONFIDENCE_THRESHOLD`, `CROP_TEMPERATURE` or `TEMPERATURE`
+  in the Azure settings and restart; no new image. Leave them unset to use the defaults in
+  `app/core/config.py`, which follow the latest notebook.
 - **New model files**: upload to Hugging Face, put the new commit id in `model_revision.txt`,
   merge. Each diagnosis records the model version it used.
 - **Roll back**: Deployment Center -> choose the previous image tag (each tag is a commit), or

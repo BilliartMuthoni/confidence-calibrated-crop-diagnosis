@@ -45,10 +45,11 @@ Farmer takes a photo ──► model (ResNet-50) ──► calibrated confidence
 ```
 
 Most disease apps always give an answer. On unfamiliar field photos, that answer is often
-wrong while looking certain. Sproutly's model is *calibrated* (temperature scaling, T = 3.04)
-so that "90% sure" really means about 90% right, and anything below the threshold is
-referred to a person. On new field photos from other countries, this cut the wrong answers
-given to farmers from 24% to 0.5% (see [results](#the-model-and-its-results)).
+wrong while looking certain. Sproutly's model is *calibrated* (temperature scaling on field
+photos it never trained on) so that "90% sure" really means about 90% right, and anything
+below the threshold is referred to a person. On new field photos from other countries, about
+1 photo in 2,000 gets a wrong answer; the rest are answered correctly or sent to a person
+(see [results](#the-model-and-its-results)).
 
 ## Who uses it
 
@@ -217,9 +218,10 @@ explains each one. The ones you are most likely to change:
 
 | Setting | Default | Meaning |
 |---|---|---|
-| `CONFIDENCE_THRESHOLD` | 0.877 | below this calibrated confidence the farmer is referred (chosen in notebook 13b) |
-| `TEMPERATURE` | 3.04 | calibration; 1.0 switches it off |
-| `ML_MODEL_PATH` | `models/compare_resnet50/model.pt` | which trained model to load |
+| `CONFIDENCE_THRESHOLD` | 0.9557 | below this confidence (within the crop) the farmer is referred (notebook 21) |
+| `CROP_TEMPERATURE` | 1.7002 | calibration within the farmer's crop, for the confidence shown (notebook 21) |
+| `TEMPERATURE` | 2.4381 | calibration over all classes, for the crop check (notebook 18b); 1.0 switches it off |
+| `ML_MODEL_PATH` | the three ensemble models | which trained models to load, comma-separated |
 | `REFERRAL_DAYS` | 7 | days an officer has to answer before a referral expires |
 | `PHOTO_DAYS` | 30 | farmers' photos are deleted this many days after the check; the result stays (must be longer than `REFERRAL_DAYS`) |
 | `LOCKOUT_ATTEMPTS` / `LOCKOUT_MINUTES` | 5 / 15 | wrong passwords or codes before an account is paused, and for how long |
@@ -232,23 +234,22 @@ Never commit `.env` files: they hold passwords and keys.
 
 | | |
 |---|---|
-| Image model | ResNet-50, chosen from six architectures on field photos (notebook 09/10) |
-| Calibration | temperature scaling, T = 3.04, fitted on unseen field photos (notebook 13) |
-| Referral threshold | 0.877 (notebook 13b) |
-| Accuracy on the test photos (same sources as training) | macro-F1 0.994 |
-| Speed | about 0.2 s per photo on a laptop CPU |
+| Image model | ensemble of ResNet-50, ConvNeXt-Tiny and EfficientNet-B0 (notebooks 18 and 18b) |
+| Calibration | temperature scaling within the farmer's crop, T = 1.7002, fitted on unseen field photos (notebook 21) |
+| Referral threshold | 0.9557 (notebook 21, from the same policy as the earlier 0.8) |
+| Accuracy on the test photos (same sources as training) | 99.5%, macro-F1 0.994 |
+| Speed | about 0.5 s per photo on a laptop CPU |
 
-What calibration and the threshold changed, compared with the earlier uncalibrated 0.90 rule:
+What happens to each kind of photo at the deployed threshold (notebook 21):
 
-| Photos | Wrong answers given to farmers | Share sent to an officer |
-|---|---|---|
-| New field photos from Bangladesh and Ethiopia (never seen in training) | 24.0% → **0.5%** | 97% |
-| PlantDoc (internet photos, never seen in training) | 30.8% → **4.0%** | 90% |
-| Test photos from the training sources | answers 99.9% right | 23% |
+| Photos | Answered | Right among answered | Wrong answers per 100 photos | Sent to an officer |
+|---|---|---|---|---|
+| New field photos from Bangladesh and Ethiopia (never seen in training) | 24.3% | 99.8% | **0.05** | 75.7% |
+| PlantDoc (internet photos, never seen in training or choices) | 17.2% | 67.1% | 5.7 | 82.8% |
+| Test photos from the training sources | 92.3% | 99.9% | 0.08 | 7.7% |
 
 These numbers say plainly that the model is reliable on photos like its training data and
-**not** on unfamiliar ones, which is exactly why uncertain cases go to a person. Work to
-improve accuracy on new field photos (decision D17: more field training data) is in progress.
+**not** on unfamiliar ones, which is exactly why uncertain cases go to a person.
 Every notebook, decision and result file is in [`ml/`](ml/).
 
 ## Security and privacy

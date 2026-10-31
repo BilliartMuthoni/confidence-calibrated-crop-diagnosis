@@ -48,15 +48,17 @@ class Settings(BaseSettings):
     # notebook 18b. Several model.pt paths separated by commas run as an ensemble: their
     # probabilities are averaged. One path runs a single model.
     ml_model_path: str = DEFAULT_MODEL_PATH
-    # Temperature scaling (D6): the combined scores are divided by this before softmax, so the
-    # confidence matches how often it is right on unseen field photos. Fitted in notebook 18b
-    # (ml/results/ensemble_deployment); 1.0 switches calibration off.
+    # Temperature scaling over all 11 classes (D6, notebook 18b; 1.0 switches it off). Used to
+    # decide which crop the photo shows and how much of the probability the chosen crop holds:
+    # under half, the photo is always referred.
     temperature: float = 2.4381
-    # Below this calibrated confidence the farmer is referred instead of getting a diagnosis.
-    # The pre-set rule (D7) gave 0.5 for the ensemble; 0.8 was chosen afterwards as a policy,
-    # judging a wrong diagnosis worse than about 12 referrals (threshold table, notebook 18b
-    # results). The classifier never uses a value below 0.5 (see app/core/classifier.py).
-    confidence_threshold: float = 0.8
+    # Temperature scaling over the farmer's crop's classes only (notebook 21 A3,
+    # ml/results/health_check): the confidence shown and compared with the threshold.
+    crop_temperature: float = 1.7002
+    # Below this confidence (within the crop) the farmer is referred instead of getting a
+    # diagnosis. Notebook 21 re-derived it from the policy behind the earlier 0.8: a wrong answer
+    # costs 33 referrals. The classifier never uses a value below 0.5 (see app/core/classifier.py).
+    confidence_threshold: float = 0.9557
     # Leaf check (D15, notebook 19): photos that are not leaves get no diagnosis. Copy
     # ml/results/leaf_check/leaf_check.json here; blank switches the check off.
     leaf_check_path: str = "models/leaf_check.json"
@@ -95,11 +97,11 @@ class Settings(BaseSettings):
             raise ValueError("PHOTO_DAYS must be longer than REFERRAL_DAYS")
         return self
 
-    @field_validator("temperature")
+    @field_validator("temperature", "crop_temperature")
     @classmethod
     def temperature_positive(cls, v: float) -> float:
         if v <= 0:
-            raise ValueError("TEMPERATURE must be above 0 (1.0 means no calibration)")
+            raise ValueError("TEMPERATURE and CROP_TEMPERATURE must be above 0 (1.0 means no calibration)")
         return v
 
     @field_validator("upload_dir")
