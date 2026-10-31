@@ -1,8 +1,9 @@
 # The backend image is built from the repository root (sproutly-backend/Dockerfile) but needs only
-# the backend and the advice file. Everything else, and every secret, stays out.
+# the backend, the advice file and the support contacts file. Everything else, and every secret, stays out.
 *
 !sproutly-backend/
 !ml/data/advice/advice.csv
+!ml/data/contacts/support_contacts.csv
 
 sproutly-backend/.env
 sproutly-backend/.env.*

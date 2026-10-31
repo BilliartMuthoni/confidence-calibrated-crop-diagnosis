@@ -10,6 +10,7 @@ on:
       - "sproutly-backend/**"
       - "ml/data/advice/advice.csv"
       - "ml/data/contacts/support_contacts.csv"
+      - ".dockerignore"
       - ".github/workflows/deploy-backend.yml"
   workflow_dispatch:
 
