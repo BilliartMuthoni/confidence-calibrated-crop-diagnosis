@@ -1,0 +1,12 @@
+source,cls,photos,accuracy (crop given),answered,right and answered,wrong and answered,accuracy of answered
+maize_jhenaidah,Maize Cercospora leaf spot Gray leaf spot,554,0.7545126353790613,0.02527075812274368,12,2,0.8571428571428571
+maize_jhenaidah,Maize healthy,359,0.9944289693593314,0.924791086350975,332,0,1.0
+maize_natore,Maize Cercospora leaf spot Gray leaf spot,826,0.7469733656174334,0.08595641646489104,69,2,0.971830985915493
+maize_natore,Maize Common rust,126,0.9126984126984127,0.007936507936507936,1,0,1.0
+maize_natore,Maize healthy,602,0.9186046511627907,0.26411960132890366,159,0,1.0
+potato_holeta,Potato Late blight,67,1.0,0.5970149253731343,40,0,1.0
+potato_holeta,Potato healthy,344,0.9941860465116279,0.5261627906976745,181,0,1.0
+tomato_bd,Tomato Bacterial spot,97,0.24742268041237114,0.0,0,0,
+tomato_bd,Tomato Early blight,447,0.4854586129753915,0.0,0,0,
+tomato_bd,Tomato Late blight,92,0.45652173913043476,0.0,0,0,
+tomato_bd,Tomato healthy,307,0.31921824104234525,0.0,0,0,

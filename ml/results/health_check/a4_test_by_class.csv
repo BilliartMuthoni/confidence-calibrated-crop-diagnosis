@@ -1,0 +1,12 @@
+cls,photos,accuracy (crop given),answered,right and answered,wrong and answered,accuracy of answered
+Maize Cercospora leaf spot Gray leaf spot,93,0.946236559139785,0.6774193548387096,63,0,1.0
+Maize Common rust,176,1.0,1.0,176,0,1.0
+Maize Northern Leaf Blight,150,1.0,0.9333333333333333,140,0,1.0
+Maize healthy,201,1.0,0.9900497512437811,199,0,1.0
+Potato Early blight,279,1.0,0.953405017921147,266,0,1.0
+Potato Late blight,297,0.9966329966329966,0.9562289562289562,284,0,1.0
+Potato healthy,169,1.0,0.9349112426035503,158,0,1.0
+Tomato Bacterial spot,304,1.0,0.9703947368421053,295,0,1.0
+Tomato Early blight,160,0.98125,0.9125,146,0,1.0
+Tomato Late blight,339,0.9970501474926253,0.911504424778761,309,0,1.0
+Tomato healthy,273,0.9926739926739927,0.9230769230769231,250,2,0.9920634920634921
