@@ -1,0 +1,37 @@
+{
+  "deployed": {
+    "model_runs": [
+      "d17_resnet50_seed44",
+      "d22_convnext_tiny_lr1e-04",
+      "d22_efficientnet_b0"
+    ],
+    "temperature": 2.4381275602850097,
+    "threshold": 0.8
+  },
+  "A3": {
+    "temperature_within_crop": 1.7001941978303818,
+    "selection_out_of_fold": {
+      "ece_now": 0.27347437699508825,
+      "ece_rescaled": 0.062000799290105255,
+      "ece_difference_range": [
+        -0.22370699202490438,
+        -0.19696111549401366
+      ],
+      "aurc_now": 0.08610295827954424,
+      "aurc_rescaled": 0.08204378304685107,
+      "aurc_difference_range": [
+        -0.005287664619992075,
+        -0.0012433497592288327
+      ],
+      "mean_confidence_now": 0.47240366540219,
+      "mean_confidence_rescaled": 0.7172707337745476,
+      "accuracy": 0.7458780423972782
+    },
+    "rule_a_ece_lower": true,
+    "rule_b_refers_no_worse": true,
+    "adopted": true,
+    "policy_cost_of_wrong_answer": 33.0,
+    "threshold": 0.9556822725831958
+  },
+  "rules_written": "2026-10-31, before the first run"
+}
