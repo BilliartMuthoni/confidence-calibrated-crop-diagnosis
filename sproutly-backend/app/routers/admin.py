@@ -464,20 +464,24 @@ def model_settings(user: User = Depends(admin_only)):
                       commit="eca05a0", date="2026-10-24",
                       note="The farmer's description is stored with each check and shown to officers. With the "
                            "ensemble, late fusion lowered PlantDoc accuracy (43.8% to 38.7%), so it is not used yet."),
-            ModelPart(label="Calibration", value=f"Temperature scaling, T = {settings.temperature:g}",
-                      source="Notebook 18b (ensemble deployment)", results="ml/results/ensemble_deployment",
-                      commit="eca05a0", date="2026-10-24"),
+            ModelPart(label="Calibration",
+                      value=f"Temperature scaling within the crop, T = {settings.crop_temperature:g} "
+                            f"(crop check over all classes, T = {settings.temperature:g})",
+                      source="Notebook 21 (health check, A3)", results="ml/results/health_check",
+                      commit="ef81efb", date="2026-10-31",
+                      note="The confidence is the probability among the chosen crop's diseases. On unseen field "
+                           "photos its calibration error fell from 0.273 to 0.062. A photo whose crop holds under "
+                           "half of the probability is always referred."),
             ModelPart(label="Referral threshold", value=max(settings.confidence_threshold, 0.5),
-                      source="Notebook 18b (threshold table)", results="ml/results/ensemble_deployment",
-                      commit="eca05a0", date="2026-10-24",
-                      note="The rule fixed in advance gave 0.5. 0.8 was chosen afterwards as a policy, judging a "
-                           "wrong diagnosis worse than about 12 referrals: on unseen field photos the ensemble then "
-                           "answers 20.9% with 99.5% accuracy."),
+                      source="Notebook 21 (health check, A3)", results="ml/results/health_check",
+                      commit="ef81efb", date="2026-10-31",
+                      note="Re-derived from the policy behind the earlier 0.8 (a wrong answer costs 33 referrals). "
+                           "On unseen field photos 24.3% are answered with 99.8% accuracy."),
             ModelPart(label="Recorded with each result", value=model_version(),
                       source="Built from the settings in use", results="diagnoses.model_version",
                       commit="-", date="-",
                       note="Every new diagnosis stores this, so a result can be traced after the model, "
-                           "temperature or threshold changes."),
+                           "temperatures or threshold change."),
         ],
         fitted_on="Selection set: 3,821 unseen field photos (notebook 12)",
     )

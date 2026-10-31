@@ -8,13 +8,13 @@ can be loaded, so switching models is a matter of changing ML_MODEL_PATH; severa
 separated by commas run as an ensemble whose probabilities are averaged.
 
 Crop rule: the farmer says which crop the photo shows. The model still scores all
-11 classes; the answer is the best class *of that crop*, and its confidence is the
-original 11-class probability -- deliberately NOT rescaled over the crop's classes.
-Rescaling would let a tomato photo submitted as maize come out as a confident maize
-diagnosis. Without it, if the model's top class belongs to another crop, the best
-class of the chosen crop is below 0.5; since the threshold is never below
-MIN_THRESHOLD = 0.5, any disagreement about the crop always ends in a referral.
-The rule can only turn diagnoses into referrals, never create one.
+11 classes; the answer is the best class *of that crop*. Its confidence is calibrated over
+that crop's classes only (CROP_TEMPERATURE), because that is the question the farmer asked.
+Notebook 21 (A3) found the earlier confidence, the class's 11-class probability, far too low
+on new field photos (ECE 0.273), since probability the model put on the other crops was
+simply lost; within the crop it is 0.062. A photo whose chosen crop holds less than half of
+the 11-class probability (TEMPERATURE) is always referred, so a tomato photo submitted as
+maize can never come out as a confident maize diagnosis.
 
 Crop left out (several photos of mixed crops): the crop is detected as the one whose
 classes hold the most probability, then the same rule applies. With the ensemble,
@@ -22,10 +22,11 @@ detection is right on 100% of familiar photos but only 76.5% of unseen field pho
 (measured 24 Oct), so the app shows the detected crop and lets the farmer correct it
 (POST /diagnose/{id}/crop).
 
-Confidence is calibrated by temperature scaling (D6): the log of the averaged
-probabilities is divided by settings.temperature (2.4381, fitted on unseen field photos
-in notebook 18b) before softmax. This changes how sure the model says it is, never which
-class it picks. The referral threshold (0.8) was chosen on these calibrated values.
+Calibration is temperature scaling: the log of the averaged probabilities is divided by a
+temperature before softmax (2.4381 over all classes, notebook 18b; 1.7002 within the crop,
+notebook 21, both fitted on unseen field photos). It changes how sure the model says it is,
+never which class it picks. The referral threshold (0.9557) applies to the within-crop
+confidence and was re-derived in notebook 21 from the policy behind the earlier 0.8.
 """
 
 from dataclasses import dataclass
@@ -72,10 +73,10 @@ def crop_of(class_name: str) -> CropType:
 @dataclass
 class Prediction:
     class_name: str  # best class of the crop, e.g. "Tomato___Late_blight"
-    confidence: float  # its 11-class probability (not rescaled)
+    confidence: float  # its probability among that crop's classes (CROP_TEMPERATURE)
     crop: CropType  # the farmer's crop, or the detected one
     crop_detected: bool  # True when the model chose the crop
-    crop_probability: float  # total probability of all that crop's classes
+    crop_probability: float  # total 11-class probability of all that crop's classes (TEMPERATURE)
     is_referred: bool
 
     @property
@@ -130,7 +131,8 @@ class _Member:
 
 class _Model:
     """One model, or an ensemble (D2, notebook 18b): the members' probabilities are averaged,
-    then calibrated. With one member this is exactly softmax(scores / temperature)."""
+    and the log of the average acts as the scores that calibration divides by a temperature.
+    With one member, softmax(scores / T) is exactly the model's softmax(logits / T)."""
 
     def __init__(self, paths: list[Path]):
         self.members = [_Member(path) for path in paths]
@@ -142,10 +144,10 @@ class _Model:
         self.architectures = [member.architecture for member in self.members]
 
     @torch.inference_mode()
-    def probabilities(self, image: Image.Image) -> torch.Tensor:
+    def scores(self, image: Image.Image) -> torch.Tensor:
         image = image.convert("RGB")
         mean = torch.stack([member.softmax(image) for member in self.members]).mean(dim=0)
-        return torch.softmax(torch.log(mean + 1e-12) / settings.temperature, dim=0)
+        return torch.log(mean + 1e-12)
 
 
 def model_paths() -> list[Path]:
@@ -165,16 +167,17 @@ def threshold() -> float:
 
 def model_version() -> str:
     """What made a result, built from the settings in use so it cannot drift from them:
-    the model run folders, the temperature and the threshold."""
+    the model run folders, both temperatures and the threshold."""
     runs = "+".join(p.parent.name or str(p) for p in model_paths())
-    return f"{runs}; T={settings.temperature:g}; threshold={threshold():g}"
+    return f"{runs}; T={settings.temperature:g}; crop T={settings.crop_temperature:g}; threshold={threshold():g}"
 
 
 def predict(crop: Optional[CropType], image_path: str) -> Prediction:
     """Diagnose one photo. Without a crop, the crop is detected first (see module docstring)."""
     model = load_model()
     with Image.open(image_path) as image:
-        probs = model.probabilities(image)
+        scores = model.scores(image)
+    probs = torch.softmax(scores / settings.temperature, dim=0)
 
     def crop_total(c: CropType) -> float:
         return sum(probs[i].item() for i, k in enumerate(model.crops) if k == c)
@@ -184,13 +187,15 @@ def predict(crop: Optional[CropType], image_path: str) -> Prediction:
         crop = max(set(model.crops), key=crop_total)
 
     in_crop = [i for i, c in enumerate(model.crops) if c == crop]
-    best = max(in_crop, key=lambda i: probs[i].item())
-    confidence = probs[best].item()
+    within = torch.softmax(scores[in_crop] / settings.crop_temperature, dim=0)
+    pick = int(within.argmax())
+    confidence = within[pick].item()
+    share = crop_total(crop)
     return Prediction(
-        class_name=model.classes[best],
+        class_name=model.classes[in_crop[pick]],
         confidence=confidence,
         crop=crop,
         crop_detected=detected,
-        crop_probability=crop_total(crop),
-        is_referred=confidence < threshold(),
+        crop_probability=share,
+        is_referred=share < 0.5 or confidence < threshold(),
     )
