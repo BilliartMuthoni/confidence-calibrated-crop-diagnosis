@@ -31,12 +31,14 @@ function appendSharing(formData, sharing) {
     if (sharing.county) formData.append('county', sharing.county);
 }
 
-export async function submitDiagnosis({ token, crop, imageUri, symptoms, sharing }) {
+/** allowBlurry: only after two retakes failed the blur check; the server still refers an unsure photo. */
+export async function submitDiagnosis({ token, crop, imageUri, symptoms, sharing, allowBlurry = false }) {
     try {
         const formData = new FormData();
         formData.append('crop', crop);
         if (symptoms?.trim()) formData.append('symptoms_text', symptoms.trim());
         appendSharing(formData, sharing);
+        if (allowBlurry) formData.append('allow_blurry', 'true');
         formData.append('image', {
             uri: await shrinkPhoto(imageUri),
             name: 'leaf.jpg',

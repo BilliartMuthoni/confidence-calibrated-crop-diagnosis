@@ -19,7 +19,7 @@ import { toFriendlyError } from '../../utils/errorMessages';
 import ErrorBanner from '../../components/ErrorBanner';
 import BusyOverlay from '../../components/BusyOverlay';
 import ScreenHeader from '../../components/ScreenHeader';
-import { PrimaryButton } from '../../components/Buttons';
+import { PrimaryButton, SecondaryButton } from '../../components/Buttons';
 import CountyPicker from '../../components/CountyPicker';
 import { loadCounty, saveCounty } from '../../utils/farmerCounty';
 import { COLORS } from '../../constants/theme';
@@ -96,6 +96,9 @@ export default function DiagnosisScreen({ navigation }) {
     const [share, setShare] = useState(false);
     const [contact, setContact] = useState(false);
     const [county, setCounty] = useState(null);
+    // Photos the blur check sent back. After the first one and two retakes, the farmer may send
+    // the photo anyway: the threshold still refers it if the model is unsure.
+    const [blurredPhotos, setBlurredPhotos] = useState([]);
 
     useEffect(() => {
         loadCounty().then((saved) => saved && setCounty(saved));
@@ -115,14 +118,14 @@ export default function DiagnosisScreen({ navigation }) {
     const room = MAX_PHOTOS - photos.length;
     const addPhotos = (assets) => setPhotos((current) => [...current, ...assets].slice(0, MAX_PHOTOS));
 
-    const pickFromCamera = async () => {
+    const takePhoto = async () => {
         const permission = await ImagePicker.requestCameraPermissionsAsync();
         if (!permission.granted) {
             showDialog(
                 'Camera access needed',
                 'Sproutly needs your camera to photograph the affected leaf. You can enable it in your phone settings.'
             );
-            return;
+            return null;
         }
         const result = await ImagePicker.launchCameraAsync({
             // No allowsEditing: the native crop tool has no clear "done" step,
@@ -132,7 +135,20 @@ export default function DiagnosisScreen({ navigation }) {
             // Full quality here; the photo is made smaller and compressed once before upload (shrinkPhoto).
             quality: 1,
         });
-        if (!result.canceled) addPhotos(result.assets);
+        return result.canceled ? null : result.assets;
+    };
+
+    const pickFromCamera = async () => {
+        const assets = await takePhoto();
+        if (assets) addPhotos(assets);
+    };
+
+    // The blur check sent the photo back: a new photo replaces it, keeping its crop.
+    const retakePhoto = async () => {
+        const assets = await takePhoto();
+        if (!assets) return;
+        setPhotos((current) => [{ ...assets[0], crop: current[0]?.crop }]);
+        setError(null);
     };
 
     const pickFromGallery = async () => {
@@ -217,7 +233,8 @@ export default function DiagnosisScreen({ navigation }) {
     // same photo twice (the duplicate checks in Your checks). The ref is set before anything awaits.
     const sending = useRef(false);
 
-    const handleSubmit = async () => {
+    // options.allowBlurry only from "Use this photo anyway" (a button's press event has no such field).
+    const handleSubmit = async (options) => {
         if (sending.current) return;
         sending.current = true;
         setError(null);
@@ -230,7 +247,9 @@ export default function DiagnosisScreen({ navigation }) {
                     imageUri: photos[0].uri,
                     symptoms,
                     sharing,
+                    allowBlurry: options?.allowBlurry === true,
                 });
+                setBlurredPhotos([]);
                 navigation.navigate('Result', { result, imageUri: photos[0].uri });
             } else {
                 const imageUris = photos.map((p) => p.uri);
@@ -238,12 +257,20 @@ export default function DiagnosisScreen({ navigation }) {
                 navigation.navigate('BatchResult', { results, imageUris });
             }
         } catch (e) {
+            if (single && /too blurred/i.test(e?.message || '')) {
+                const uri = photos[0].uri;
+                setBlurredPhotos((current) => (current.includes(uri) ? current : [...current, uri]));
+            }
             setError(toFriendlyError(e));
         } finally {
             sending.current = false;
             setSubmitting(false);
         }
     };
+
+    const blurred = single && error?.title === toFriendlyError('too blurred').title;
+    // The first photo and two retakes: three different photos sent back.
+    const mayUseAnyway = blurred && blurredPhotos.length >= 3;
 
     const canSubmit = crop && photos.length > 0 && !(share && !county) && !submitting;
     const missing =
@@ -455,6 +482,13 @@ export default function DiagnosisScreen({ navigation }) {
                     {error && (
                         <View className="mb-3">
                             <ErrorBanner error={error} onRetry={handleSubmit} onDismiss={() => setError(null)} />
+                            {blurred && <SecondaryButton label="Retake photo" onPress={retakePhoto} />}
+                            {mayUseAnyway && (
+                                <SecondaryButton
+                                    label="Use this photo anyway"
+                                    onPress={() => handleSubmit({ allowBlurry: true })}
+                                />
+                            )}
                         </View>
                     )}
                     <PrimaryButton

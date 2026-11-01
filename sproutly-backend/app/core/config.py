@@ -62,6 +62,9 @@ class Settings(BaseSettings):
     # Leaf check (D15, notebook 19): photos that are not leaves get no diagnosis. Copy
     # ml/results/leaf_check/leaf_check.json here; blank switches the check off.
     leaf_check_path: str = "models/leaf_check.json"
+    # Blur check (notebook 21b B2, ml/results/health_check_photos/blur_check.json): a photo whose
+    # sharpness is below this is sent back to be retaken. 0 switches the check off.
+    blur_cut_off: float = 22.5468
 
     # Assistant (D9, app/core/assistant.py): the language model only chooses a tool. "groq" is
     # the only provider for now; any other value switches the assistant off (the app then
