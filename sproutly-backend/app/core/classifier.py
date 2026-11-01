@@ -27,6 +27,11 @@ temperature before softmax (2.4381 over all classes, notebook 18b; 1.7002 within
 notebook 21, both fitted on unseen field photos). It changes how sure the model says it is,
 never which class it picks. The referral threshold (0.9557) applies to the within-crop
 confidence and was re-derived in notebook 21 from the policy behind the earlier 0.8.
+
+Symptom text (notebook 20b, app/core/symptom_text.py): the photo alone decides whether the
+farmer gets an answer. Only on a referred photo does the farmer's description reorder the
+crop's diseases, so the officer sees a better first guess; the confidence kept is the photo's
+own probability for that disease, so a referred case never shows more than the threshold.
 """
 
 from dataclasses import dataclass
@@ -39,6 +44,7 @@ from PIL import Image
 from torch import nn
 from torchvision import models, transforms
 
+from app.core import symptom_text
 from app.core.config import settings
 from app.models.diagnosis import CropType
 
@@ -77,7 +83,8 @@ class Prediction:
     crop: CropType  # the farmer's crop, or the detected one
     crop_detected: bool  # True when the model chose the crop
     crop_probability: float  # total 11-class probability of all that crop's classes (TEMPERATURE)
-    is_referred: bool
+    is_referred: bool  # decided by the photo alone
+    text_used: bool = False  # the description reordered the diseases (referred photos only)
 
     @property
     def crop_mismatch(self) -> bool:
@@ -167,12 +174,13 @@ def threshold() -> float:
 
 def model_version() -> str:
     """What made a result, built from the settings in use so it cannot drift from them:
-    the model run folders, both temperatures and the threshold."""
+    the model run folders, both temperatures, the threshold and the symptom text model."""
     runs = "+".join(p.parent.name or str(p) for p in model_paths())
-    return f"{runs}; T={settings.temperature:g}; crop T={settings.crop_temperature:g}; threshold={threshold():g}"
+    return (f"{runs}; T={settings.temperature:g}; crop T={settings.crop_temperature:g}; threshold={threshold():g}; "
+            f"text: {symptom_text.label()}")
 
 
-def predict(crop: Optional[CropType], image_path: str) -> Prediction:
+def predict(crop: Optional[CropType], image_path: str, symptoms_text: Optional[str] = None) -> Prediction:
     """Diagnose one photo. Without a crop, the crop is detected first (see module docstring)."""
     model = load_model()
     with Image.open(image_path) as image:
@@ -189,13 +197,21 @@ def predict(crop: Optional[CropType], image_path: str) -> Prediction:
     in_crop = [i for i, c in enumerate(model.crops) if c == crop]
     within = torch.softmax(scores[in_crop] / settings.crop_temperature, dim=0)
     pick = int(within.argmax())
-    confidence = within[pick].item()
     share = crop_total(crop)
+    referred = share < 0.5 or within[pick].item() < threshold()
+
+    text_used = False
+    if referred:
+        reordered = symptom_text.reorder([model.classes[i] for i in in_crop], within.tolist(), symptoms_text)
+        if reordered is not None:
+            pick = max(range(len(reordered)), key=reordered.__getitem__)
+            text_used = True
     return Prediction(
         class_name=model.classes[in_crop[pick]],
-        confidence=confidence,
+        confidence=within[pick].item(),
         crop=crop,
         crop_detected=detected,
         crop_probability=share,
-        is_referred=share < 0.5 or confidence < threshold(),
+        is_referred=referred,
+        text_used=text_used,
     )

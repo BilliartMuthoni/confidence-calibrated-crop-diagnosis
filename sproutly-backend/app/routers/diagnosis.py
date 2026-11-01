@@ -95,7 +95,7 @@ def _response(db: Session, record: Diagnosis, prediction: Prediction) -> Diagnos
 
 def _diagnose(db: Session, user: User, crop: Optional[CropType], image_path: str,
               symptoms_text: Optional[str] = None, share: bool = False, contact: bool = False) -> DiagnosisResponse:
-    prediction = predict(crop, image_path)
+    prediction = predict(crop, image_path, symptoms_text)
     record = Diagnosis(user_id=user.user_id, image_path=image_path, symptoms_text=symptoms_text,
                        share_with_officer=share, allow_contact=share and contact)
     _apply(record, prediction)
@@ -153,7 +153,8 @@ def create_diagnosis(
     _remember_county(db, current_user, county)
     image_path = save_clean_image(image)
     _require_checks(image_path, allow_blurry)
-    # Image-only model for now; symptoms_text is stored and used by the fusion model in Sprint 3.
+    # symptoms_text is stored, shown to officers, and on a referred photo reorders the crop's
+    # diseases (notebook 20b); it never decides whether the farmer gets an answer.
     return _diagnose(db, current_user, crop, image_path, symptoms_text, share_with_officer, allow_contact)
 
 
@@ -224,7 +225,7 @@ def correct_crop(
             detail="The photo is no longer stored. Please check it again with a new photo.",
         )
 
-    prediction = predict(payload.crop, record.image_path)
+    prediction = predict(payload.crop, record.image_path, record.symptoms_text)
     _apply(record, prediction)
     db.commit()
     db.refresh(record)

@@ -15,7 +15,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
-from app.core import audit
+from app.core import audit, symptom_text
 from app.core.classifier import model_paths, model_version
 from app.core.leaf_check import load_leaf_check
 from app.core.config import settings
@@ -468,11 +468,13 @@ def model_settings(user: User = Depends(admin_only)):
                            "photo blurred enough to lower accuracy (8 px: 99.0% to 88.6%) is stopped. The threshold "
                            "already referred those photos, so it adds guidance, not safety. After two failed "
                            "retakes the farmer may send the photo anyway."),
-            ModelPart(label="Symptom text model", value="BERT-base, late fusion (not used in the diagnosis)",
-                      source="Notebook 18b (ensemble deployment)", results="ml/results/ensemble_deployment",
-                      commit="eca05a0", date="2026-10-24",
-                      note="The farmer's description is stored with each check and shown to officers. With the "
-                           "ensemble, late fusion lowered PlantDoc accuracy (43.8% to 38.7%), so it is not used yet."),
+            ModelPart(label="Symptom text model", value=symptom_text.label(),
+                      source="Notebook 20b (symptom text follow-up)", results="ml/results/fusion_d20b",
+                      commit="bdcea0b", date="2026-11-01",
+                      note="The photo alone decides whether the farmer gets an answer. On a referred photo the "
+                           "farmer's description reorders the crop's diseases, so the officer sees a better first "
+                           "guess: +0.43 points with a matching description, 0.71% harm with a wrong one. Language "
+                           "models helped more but changed 12-17% of correct diagnoses."),
             ModelPart(label="Calibration",
                       value=f"Temperature scaling within the crop, T = {settings.crop_temperature:g} "
                             f"(crop check over all classes, T = {settings.temperature:g})",

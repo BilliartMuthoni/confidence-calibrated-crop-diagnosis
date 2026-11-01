@@ -65,6 +65,9 @@ class Settings(BaseSettings):
     # Blur check (notebook 21b B2, ml/results/health_check_photos/blur_check.json): a photo whose
     # sharpness is below this is sent back to be retaken. 0 switches the check off.
     blur_cut_off: float = 22.5468
+    # Symptom text (notebook 20b): reorders the crop's diseases on referred photos. Copy
+    # ml/results/fusion_d20b/text_model.json here; blank switches the text off.
+    text_model_path: str = "data/text_model.json"
 
     # Assistant (D9, app/core/assistant.py): the language model only chooses a tool. "groq" is
     # the only provider for now; any other value switches the assistant off (the app then
