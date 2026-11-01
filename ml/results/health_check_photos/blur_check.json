@@ -1,0 +1,9 @@
+{
+ "method": "variance of the 4-neighbour Laplacian",
+ "side": 512,
+ "resample": "bilinear",
+ "cut_off": 22.546785125732423,
+ "pass_rate": 0.99,
+ "switched_on": true,
+ "fitted_on": "validation field photos (509), phone version"
+}

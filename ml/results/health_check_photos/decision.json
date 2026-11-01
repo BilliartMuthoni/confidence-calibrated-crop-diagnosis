@@ -1,0 +1,25 @@
+{
+  "B1": {
+    "validation_accuracy_change_app_minus_evaluation": 0.0019646365422396617,
+    "range": [
+      0.0,
+      0.005893909626719096
+    ],
+    "app_worse": false,
+    "app_setting": "1024 px, q80",
+    "changed": false
+  },
+  "B2": {
+    "cut_off": 22.546785125732423,
+    "pass_rate_rule": 0.99,
+    "mildest_harmful_blur": 8,
+    "stopped_at_mildest_harmful_blur": 1.0,
+    "switched_on": true
+  },
+  "rules_written": "2026-10-31, before the first run",
+  "app_rule": {
+    "temperature": 2.4381275602850097,
+    "crop_temperature": 1.7001941978303818,
+    "threshold": 0.9556822725831958
+  }
+}
