@@ -459,6 +459,15 @@ def model_settings(user: User = Depends(admin_only)):
                       note="A frozen MobileNetV3 with one logistic layer stops photos that are not leaves before "
                            "the disease model; on unseen field photos 96.7% of real leaves passed and every "
                            "held-out non-leaf photo was stopped."),
+            ModelPart(label="Blur check",
+                      value=("Off (BLUR_CUT_OFF is 0)" if settings.blur_cut_off <= 0
+                             else f"Laplacian variance, cut-off {settings.blur_cut_off:g}"),
+                      source="Notebook 21b (health check, B2)", results="ml/results/health_check_photos",
+                      commit="5206449", date="2026-11-01",
+                      note="Runs before the leaf check and asks for a retake. 99% of real field photos pass; every "
+                           "photo blurred enough to lower accuracy (8 px: 99.0% to 88.6%) is stopped. The threshold "
+                           "already referred those photos, so it adds guidance, not safety. After two failed "
+                           "retakes the farmer may send the photo anyway."),
             ModelPart(label="Symptom text model", value="BERT-base, late fusion (not used in the diagnosis)",
                       source="Notebook 18b (ensemble deployment)", results="ml/results/ensemble_deployment",
                       commit="eca05a0", date="2026-10-24",

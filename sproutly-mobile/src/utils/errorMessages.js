@@ -178,6 +178,12 @@ const PATTERNS = [
         retryable: false,
     },
     {
+        match: /too blurred/i,
+        title: 'Retake: too blurred',
+        message: 'Hold the phone still, tap the leaf on the screen to focus, and take it in good light.',
+        retryable: false,
+    },
+    {
         match: /look like a leaf/i,
         title: 'This is not a leaf photo',
         message: 'Take a close-up of one maize, tomato or potato leaf.',
