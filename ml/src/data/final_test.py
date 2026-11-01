@@ -27,8 +27,10 @@ used so far: training sources and PlantDoc, the selection set, and the photos D1
 added to training.
 """
 
+import hashlib
 import json
 import shutil
+import time
 import urllib.error
 import urllib.request
 import zipfile
@@ -87,7 +89,9 @@ def check_licence(source: Source) -> str:
 
 def download(name: str, dest: Path) -> list[dict]:
     """Every file the API lists for the source, except ones named as augmented, each checked
-    against Mendeley's SHA-256. Without API files, one hand-downloaded archive in ``dest`` is used."""
+    against Mendeley's SHA-256. Without top-level files, one archive already in ``dest`` is used
+    (hand-downloaded, or made by an earlier run); with none, the mapped folders are fetched one
+    by one (``download_from_folders``)."""
     source = SOURCES[name]
     dest.mkdir(parents=True, exist_ok=True)
     try:
@@ -112,12 +116,79 @@ def download(name: str, dest: Path) -> list[dict]:
     if any("sha256" in r for r in records):
         return records
     archives = [p for p in dest.iterdir() if p.suffix.lower() in ARCHIVES]
+    if not archives:
+        # Some datasets keep every file inside folders, so the top level lists none.
+        records = download_from_folders(name, dest)
+        if records:
+            return records
     if len(archives) != 1:
         raise FileNotFoundError(
             f"The API offers no files for {source.dataset_id} v{source.version}. Download the archive from "
             f"https://data.mendeley.com/datasets/{source.dataset_id}/{source.version} and put it alone in {dest}.")
+    how = (FROM_FOLDERS if archives[0].name == f"{name}_from_folders.zip"
+           else "hand-downloaded (API offers no files); sha256 recorded")
     return [{"source": name, "file": archives[0].name, "sha256": selection_set._sha256(archives[0]),
-             "bytes": archives[0].stat().st_size, "how": "hand-downloaded (API offers no files); sha256 recorded"}]
+             "bytes": archives[0].stat().st_size, "how": how}]
+
+
+FROM_FOLDERS = "Mendeley API folder by folder, each photo checked against Mendeley's SHA-256"
+
+
+def _folder_paths(source: Source) -> dict[str, str]:
+    """Mendeley folder id -> its path from the dataset's top ("Raw Data/CCMT Dataset/Maize/healthy")."""
+    folders = selection_set._get_json(f"{API}/{source.dataset_id}/folders/{source.version}")
+    by_id = {f["id"]: f for f in folders}
+
+    def path(folder: dict) -> str:
+        parts = [folder["name"]]
+        while folder.get("parent_id") in by_id:
+            folder = by_id[folder["parent_id"]]
+            parts.append(folder["name"])
+        return "/".join(reversed(parts))
+
+    return {f["id"]: path(f) for f in folders}
+
+
+def _fetch_checked(entry: dict, attempts: int = 3) -> bytes:
+    """One file whose bytes match Mendeley's SHA-256; a damaged or dropped download is tried again."""
+    details = entry["content_details"]
+    for attempt in range(attempts):
+        if attempt:
+            time.sleep(2 * attempt)
+        request = urllib.request.Request(details["download_url"], headers={"User-Agent": USER_AGENT})
+        try:
+            with urllib.request.urlopen(request, timeout=300) as response:
+                data = response.read()
+        except (urllib.error.URLError, ConnectionError, TimeoutError):
+            continue
+        if hashlib.sha256(data).hexdigest() == details["sha256_hash"]:
+            return data
+    raise ValueError(f"{entry['filename']}: no download matching Mendeley's checksum after {attempts} tries")
+
+
+def download_from_folders(name: str, dest: Path) -> list[dict]:
+    """The photos of the folders ``label_of`` maps, one by one, each checked against Mendeley's
+    SHA-256, packed into one zip in ``dest`` so the notebook unpacks it like any archive.
+    Folders that are left out (augmented copies, classes that are not ours) are never downloaded."""
+    source = SOURCES[name]
+    try:
+        paths = _folder_paths(source)
+    except urllib.error.HTTPError:
+        return []
+    wanted = {fid: path for fid, path in paths.items() if label_of(name, Path(path) / "photo.jpg")[0]}
+    if not wanted:
+        return []
+    archive = dest / f"{name}_from_folders.zip"
+    photos = 0
+    with zipfile.ZipFile(archive, "w") as z:
+        for folder_id, path in sorted(wanted.items(), key=lambda item: item[1]):
+            entries = selection_set._get_json(
+                f"{API}/{source.dataset_id}/files?folder_id={folder_id}&version={source.version}")
+            for entry in entries:
+                z.writestr(f"{path}/{entry['filename']}", _fetch_checked(entry))
+            photos += len(entries)
+    return [{"source": name, "file": archive.name, "sha256": selection_set._sha256(archive),
+             "bytes": archive.stat().st_size, "how": f"{FROM_FOLDERS} ({len(wanted)} folders, {photos} photos)"}]
 
 
 # ---------------------------------------------------------------------------- labels
