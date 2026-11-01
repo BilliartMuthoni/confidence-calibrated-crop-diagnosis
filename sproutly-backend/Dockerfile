@@ -26,6 +26,8 @@ COPY sproutly-backend/ .
 COPY ml/data/advice/advice.csv data/advice.csv
 # The sourced support contacts; any not yet in the table are added at every start (start.sh).
 COPY ml/data/contacts/support_contacts.csv data/support_contacts.csv
+# The symptom text classifier chosen in notebook 20b (TEXT_MODEL_PATH).
+COPY ml/results/fusion_d20b/text_model.json data/text_model.json
 
 # Which model files are inside, shown by /health and the app's About screen.
 ARG MODEL_REVISION=unknown

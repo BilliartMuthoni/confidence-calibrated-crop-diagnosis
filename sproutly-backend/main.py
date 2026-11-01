@@ -12,6 +12,7 @@ from sqlalchemy import text
 
 from app.core.classifier import load_model, model_version
 from app.core.leaf_check import load_leaf_check
+from app.core.symptom_text import load_text_model
 from app.core.config import settings
 from app.core.limiter import limiter
 from app.core.retention import delete_old_photos
@@ -48,6 +49,7 @@ async def lifespan(app: FastAPI):
     # Load the models at startup so a missing file fails now, not on the first photo.
     load_model()
     load_leaf_check()
+    load_text_model()
     # Farmers' photos are deleted after PHOTO_DAYS (app/core/retention.py): now, then every hour.
     cleanup = asyncio.create_task(_photo_cleanup_loop())
     yield
