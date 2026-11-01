@@ -31,6 +31,10 @@ class DiagnosisResponse(BaseModel):
     # True when the model chose the crop (several photos, crop left out); the app shows
     # it so the farmer can correct it with POST /diagnose/{id}/crop.
     crop_detected: bool = False
+    # True when the model guessed the crop and would have answered: no answer is shown until the
+    # farmer confirms or corrects the crop (POST /diagnose/{id}/crop). Notebook 21 (A5): with a
+    # guessed crop, 2.6 of 100 new field photos got a wrong answer, against 0.10 with the crop given.
+    awaiting_crop: bool = False
     # True when the case went to a county officer (referred, and the farmer agreed to share it).
     sent_to_officer: bool = False
     created_at: datetime

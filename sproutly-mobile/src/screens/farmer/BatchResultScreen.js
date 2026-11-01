@@ -30,9 +30,11 @@ const CROP_IDS = ['maize', 'tomato', 'potato'];
 function PhotoRow({ item, imageUri, onOpen, onCorrect, busy, error }) {
     const [choosing, setChoosing] = useState(false);
     const { result } = item;
-    const referred = result.is_referred;
-    const healthy = !referred && result.predicted_disease?.startsWith('Healthy');
-    const accent = referred ? COLORS.referral : healthy ? COLORS.healthy : COLORS.disease;
+    // The model guessed the crop and would have answered: the answer waits for the farmer's crop.
+    const waiting = result.awaiting_crop;
+    const referred = result.is_referred && !waiting;
+    const healthy = !result.is_referred && result.predicted_disease?.startsWith('Healthy');
+    const accent = waiting ? COLORS.brand : referred ? COLORS.referral : healthy ? COLORS.healthy : COLORS.disease;
     const group = groupOf(result);
     const unclear = group === 'unclear';
 
@@ -43,23 +45,35 @@ function PhotoRow({ item, imageUri, onOpen, onCorrect, busy, error }) {
 
     return (
         <View className="py-3" style={{ borderBottomWidth: 1, borderBottomColor: COLORS.divider }}>
-            <TouchableOpacity onPress={onOpen} activeOpacity={0.7} accessibilityRole="button" className="flex-row items-center">
+            <TouchableOpacity
+                onPress={onOpen}
+                disabled={waiting}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                className="flex-row items-center"
+            >
                 <Image source={{ uri: imageUri }} className="w-14 h-14 rounded-lg" resizeMode="cover" />
                 <View className="flex-1 ml-3">
                     <Text className="text-base font-bold" style={{ color: COLORS.ink }} numberOfLines={1}>
-                        {referred ? 'Not diagnosed' : result.predicted_disease}
+                        {waiting ? 'Confirm the crop' : referred ? 'Not diagnosed' : result.predicted_disease}
                     </Text>
                     <Text className="text-sm mt-0.5" style={{ color: accent }}>
-                        {referred
-                            ? result.sent_to_officer
-                                ? 'Sent to a county officer'
-                                : 'Use support contacts'
-                            : healthy
-                              ? 'No disease found'
-                              : 'Tap for what to do'}
+                        {waiting
+                            ? 'Then you will see the result'
+                            : referred
+                              ? result.sent_to_officer
+                                  ? 'Sent to a county officer'
+                                  : 'Use support contacts'
+                              : healthy
+                                ? 'No disease found'
+                                : 'Tap for what to do'}
                     </Text>
                 </View>
-                {busy ? <ActivityIndicator color={COLORS.brand} /> : <Ionicons name="chevron-forward" size={18} color={COLORS.faint} />}
+                {busy ? (
+                    <ActivityIndicator color={COLORS.brand} />
+                ) : (
+                    !waiting && <Ionicons name="chevron-forward" size={18} color={COLORS.faint} />
+                )}
             </TouchableOpacity>
 
             {/* Chosen crop, but the photo does not look like it: ask which crop it is. */}
@@ -92,7 +106,7 @@ function PhotoRow({ item, imageUri, onOpen, onCorrect, busy, error }) {
             {result.crop_detected && !unclear && (
                 <View className="flex-row flex-wrap items-center mt-2 ml-[68px]">
                     <Text className="text-sm mr-2" style={{ color: COLORS.text }}>
-                        {referred ? 'Crop guess' : 'Detected as'}: {CROP_LABELS[result.crop]}. Is that right?
+                        Crop guess: {CROP_LABELS[result.crop]}. Is that right?
                     </Text>
                     <TouchableOpacity
                         onPress={() => onCorrect(result.crop)}
@@ -171,7 +185,8 @@ export default function BatchResultScreen({ route, navigation }) {
 
     const checked = items.filter((i) => i.result);
     const failed = items.filter((i) => !i.result);
-    const referredCount = checked.filter((i) => i.result.is_referred).length;
+    const waitingCount = checked.filter((i) => i.result.awaiting_crop).length;
+    const referredCount = checked.filter((i) => i.result.is_referred).length - waitingCount;
 
     const correct = async (item, crop) => {
         setBusyIndex(item.index);
@@ -197,7 +212,7 @@ export default function BatchResultScreen({ route, navigation }) {
                 <Text className="text-sm" style={{ color: COLORS.muted }}>
                     {checked.length === 0
                         ? `None of the ${failed.length} ${failed.length === 1 ? 'photo' : 'photos'} could be checked. See why below.`
-                        : `${checked.length} ${checked.length === 1 ? 'photo' : 'photos'} checked · ${checked.length - referredCount} diagnosed · ${referredCount} referred${failed.length ? ` · ${failed.length} not checked` : ''}`}
+                        : `${checked.length} ${checked.length === 1 ? 'photo' : 'photos'} checked · ${checked.length - referredCount - waitingCount} diagnosed · ${referredCount} referred${waitingCount ? ` · ${waitingCount} waiting for the crop` : ''}${failed.length ? ` · ${failed.length} not checked` : ''}`}
                 </Text>
 
                 {GROUPS.map((group) => {
