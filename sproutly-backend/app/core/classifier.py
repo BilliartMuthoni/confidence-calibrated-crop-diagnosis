@@ -20,7 +20,8 @@ Crop left out (several photos of mixed crops): the crop is detected as the one w
 classes hold the most probability, then the same rule applies. With the ensemble,
 detection is right on 100% of familiar photos but only 76.5% of unseen field photos
 (measured 24 Oct), so the app shows the detected crop and lets the farmer correct it
-(POST /diagnose/{id}/crop).
+(POST /diagnose/{id}/crop). A photo that would be answered with a detected crop is held until
+the farmer confirms it (routers/diagnosis._hold_for_crop; notebook 21 A5).
 
 Calibration is temperature scaling: the log of the averaged probabilities is divided by a
 temperature before softmax (2.4381 over all classes, notebook 18b; 1.7002 within the crop,
@@ -85,6 +86,7 @@ class Prediction:
     crop_probability: float  # total 11-class probability of all that crop's classes (TEMPERATURE)
     is_referred: bool  # decided by the photo alone
     text_used: bool = False  # the description reordered the diseases (referred photos only)
+    awaiting_crop: bool = False  # guessed crop, answer held until the farmer confirms it (routers/diagnosis)
 
     @property
     def crop_mismatch(self) -> bool:

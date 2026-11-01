@@ -1,4 +1,5 @@
 import os
+from dataclasses import replace
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
@@ -59,6 +60,16 @@ def _apply(record: Diagnosis, prediction: Prediction) -> None:
     record.model_version = model_version()
 
 
+def _hold_for_crop(prediction: Prediction) -> Prediction:
+    """No answer with a crop the model guessed (notebook 21, A5: 2.6 wrong answers per 100 new
+    field photos with a guessed crop, 0.10 with the crop given). Until the farmer confirms or
+    corrects it, the photo is not diagnosed and not sent to an officer; confirming checks it
+    again with the farmer's crop. A photo that would be referred anyway is left as it is."""
+    if prediction.crop_detected and not prediction.is_referred:
+        return replace(prediction, is_referred=True, awaiting_crop=True)
+    return prediction
+
+
 def _share(db: Session, record: Diagnosis, user: User) -> None:
     """A referred case the farmer agreed to share goes to their county's officers (once)."""
     if record.is_referred and record.share_with_officer:
@@ -75,6 +86,9 @@ def _response(db: Session, record: Diagnosis, prediction: Prediction) -> Diagnos
         crop_detected=prediction.crop_detected,
         created_at=record.created_at,
     )
+    if prediction.awaiting_crop:
+        return DiagnosisResponse(**common, is_referred=True, awaiting_crop=True,
+                                 referral_message="Confirm the crop to see the result.")
     if prediction.is_referred:
         sent = db.query(Referral).filter(Referral.diagnosis_id == record.diagnosis_id).first() is not None
         return DiagnosisResponse(
@@ -95,14 +109,15 @@ def _response(db: Session, record: Diagnosis, prediction: Prediction) -> Diagnos
 
 def _diagnose(db: Session, user: User, crop: Optional[CropType], image_path: str,
               symptoms_text: Optional[str] = None, share: bool = False, contact: bool = False) -> DiagnosisResponse:
-    prediction = predict(crop, image_path, symptoms_text)
+    prediction = _hold_for_crop(predict(crop, image_path, symptoms_text))
     record = Diagnosis(user_id=user.user_id, image_path=image_path, symptoms_text=symptoms_text,
                        share_with_officer=share, allow_contact=share and contact)
     _apply(record, prediction)
     db.add(record)
     db.commit()
     db.refresh(record)
-    _share(db, record, user)
+    if not prediction.awaiting_crop:
+        _share(db, record, user)
     return _response(db, record, prediction)
 
 
