@@ -16,3 +16,9 @@ pv-tomato-bacterial-spot,Tomato___Bacterial_spot,train,https://plantvillage.psu.
 pv-maize-gray-leaf-spot,Corn_(maize)___Cercospora_leaf_spot Gray_leaf_spot,train,https://plantvillage.psu.edu/topics/corn-maize/infos,Cercospora leaf spot (Gray leaf spot)
 pv-maize-common-rust,Corn_(maize)___Common_rust_,train,https://plantvillage.psu.edu/topics/corn-maize/infos,Common rust
 pv-maize-northern-leaf-blight,Corn_(maize)___Northern_Leaf_Blight,train,https://plantvillage.psu.edu/topics/corn-maize/infos,Northern Leaf Blight
+20137804212,Tomato___Early_blight,train,https://factsheetadmin.plantwise.org/Uploads/PDFs/20137804212.pdf,
+20127802679,Tomato___Early_blight,test,https://factsheetadmin.plantwise.org/Uploads/PDFs/20127802679.pdf,
+20147801362,Potato___Late_blight,train,https://factsheetadmin.plantwise.org/Uploads/PDFs/20147801362.pdf,
+20127801047,Potato___Late_blight,test,https://factsheetadmin.plantwise.org/Uploads/PDFs/20127801047.pdf,
+20157800166,Tomato___Late_blight,train,https://factsheetadmin.plantwise.org/Uploads/PDFs/20157800166.pdf,
+20147801161,Tomato___Late_blight,test,https://factsheetadmin.plantwise.org/Uploads/PDFs/20147801161.pdf,
