@@ -30,6 +30,12 @@ def push(repo: Path, branch: str, message: str, token: str, name: str, email: st
     if not _git(repo, "status", "--porcelain", "--", *(paths or [])):
         return "Nothing to commit."
 
+    # Start from today's main: a branch made from an older main looks, next to GitHub's main, as
+    # if it changed whatever was merged since (a workflow file needs a token scope we don't give).
+    _git(repo, "pull", "--ff-only")
+    # A branch left by an earlier push that failed was never on GitHub: make it again.
+    if _git(repo, "branch", "--list", branch):
+        _git(repo, "branch", "-D", branch)
     _git(repo, "switch", "-c", branch)
     committed = pushed = False
     try:
