@@ -1,0 +1,6 @@
+true,Maize healthy,Tomato Bacterial spot,Tomato Early blight,Tomato Late blight,Tomato healthy
+Maize healthy,204,0,0,0,0
+Tomato Bacterial spot,0,91,189,68,0
+Tomato Early blight,0,1,125,52,0
+Tomato Late blight,0,0,107,0,0
+Tomato healthy,0,1,1,286,249
