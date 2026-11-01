@@ -1,0 +1,64 @@
+{
+  "scored_once_on": "2026-11-01T11:04:57.482328+00:00",
+  "rerun_reason": null,
+  "pipeline": {
+    "phone": "1024 px q80",
+    "server_quality": 85,
+    "leaf_cut_off": 0.9974504172421256,
+    "blur_check": true,
+    "blur_cut_off": 22.546785125732423,
+    "temperature": 2.4381275602850097,
+    "crop_temperature": 1.7001941978303818,
+    "threshold": 0.9556822725831958,
+    "model_runs": [
+      "d17_resnet50_seed44",
+      "d22_convnext_tiny_lr1e-04",
+      "d22_efficientnet_b0"
+    ]
+  },
+  "rules_written": "2026-10-31, before any photo was downloaded",
+  "overall": [
+    {
+      "set": "Bangladesh tomato, 4 classes",
+      "photos": 729,
+      "not a leaf": 0.0480109739368999,
+      "too blurred": 0.0,
+      "accuracy of checked (crop given)": 0.30835734870317005,
+      "answered": 0.0,
+      "accuracy of answered": NaN,
+      "answered accuracy low": NaN,
+      "answered accuracy high": NaN,
+      "wrong per 100": 0.0,
+      "to officer or contacts": 0.9519890260631001,
+      "ECE (checked)": 0.2590968105136833
+    },
+    {
+      "set": "Ghana healthy (tomato and maize)",
+      "photos": 645,
+      "not a leaf": 0.010852713178294615,
+      "too blurred": 0.05271317829457367,
+      "accuracy of checked (crop given)": 0.6694214876033058,
+      "answered": 0.28837209302325584,
+      "accuracy of answered": 1.0,
+      "answered accuracy low": 1.0,
+      "answered accuracy high": 1.0,
+      "wrong per 100": 0.0,
+      "to officer or contacts": 0.6496124031007752,
+      "ECE (checked)": 0.1072931668482536
+    },
+    {
+      "set": "all",
+      "photos": 1374,
+      "not a leaf": 0.03056768558951961,
+      "too blurred": 0.024745269286754024,
+      "accuracy of checked (crop given)": 0.4765204003079292,
+      "answered": 0.13537117903930132,
+      "accuracy of answered": 1.0,
+      "answered accuracy low": 1.0,
+      "answered accuracy high": 1.0,
+      "wrong per 100": 0.0,
+      "to officer or contacts": 0.8100436681222707,
+      "ECE (checked)": 0.18709131951420188
+    }
+  ]
+}

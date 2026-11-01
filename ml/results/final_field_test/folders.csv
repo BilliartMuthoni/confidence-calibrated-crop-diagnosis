@@ -1,0 +1,7 @@
+source,folder,label_reason,photos,mapped_to
+ghana_healthy,Raw Data/CCMT Dataset/Maize/healthy,mapped,208,Corn_(maize)___healthy
+ghana_healthy,Raw Data/CCMT Dataset/Tomato/healthy,mapped,470,Tomato___healthy
+tomato_bd_field,Tomato leaf diseases/Tomato Leaf/Bacterial Spot,mapped,376,Tomato___Bacterial_spot
+tomato_bd_field,Tomato leaf diseases/Tomato Leaf/Early Blight,mapped,204,Tomato___Early_blight
+tomato_bd_field,Tomato leaf diseases/Tomato Leaf/Healthy,mapped,103,Tomato___healthy
+tomato_bd_field,Tomato leaf diseases/Tomato Leaf/Late Blight,mapped,166,Tomato___Late_blight

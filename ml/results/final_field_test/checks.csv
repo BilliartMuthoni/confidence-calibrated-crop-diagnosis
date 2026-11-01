@@ -1,0 +1,10 @@
+source,reason,photos
+ghana_healthy,kept,645
+ghana_healthy,near_duplicate_of_existing_photo,2
+ghana_healthy,near_duplicate_within_new_photos,23
+ghana_healthy,unreadable,8
+tomato_bd_field,copy_of_a_photo_matching_existing,3
+tomato_bd_field,kept,729
+tomato_bd_field,near_duplicate_of_existing_photo,10
+tomato_bd_field,near_duplicate_within_new_photos,90
+tomato_bd_field,near_duplicates_with_conflicting_labels,17
