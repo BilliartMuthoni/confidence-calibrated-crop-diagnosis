@@ -1,0 +1,69 @@
+{
+  "scored_once_on": "2026-11-03T18:56:40.544238+00:00",
+  "rerun_reason": null,
+  "rules_written": "2026-11-03, before any photo was downloaded",
+  "pipeline": {
+    "phone": "1024 px q80",
+    "server_quality": 85,
+    "leaf_cut_off": 0.9974504172421256,
+    "blur_check": true,
+    "blur_cut_off": 22.546785125732423,
+    "temperature": 2.4381275602850097,
+    "crop_temperature": 1.7001941978303818,
+    "threshold": 0.9556822725831958,
+    "model_runs": [
+      "d17_resnet50_seed44",
+      "d22_convnext_tiny_lr1e-04",
+      "d22_efficientnet_b0"
+    ]
+  },
+  "photos": 1200,
+  "sources": {
+    "ibean_bean_field": 300,
+    "plantdoc_other_crops": 300,
+    "plantdoc_other_tomato_diseases": 300,
+    "plantvillage_other_crops": 300
+  },
+  "answered_with_crop_given": {
+    "pairs": 144,
+    "of": 3600
+  },
+  "overall_percent": [
+    {
+      "crop_choice": "maize",
+      "not a leaf": 16.25,
+      "crop mismatch": 83.42,
+      "crop unclear": 0.0,
+      "referred (not sure)": 0.33,
+      "held: asks to confirm the guessed crop": 0.0,
+      "ANSWERED": 0.0
+    },
+    {
+      "crop_choice": "not given",
+      "not a leaf": 16.25,
+      "crop mismatch": 0.0,
+      "crop unclear": 18.92,
+      "referred (not sure)": 52.83,
+      "held: asks to confirm the guessed crop": 12.0,
+      "ANSWERED": 0.0
+    },
+    {
+      "crop_choice": "potato",
+      "not a leaf": 16.25,
+      "crop mismatch": 51.08,
+      "crop unclear": 0.0,
+      "referred (not sure)": 24.0,
+      "held: asks to confirm the guessed crop": 0.0,
+      "ANSWERED": 8.67
+    },
+    {
+      "crop_choice": "tomato",
+      "not a leaf": 16.25,
+      "crop mismatch": 51.92,
+      "crop unclear": 0.0,
+      "referred (not sure)": 28.5,
+      "held: asks to confirm the guessed crop": 0.0,
+      "ANSWERED": 3.33
+    }
+  ]
+}
