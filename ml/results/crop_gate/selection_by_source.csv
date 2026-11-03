@@ -1,0 +1,12 @@
+source,class,photos,passed
+maize_jhenaidah,Corn_(maize)___Cercospora_leaf_spot Gray_leaf_spot,554,0.9620938628158845
+maize_jhenaidah,Corn_(maize)___healthy,359,1.0
+maize_natore,Corn_(maize)___Cercospora_leaf_spot Gray_leaf_spot,826,0.9782082324455206
+maize_natore,Corn_(maize)___Common_rust_,126,0.9761904761904762
+maize_natore,Corn_(maize)___healthy,602,0.9750830564784053
+potato_holeta,Potato___Late_blight,67,0.9104477611940298
+potato_holeta,Potato___healthy,344,0.6395348837209303
+tomato_bd,Tomato___Bacterial_spot,97,0.9278350515463918
+tomato_bd,Tomato___Early_blight,447,0.8970917225950783
+tomato_bd,Tomato___Late_blight,92,0.9565217391304348
+tomato_bd,Tomato___healthy,307,0.8827361563517915

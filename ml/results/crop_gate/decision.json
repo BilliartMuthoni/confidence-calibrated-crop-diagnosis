@@ -1,0 +1,82 @@
+{
+  "decided_on": "2026-11-03T20:32:56.041279+00:00",
+  "rerun_reason": null,
+  "rules_written": "2026-11-03, before anything was scored",
+  "architecture": "mobilenet_v3_large",
+  "cut_off": 0.5020545392592622,
+  "selection_passed": 0.9267207537293902,
+  "unseen_crops_refused": 0.5191956124314442,
+  "needed": {
+    "selection_passed": 0.97,
+    "unseen_crops_refused": 0.8,
+    "pass_rate": 0.99
+  },
+  "adopted": false,
+  "train_crops": [
+    "apple",
+    "blueberry",
+    "cherry",
+    "pepper",
+    "raspberry",
+    "strawberry"
+  ],
+  "unseen_crops": [
+    "bean",
+    "grape",
+    "orange",
+    "peach",
+    "soybean",
+    "squash"
+  ],
+  "report": [
+    {
+      "set": "our crops: validation (sets the cut-off)",
+      "photos": 2385,
+      "our crop": true,
+      "passed": 0.990356394129979,
+      "correct": 0.990356394129979
+    },
+    {
+      "set": "our crops: SELECTION SET (rule: >= 97% pass)",
+      "photos": 3821,
+      "our crop": true,
+      "passed": 0.9267207537293902,
+      "correct": 0.9267207537293902
+    },
+    {
+      "set": "our crops: test split",
+      "photos": 2441,
+      "our crop": true,
+      "passed": 0.9832036050798852,
+      "correct": 0.9832036050798852
+    },
+    {
+      "set": "our crops: PlantDoc (web photos)",
+      "photos": 953,
+      "our crop": true,
+      "passed": 0.7051416579223505,
+      "correct": 0.7051416579223505
+    },
+    {
+      "set": "other crops: UNSEEN (rule: >= 80% refused)",
+      "photos": 2735,
+      "our crop": false,
+      "passed": 0.48080438756855576,
+      "correct": 0.5191956124314443
+    },
+    {
+      "set": "other crops: training crops (in-sample)",
+      "photos": 2294,
+      "our crop": false,
+      "passed": 0.0,
+      "correct": 1.0
+    },
+    {
+      "set": "tomato with other diseases (PlantDoc; is tomato)",
+      "photos": 371,
+      "our crop": true,
+      "passed": 0.477088948787062,
+      "correct": 0.477088948787062
+    }
+  ]
+}
