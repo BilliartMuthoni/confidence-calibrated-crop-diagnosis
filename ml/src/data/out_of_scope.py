@@ -54,6 +54,13 @@ def is_other_crop(folder: str) -> bool:
     return not name.startswith(OUR_CROPS) and "background" not in name
 
 
+def crop_name(folder: str) -> str:
+    """The crop of a PlantVillage or PlantDoc folder, e.g. "Pepper,_bell___healthy" -> "pepper",
+    "Bell_pepper leaf spot" -> "pepper", "Soyabean leaf" -> "soybean" (used by notebook 22)."""
+    first = folder.lower().replace(",", " ").replace("_", " ").replace("(", " ").split()[0]
+    return {"bell": "pepper", "soyabean": "soybean"}.get(first, first)
+
+
 def even_sample(rows: pd.DataFrame, count: int, seed: int) -> pd.DataFrame:
     """Up to ``count`` rows, taken in turn from each class so every folder is represented."""
     shuffled = rows.sample(frac=1, random_state=seed)
@@ -107,9 +114,10 @@ def _download(url: str, target: Path, tries: int = 3) -> None:
             time.sleep(5 * attempt)
 
 
-def _from_git(url: str, dest: Path, folder_of, count: int, seed: int) -> pd.DataFrame:
-    """List a GitHub repository without its files, sample other-crop photos, then download only
-    those from raw.githubusercontent.com at the listed commit (so the sample cannot drift)."""
+def _from_git(url: str, dest: Path, folder_of, count: int, seed: int, crops=None) -> pd.DataFrame:
+    """List a GitHub repository without its files, sample other-crop photos (only ``crops`` if
+    given), then download only those from raw.githubusercontent.com at the listed commit (so the
+    sample cannot drift)."""
     repo = dest / "repo"
     if not (repo / ".git").exists():
         dest.mkdir(parents=True, exist_ok=True)
@@ -119,7 +127,8 @@ def _from_git(url: str, dest: Path, folder_of, count: int, seed: int) -> pd.Data
     rows = []
     for tracked in listing:
         folder = folder_of(tracked)
-        if folder and Path(tracked).suffix.lower() in IMAGE_EXTENSIONS and is_other_crop(folder):
+        if (folder and Path(tracked).suffix.lower() in IMAGE_EXTENSIONS and is_other_crop(folder)
+                and (crops is None or crop_name(folder) in crops)):
             rows.append({"class": folder, "tracked": tracked})
     picked = even_sample(pd.DataFrame(rows), count, seed).reset_index(drop=True)
     owner_repo = url.removeprefix("https://github.com/").removesuffix(".git")
@@ -137,22 +146,22 @@ def _from_git(url: str, dest: Path, folder_of, count: int, seed: int) -> pd.Data
     return picked.drop(columns="tracked")
 
 
-def plantvillage_other_crops(dest: Path, count: int, seed: int) -> pd.DataFrame:
+def plantvillage_other_crops(dest: Path, count: int, seed: int, crops=None) -> pd.DataFrame:
     def folder_of(tracked: str):
         parts = tracked.split("/")
         return parts[2] if len(parts) == 4 and parts[:2] == ["raw", "color"] else None
 
-    picked = _from_git(PLANTVILLAGE_URL, dest, folder_of, count, seed)
+    picked = _from_git(PLANTVILLAGE_URL, dest, folder_of, count, seed, crops)
     return picked.assign(source="plantvillage_other_crops", licence="as notebook 01",
                          citation=PLANTVILLAGE_CITATION)
 
 
-def plantdoc_other_crops(dest: Path, count: int, seed: int) -> pd.DataFrame:
+def plantdoc_other_crops(dest: Path, count: int, seed: int, crops=None) -> pd.DataFrame:
     def folder_of(tracked: str):
         parts = tracked.split("/")
         return parts[1] if len(parts) == 3 and parts[0] in ("train", "test") else None
 
-    picked = _from_git(PLANTDOC_URL, dest, folder_of, count, seed)
+    picked = _from_git(PLANTDOC_URL, dest, folder_of, count, seed, crops)
     return picked.assign(source="plantdoc_other_crops", licence="CC BY 4.0", citation=PLANTDOC_CITATION)
 
 
