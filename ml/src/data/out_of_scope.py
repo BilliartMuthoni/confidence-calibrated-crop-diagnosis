@@ -8,8 +8,9 @@ Sources:
 
 - iBean (Makerere University AI Lab, Uganda): smartphone photos of bean leaves taken in
   farmers' fields (angular leaf spot, bean rust, healthy). MIT licence
-  (github.com/AI-Lab-Makerere/ibean). Downloaded from the dataset's own storage, the files
-  TensorFlow Datasets uses.
+  (github.com/AI-Lab-Makerere/ibean). The dataset's own storage refuses downloads (403, 3 Nov
+  2026), so the same three zips are taken from its Hugging Face copy (AI-Lab-Makerere/beans,
+  data/*.zip, licence: mit in its card).
 - PlantVillage, other crops: the same repository as the training photos (notebook 01), only
   the folders of crops other than maize, tomato and potato (pepper, apple, grape and others).
   Lab photos in the training photos' style: the hardest case.
@@ -20,7 +21,8 @@ Sources:
   confidence for single models; no choice used them.
 
 Each source is sampled evenly across its folders with the project seed, and only the sampled
-files are downloaded.
+files are downloaded (Git repositories are listed without their files, then each sampled file is
+fetched from raw.githubusercontent.com at the listed commit).
 """
 
 import subprocess
@@ -29,13 +31,14 @@ import urllib.error
 import urllib.request
 import zipfile
 from pathlib import Path
+from urllib.parse import quote
 
 import pandas as pd
 
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff"}
 OUR_CROPS = ("corn", "maize", "tomato", "potato")
 
-IBEAN_URL = "https://storage.googleapis.com/ibeans/{split}.zip"
+IBEAN_REPO = "AI-Lab-Makerere/beans"
 IBEAN_SPLITS = ("train", "validation", "test")
 IBEAN_CITATION = ("Makerere AI Lab (2020). iBean: bean disease dataset. "
                   "https://github.com/AI-Lab-Makerere/ibean")
@@ -63,12 +66,13 @@ def _git(args: list[str], cwd: Path | None = None) -> str:
     return result.stdout
 
 
-def _fetch(url: str, target: Path, tries: int = 3) -> None:
+def _fetch(split: str, dest: Path, tries: int = 3) -> Path:
+    from huggingface_hub import hf_hub_download
+
     for attempt in range(1, tries + 1):
         try:
-            urllib.request.urlretrieve(url, target)
-            return
-        except urllib.error.URLError:
+            return Path(hf_hub_download(IBEAN_REPO, f"data/{split}.zip", repo_type="dataset", local_dir=dest))
+        except Exception:
             if attempt == tries:
                 raise
             time.sleep(5 * attempt)
@@ -78,10 +82,8 @@ def ibean(dest: Path, count: int, seed: int) -> pd.DataFrame:
     """Download the three iBean zips, then sample ``count`` photos evenly over its 3 classes."""
     rows = []
     for split in IBEAN_SPLITS:
-        archive = dest / f"{split}.zip"
-        if not archive.exists():
-            dest.mkdir(parents=True, exist_ok=True)
-            _fetch(IBEAN_URL.format(split=split), archive)
+        dest.mkdir(parents=True, exist_ok=True)
+        archive = _fetch(split, dest)
         unpacked = dest / "unpacked"
         with zipfile.ZipFile(archive) as zipped:
             zipped.extractall(unpacked)
@@ -94,25 +96,44 @@ def ibean(dest: Path, count: int, seed: int) -> pd.DataFrame:
     return picked.assign(source="ibean_bean_field", licence="MIT", citation=IBEAN_CITATION)
 
 
+def _download(url: str, target: Path, tries: int = 3) -> None:
+    for attempt in range(1, tries + 1):
+        try:
+            urllib.request.urlretrieve(url, target)
+            return
+        except urllib.error.URLError:
+            if attempt == tries:
+                raise
+            time.sleep(5 * attempt)
+
+
 def _from_git(url: str, dest: Path, folder_of, count: int, seed: int) -> pd.DataFrame:
-    """List a repository without its files, sample other-crop photos, then fetch only those."""
-    if not (dest / ".git").exists():
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        _git(["clone", "--filter=blob:none", "--no-checkout", url, str(dest)])
-    listing = _git(["ls-tree", "-r", "-z", "--name-only", "HEAD"], cwd=dest).split("\0")
+    """List a GitHub repository without its files, sample other-crop photos, then download only
+    those from raw.githubusercontent.com at the listed commit (so the sample cannot drift)."""
+    repo = dest / "repo"
+    if not (repo / ".git").exists():
+        dest.mkdir(parents=True, exist_ok=True)
+        _git(["clone", "--filter=blob:none", "--no-checkout", url, str(repo)])
+    commit = _git(["rev-parse", "HEAD"], cwd=repo).strip()
+    listing = _git(["ls-tree", "-r", "-z", "--name-only", "HEAD"], cwd=repo).split("\0")
     rows = []
     for tracked in listing:
         folder = folder_of(tracked)
         if folder and Path(tracked).suffix.lower() in IMAGE_EXTENSIONS and is_other_crop(folder):
             rows.append({"class": folder, "tracked": tracked})
-    picked = even_sample(pd.DataFrame(rows), count, seed)
-    paths = list(picked["tracked"])
-    # Literal pathspecs: PlantDoc file names are scraped URLs containing "?" and "*".
-    for start in range(0, len(paths), 100):
-        _git(["--literal-pathspecs", "checkout", "HEAD", "--", *paths[start:start + 100]], cwd=dest)
-    picked["path"] = [str(dest / p) for p in paths]
-    missing = [p for p in picked["path"] if not Path(p).exists()]
-    assert not missing, f"{len(missing)} sampled files did not download, e.g. {missing[:3]}"
+    picked = even_sample(pd.DataFrame(rows), count, seed).reset_index(drop=True)
+    owner_repo = url.removeprefix("https://github.com/").removesuffix(".git")
+    files = dest / "files"
+    files.mkdir(exist_ok=True)
+    paths = []
+    for i, tracked in enumerate(picked["tracked"]):
+        # Numbered names: PlantDoc file names are scraped URLs containing "?", "&" and "=".
+        target = files / f"{i:04d}{Path(tracked).suffix.lower()}"
+        if not target.exists():
+            _download(f"https://raw.githubusercontent.com/{owner_repo}/{commit}/{quote(tracked)}", target)
+        paths.append(str(target))
+    picked["path"] = paths
+    picked["commit"] = commit
     return picked.drop(columns="tracked")
 
 
