@@ -1,0 +1,8 @@
+set,photos,our crop,passed,correct
+our crops: validation (sets the cut-off),2385,True,0.990356394129979,0.990356394129979
+our crops: SELECTION SET (rule: >= 97% pass),3821,True,0.9267207537293902,0.9267207537293902
+our crops: test split,2441,True,0.9832036050798852,0.9832036050798852
+our crops: PlantDoc (web photos),953,True,0.7051416579223505,0.7051416579223505
+other crops: UNSEEN (rule: >= 80% refused),2735,False,0.48080438756855576,0.5191956124314443
+other crops: training crops (in-sample),2294,False,0.0,1.0
+tomato with other diseases (PlantDoc; is tomato),371,True,0.477088948787062,0.477088948787062
