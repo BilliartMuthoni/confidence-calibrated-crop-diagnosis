@@ -66,8 +66,41 @@ export async function setMyCounty({ token, county }) {
     }
 }
 
-// register and login both answer with an MFA challenge: next_step is "setup"
-// (add Sproutly to an authenticator app first) or "verify" (just enter the code).
+// register and login both answer with a challenge: next_step is "verify_email" (enter the code
+// emailed to the farmer first), "setup" (add Sproutly to an authenticator app) or "verify"
+// (just enter the authenticator code).
+
+/** The screen (and its params) for a challenge from register, login or email verify. */
+export function challengeScreen(data) {
+    const name = { verify_email: 'EmailCode', setup: 'MfaSetup' }[data.next_step] || 'MfaCode';
+    return [name, {
+        mfaToken: data.mfa_token,
+        expiresInMinutes: data.expires_in_minutes,
+        setup: data.setup,
+        email: data.email,
+        resendInSeconds: data.resend_in_seconds,
+    }];
+}
+
+/** The 6-digit code from the confirmation email; answers the next challenge (authenticator). */
+export async function verifyEmailCode({ mfaToken, code }) {
+    try {
+        const { data } = await client.post('/auth/email/verify', { mfa_token: mfaToken, code });
+        return data;
+    } catch (error) {
+        throw new Error(extractErrorMessage(error));
+    }
+}
+
+/** Send a new confirmation code (one a minute, ten a day). */
+export async function resendEmailCode({ mfaToken }) {
+    try {
+        const { data } = await client.post('/auth/email/resend', { mfa_token: mfaToken });
+        return data;
+    } catch (error) {
+        throw new Error(extractErrorMessage(error));
+    }
+}
 
 /** First code from the authenticator app; turns MFA on and logs the user in. */
 export async function confirmMfaSetup({ mfaToken, code }) {

@@ -98,7 +98,8 @@ def _find_or_create_user(db: Session, identity: oauth.Identity) -> tuple[User, O
                 raise oauth.OAuthError("failed")
             return user, identity.subject
 
-    user = User(user_email=identity.email, is_verified=True)
+    # Google confirmed the email, so no emailed code is needed (t08).
+    user = User(user_email=identity.email, is_verified=True, email_verified_at=_now() if identity.email else None)
     setattr(user, column, identity.subject)
     db.add(user)
     db.commit()
@@ -313,6 +314,9 @@ def link(request: Request, payload: OAuthLinkRequest, db: Session = Depends(get_
         _check_code(db, user, payload.code, request)
 
     setattr(user, column, subject)
+    # The account was found by this Google account's email, so Google has now confirmed it.
+    if user.email_verified_at is None:
+        user.email_verified_at = _now()
     db.commit()
     if not user.mfa_enabled:
         # Sign-up stopped before the authenticator: set it up now, as a password login would.

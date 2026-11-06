@@ -89,6 +89,10 @@ These replace the `.env` file. Generate new keys for the cloud; do not reuse the
 | `ADMIN_PORTAL_URL` | the portal's address (Cloudflare Pages) |
 | `CORS_ORIGINS` | `["https://<portal-address>"]` (a JSON list) |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | only if Continue with Google is used; add the new address in Google's console |
+| `SMTP_HOST` | `smtp.gmail.com` (email confirmation codes; without it production refuses email sign-ups) |
+| `SMTP_PORT` | `587` |
+| `SMTP_USERNAME`, `MAIL_FROM` | the support Gmail address |
+| `SMTP_PASSWORD` | a Google App Password for that address (needs 2-Step Verification on) |
 
 ### 2d. Publish profile
 

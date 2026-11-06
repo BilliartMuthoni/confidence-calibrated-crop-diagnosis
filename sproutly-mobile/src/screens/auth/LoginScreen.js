@@ -54,12 +54,9 @@ export default function LoginScreen({ navigation }) {
         setLoading(true);
         try {
             const data = await AuthService.login(authMethod === 'phone' ? { phoneNumber, password } : { email, password });
-            // Accounts without MFA yet are sent to setup; the rest just enter their code.
-            navigation.navigate(data.next_step === 'setup' ? 'MfaSetup' : 'MfaCode', {
-                mfaToken: data.mfa_token,
-                expiresInMinutes: data.expires_in_minutes,
-                setup: data.setup,
-            });
+            // An unconfirmed email gets its code first; accounts without MFA yet are sent to
+            // setup; the rest just enter their authenticator code.
+            navigation.navigate(...AuthService.challengeScreen(data));
         } catch (e) {
             setError(toFriendlyError(e));
         } finally {

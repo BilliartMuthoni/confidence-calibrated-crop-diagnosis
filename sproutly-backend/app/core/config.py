@@ -80,6 +80,19 @@ class Settings(BaseSettings):
     # was built from (sproutly-backend/model_revision.txt); "local" on a laptop.
     model_revision: str = "local"
 
+    # Email confirmation at sign-up (t08): a 6-digit code sent by SMTP (Gmail with an App Password).
+    # With no SMTP_HOST the code is written to the backend's log on a laptop; with APP_ENV=production
+    # sending is refused instead, so a missing setting can't pass unnoticed.
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_username: str = ""
+    smtp_password: str = ""
+    mail_from: str = ""
+    email_code_minutes: int = 15
+    email_code_tries: int = 5
+    email_resend_seconds: int = 60
+    email_codes_per_day: int = 10
+
     # Admin portal and staff accounts.
     # Where the portal runs: one-time links for new officers and password resets point here.
     admin_portal_url: str = "http://localhost:5173"

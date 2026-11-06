@@ -85,10 +85,34 @@ class MfaChallengeResponse(BaseModel):
 
     # "setup": confirm the first code at /auth/mfa/setup/confirm.
     # "verify": send the current code to /auth/mfa/verify.
-    next_step: Literal["setup", "verify"]
+    # "verify_email": send the code emailed to `email` to /auth/email/verify (t08).
+    next_step: Literal["setup", "verify", "verify_email"]
     mfa_token: str
     expires_in_minutes: int
     setup: Optional[MfaSetup] = None
+    # The address the code went to (verify_email only), shown on the "Check your email" screen.
+    email: Optional[str] = None
+    # Seconds before "Send a new code" may be used (verify_email only).
+    resend_in_seconds: Optional[int] = None
+
+
+class EmailCodeRequest(BaseModel):
+    """The 6-digit code from the confirmation email."""
+
+    mfa_token: str
+    code: str
+
+    @field_validator("code")
+    @classmethod
+    def code_is_six_digits(cls, v: str) -> str:
+        v = v.replace(" ", "")
+        if not v.isdigit() or len(v) != 6:
+            raise ValueError("Code must be the 6 digits in the email")
+        return v
+
+
+class EmailResendRequest(BaseModel):
+    mfa_token: str
 
 
 class TokenResponse(BaseModel):

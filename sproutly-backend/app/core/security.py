@@ -112,6 +112,18 @@ def hash_token(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
 
 
+def new_email_code() -> str:
+    """Six random digits for confirming an email."""
+    return f"{secrets.randbelow(1_000_000):06d}"
+
+
+def hash_email_code(user_id: int, code: str) -> str:
+    """Keyed hash of an email code (HMAC with the server's secret key), bound to the account, so a
+    database leak alone can't be turned back into the six digits by trying all million."""
+    message = f"{user_id}:{code}".encode()
+    return hmac.new(settings.secret_key.encode(), message, hashlib.sha256).hexdigest()
+
+
 def pkce_challenge(verifier: str) -> str:
     """PKCE (RFC 7636, S256): the challenge sent first is the hash of a verifier revealed only at the end,
     so whoever finishes the sign-in must be whoever started it."""
