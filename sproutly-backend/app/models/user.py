@@ -1,6 +1,6 @@
 import enum
 
-from sqlalchemy import Column, String, Integer, Boolean, DateTime, Enum as SqlEnum, false
+from sqlalchemy import Column, String, Integer, Boolean, Date, DateTime, Enum as SqlEnum, false
 
 from app.core.timeutil import utcnow
 from app.db.session import Base
@@ -29,6 +29,18 @@ class User(Base):
     # 30-second time step of the last accepted code, so a code can't be used twice.
     totp_last_used_step = Column(Integer, nullable=True)
     is_verified = Column(Boolean, nullable=False, default=False)
+
+    # Email confirmation (t08). Empty email_verified_at means the email was never confirmed; a
+    # farmer who signs in with it must enter the code sent there first. Staff and accounts made
+    # with Google count as confirmed. The code itself is never stored, only a keyed hash.
+    email_verified_at = Column(DateTime, nullable=True)
+    email_code_hash = Column(String, nullable=True)
+    email_code_expires = Column(DateTime, nullable=True)
+    email_code_tries = Column(Integer, nullable=False, default=0, server_default="0")
+    email_code_sent_at = Column(DateTime, nullable=True)
+    # Codes sent on email_codes_day (a UTC date); at most settings.email_codes_per_day.
+    email_codes_day = Column(Date, nullable=True)
+    email_codes_today = Column(Integer, nullable=False, default=0, server_default="0")
 
     # Staff accounts have a name; officers have the county whose referrals they answer.
     # A farmer's county decides which officers see their referrals and which contacts they get.

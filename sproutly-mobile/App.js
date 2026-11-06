@@ -13,6 +13,7 @@ import LoginScreen from './src/screens/auth/LoginScreen';
 import SignUpScreen from './src/screens/auth/SignUpScreen';
 import MfaSetupScreen from './src/screens/auth/MfaSetupScreen';
 import MfaCodeScreen from './src/screens/auth/MfaCodeScreen';
+import EmailCodeScreen from './src/screens/auth/EmailCodeScreen';
 import LinkGoogleScreen from './src/screens/auth/LinkGoogleScreen';
 
 // Splash Screen
@@ -54,6 +55,7 @@ const RootNavigator = () => {
                         <Stack.Screen name="SignUp" component={SignUpScreen} />
                         <Stack.Screen name="MfaSetup" component={MfaSetupScreen} />
                         <Stack.Screen name="MfaCode" component={MfaCodeScreen} />
+                        <Stack.Screen name="EmailCode" component={EmailCodeScreen} />
                         <Stack.Screen name="LinkGoogle" component={LinkGoogleScreen} />
                     </>
                 ) : (

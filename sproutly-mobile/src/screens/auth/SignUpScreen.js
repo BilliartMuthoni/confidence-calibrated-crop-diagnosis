@@ -63,12 +63,8 @@ export default function SignUpScreen({ navigation }) {
         setLoading(true);
         try {
             const data = await AuthService.register(authMethod === 'phone' ? { phoneNumber, password } : { email, password });
-            // The account can't log in until the authenticator app is set up.
-            navigation.navigate('MfaSetup', {
-                mfaToken: data.mfa_token,
-                expiresInMinutes: data.expires_in_minutes,
-                setup: data.setup,
-            });
+            // An email is confirmed with a code first; then the authenticator app is set up.
+            navigation.navigate(...AuthService.challengeScreen(data));
         } catch (e) {
             setError(toFriendlyError(e));
             setConfirmWithGoogle(authMethod === 'email' && /account with google/i.test(e.message));
