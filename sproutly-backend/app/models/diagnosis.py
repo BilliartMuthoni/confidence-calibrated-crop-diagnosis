@@ -57,6 +57,9 @@ class Diagnosis(Base):
     # the check later shows the wording the farmer was given, even after a correction.
     # Empty for referred checks and for checks made before this was recorded.
     advice_shown = Column(JSON, nullable=True)
+    # The app's own ID for a photo it queued with no signal (g07): if the same photo is sent
+    # again (the reply was lost on a weak connection), the first check is returned, not a second.
+    client_id = Column(String(64), nullable=True, unique=True, index=True)
 
     # Filled in once an extension officer responds to a referred case.
     officer_response = Column(Text, nullable=True)

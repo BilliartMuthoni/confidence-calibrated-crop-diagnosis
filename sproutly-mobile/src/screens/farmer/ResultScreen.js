@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import AssistantBox from '../../components/AssistantBox';
+import SavedCopyNote from '../../components/SavedCopyNote';
 import ScreenHeader from '../../components/ScreenHeader';
 import ErrorBanner from '../../components/ErrorBanner';
 import { PrimaryButton, SecondaryButton, TextButton } from '../../components/Buttons';
@@ -397,6 +398,7 @@ export default function ResultScreen({ route, navigation }) {
                 ) : null}
 
                 <View className="px-5 pt-5">
+                    {result.savedCopy && <SavedCopyNote what="this check" />}
                     {past && !result.photo_available && (
                         <Text className="text-sm mb-3 leading-5" style={{ color: COLORS.faint }}>
                             The photo is no longer kept: photos are deleted 30 days after a check.

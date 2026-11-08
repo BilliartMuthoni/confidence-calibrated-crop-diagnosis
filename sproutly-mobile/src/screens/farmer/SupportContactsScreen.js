@@ -5,6 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { AuthContext } from '../../context/AuthContext';
 import { fetchContacts } from '../../api/ContactsService';
+import SavedCopyNote from '../../components/SavedCopyNote';
 import { toFriendlyError } from '../../utils/errorMessages';
 import { loadCounty, saveCounty } from '../../utils/farmerCounty';
 import ErrorBanner from '../../components/ErrorBanner';
@@ -119,6 +120,7 @@ export default function SupportContactsScreen({ navigation, route }) {
                     </View>
                 ) : (
                     <View className="mt-2">
+                        {contacts?.savedCopy && <SavedCopyNote what="the contacts" />}
                         {(contacts || []).map((item) => (
                             <Contact key={item.id} item={item} />
                         ))}

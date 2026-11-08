@@ -23,6 +23,7 @@ export const PAGES = {
                 "Each check's result: the disease, how sure Sproutly was, and any reply from an extension officer.",
                 'If you send a case to an officer: how much of your crop you said is affected, and anything you wrote about why a result does not match what you see.',
                 "If you rate an officer's reply: whether it helped, and anything you wrote about it.",
+                'On your phone only: photos waiting for signal, and the last copy of your checks, the disease library and the support contacts, so they open without signal. They are deleted when you log out.',
                 'The questions you ask about a result and the replies you were shown, only if you chose "Keep them". You can turn this off at any time.',
                 'If you use Continue with Google: the email and account number Google gives us. Never your Google password.',
                 'If you signed up with an email: when you confirmed it with the code we sent.',
