@@ -230,6 +230,7 @@ export default function AccountScreen({ route, navigation }) {
 
                         <Group title="Help">
                             <NavRow icon="help-circle-outline" label="Help and common questions" onPress={go('Info', { page: 'help' })} />
+                            <NavRow icon="book-outline" label="Disease library" hint="Causes, spread and what to do" onPress={go('Library')} />
                             <NavRow icon="call-outline" label="Contact support" hint="Your county's agricultural contacts"
                                     onPress={() => navigation.reset({ index: 1, routes: [{ name: 'FarmerHome' }, { name: 'SupportContacts', params: { tab: true } }] })}
                                     last />

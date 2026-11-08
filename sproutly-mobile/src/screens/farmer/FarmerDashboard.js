@@ -136,6 +136,24 @@ export default function FarmerDashboard({ navigation }) {
                     <Ionicons name="chevron-forward" size={22} color="rgba(255,255,255,0.75)" />
                 </TouchableOpacity>
 
+                {/* Disease library (g08): the same card shape as the main action, but quieter. */}
+                <TouchableOpacity
+                    onPress={() => navigation.navigate('Library')}
+                    activeOpacity={0.85}
+                    accessibilityRole="button"
+                    className="mt-3 rounded-2xl px-5 py-4 flex-row items-center"
+                    style={{ backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.divider }}
+                >
+                    <Ionicons name="book-outline" size={24} color={COLORS.brand} />
+                    <View className="flex-1 ml-4">
+                        <Text className="text-base font-bold" style={{ color: COLORS.ink }}>Disease library</Text>
+                        <Text className="text-sm mt-0.5" style={{ color: COLORS.muted }}>
+                            Causes, spread and what to do
+                        </Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={20} color={COLORS.faint} />
+                </TouchableOpacity>
+
                 {/* Latest checks */}
                 <View className="flex-row items-center justify-between mt-10 mb-1">
                     <Text className="text-lg font-bold" style={{ color: COLORS.ink }}>
