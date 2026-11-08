@@ -25,6 +25,10 @@ class Referral(Base):
     status = Column(SqlEnum(ReferralStatus, name="referral_status"), nullable=False, default=ReferralStatus.new, index=True)
     created_at = Column(DateTime, nullable=False, default=utcnow)
     expires_at = Column(DateTime, nullable=False)
+    # Why the case came (t31): None = the model was not sure; "doesnt_match" = the farmer said a
+    # diagnosed result does not match what they see. farmer_note: what they wrote, if anything.
+    reason = Column(String, nullable=True)
+    farmer_note = Column(Text, nullable=True)
 
     claimed_by_id = Column(Integer, ForeignKey("users.user_id"), nullable=True)
     claimed_at = Column(DateTime, nullable=True)

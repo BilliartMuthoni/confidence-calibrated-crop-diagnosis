@@ -32,6 +32,7 @@ from app.schemas.diagnosis import (
     DiagnosisDetail,
     DiagnosisListItem,
     DiagnosisResponse,
+    DoubtRequest,
     Guidance,
     OfficerReply,
     SavedTurnItem,
@@ -375,9 +376,48 @@ def get_diagnosis(
     guidance = get_guidance(record.top_class, db, shown=record.advice_shown) if record.top_class else None
     return DiagnosisDetail(
         **common,
+        sent_to_officer=referral is not None,
         predicted_disease=record.predicted_disease,
         guidance=Guidance(**guidance) if guidance else None,
     )
+
+
+@router.post("/{diagnosis_id}/doubt", response_model=DiagnosisDetail)
+@limiter.limit("10/minute")
+def doubt_diagnosis(
+    request: Request,
+    diagnosis_id: int,
+    payload: DoubtRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """t31 (supervisor, 24 Oct): "This doesn't match what I see" on a diagnosed result. With the
+    farmer's consent the photo goes to their county's officers like a referred case, who judge
+    it before they see the model's answer and reply. The farmer's doubt is not a label: only an
+    officer's judgement is recorded, and nothing retrains the model automatically."""
+    record = _own_diagnosis(db, diagnosis_id, current_user)
+    if record.is_referred or not record.top_class:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT,
+                            detail="This check was not diagnosed; use the support contacts or send it from the result")
+    if not payload.consent:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="Tick the box to send your photo to an extension officer")
+    if db.query(Referral).filter(Referral.diagnosis_id == record.diagnosis_id).first():
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="This check has already been sent to an officer")
+    if not record.image_path or not os.path.exists(record.image_path):
+        raise HTTPException(status_code=status.HTTP_410_GONE,
+                            detail="The photo is no longer kept, so an officer cannot see it. Please use the support contacts.")
+    affected = _check_affected(payload.affected)
+    _remember_county(db, current_user, payload.county)
+    if not current_user.county:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Choose your county so the right officers see it")
+    record.share_with_officer = True
+    record.allow_contact = payload.allow_contact
+    record.affected = affected
+    note = (payload.note or "").strip() or None
+    open_referral(db, record, current_user, reason="doesnt_match", note=note)
+    db.commit()
+    return get_diagnosis(diagnosis_id, db, current_user)
 
 
 @router.get("/{diagnosis_id}/photo")

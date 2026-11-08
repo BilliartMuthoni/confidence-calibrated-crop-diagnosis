@@ -115,6 +115,20 @@ export async function askAssistant({ token, diagnosisId, question, history }) {
     }
 }
 
+/** "This doesn't match what I see" (t31): send a diagnosed check to a county officer. Resolves to the updated check. */
+export async function doubtDiagnosis({ token, diagnosisId, allowContact, county, affected, note }) {
+    try {
+        const { data } = await client.post(
+            `/diagnose/${diagnosisId}/doubt`,
+            { consent: true, allow_contact: Boolean(allowContact), county, affected, note: note?.trim() || null },
+            { headers: { Authorization: `Bearer ${token}` } }
+        );
+        return data;
+    } catch (error) {
+        throw new Error(extractErrorMessage(error));
+    }
+}
+
 /** Which model the server runs (no sign-in needed); null if the server cannot be reached. */
 export async function fetchServerVersion() {
     try {

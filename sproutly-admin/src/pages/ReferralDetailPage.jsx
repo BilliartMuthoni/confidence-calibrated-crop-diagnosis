@@ -346,6 +346,15 @@ export default function ReferralDetailPage() {
           <dl className="mt-4 divide-y divide-divider">
             <Row label="Received">{formatDate(referral.created_at)}</Row>
             <Row label="Farmer">{referral.farmer}</Row>
+            {/* t31: why it came. The model's answer stays hidden until you give your own judgement. */}
+            <Row label="Why it was sent">
+              {referral.reason === 'doesnt_match'
+                ? "The farmer says the app's diagnosis does not match what they see."
+                : 'The model was not sure enough to diagnose it.'}
+            </Row>
+            {referral.reason === 'doesnt_match' && (
+              <Row label="What they see">{referral.farmer_note ?? <span className="text-muted">Nothing written</span>}</Row>
+            )}
             <Row label="How much is affected">
               {AFFECTED[referral.affected] ?? <span className="text-muted">Not answered</span>}
               {referral.urgent && <span className="ml-2"><Badge tone="urgent">Urgent</Badge></span>}
