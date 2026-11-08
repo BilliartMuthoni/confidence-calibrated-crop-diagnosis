@@ -22,6 +22,7 @@ export default function PrivacyPage() {
         'When you agreed to these terms and this privacy policy, and which version.',
         'If you send a case to an officer: how much of your crop you said is affected, and anything you wrote about why a result does not match what you see.',
         "If you rate an officer's reply: whether it helped, and anything you wrote about it.",
+        'On your phone only: photos waiting for signal, and the last copy of your checks, the disease library and the support contacts, so they open without signal. They are deleted when you log out.',
       ]} />
       <Section title="Why" items={[
         'To check your leaf photos and show you the result.',

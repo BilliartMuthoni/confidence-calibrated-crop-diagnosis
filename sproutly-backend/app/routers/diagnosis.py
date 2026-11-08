@@ -1,4 +1,5 @@
 import os
+import re
 from dataclasses import replace
 from typing import List, Optional
 
@@ -116,11 +117,11 @@ def _response(db: Session, record: Diagnosis, prediction: Prediction) -> Diagnos
 
 def _diagnose(db: Session, user: User, crop: Optional[CropType], image_path: str,
               symptoms_text: Optional[str] = None, share: bool = False, contact: bool = False,
-              affected: Optional[str] = None) -> DiagnosisResponse:
+              affected: Optional[str] = None, client_id: Optional[str] = None) -> DiagnosisResponse:
     prediction = _hold_for_crop(predict(crop, image_path, symptoms_text))
     record = Diagnosis(user_id=user.user_id, image_path=image_path, symptoms_text=symptoms_text,
                        share_with_officer=share, allow_contact=share and contact,
-                       affected=affected if share else None)
+                       affected=affected if share else None, client_id=client_id)
     _apply(record, prediction)
     db.add(record)
     db.commit()
@@ -146,6 +147,22 @@ def _require_checks(image_path: str, allow_blurry: bool = False) -> None:
         _refuse(image_path, TOO_BLURRED)
     if not is_leaf(image_path):
         _refuse(image_path, NOT_A_LEAF)
+
+
+# A photo the app queued with no signal (g07) carries the app's own ID (a UUID).
+CLIENT_ID = re.compile(r"[A-Za-z0-9-]{8,64}")
+
+
+def _already_sent(db: Session, user: User, client_id: Optional[str]) -> Optional[Diagnosis]:
+    """The check this queued photo already made, if the app is sending it again; None if new."""
+    if not client_id:
+        return None
+    if not CLIENT_ID.fullmatch(client_id):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Not a valid photo ID")
+    existing = db.query(Diagnosis).filter(Diagnosis.client_id == client_id).first()
+    if existing and existing.user_id != user.user_id:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Not a valid photo ID")
+    return existing
 
 
 # "How much of your crop is affected?" when sharing a case (n20); "most" lists it first for officers.
@@ -182,16 +199,22 @@ def create_diagnosis(
     affected: Optional[str] = Form(None),
     # Sent by the app only after two retakes failed the blur check; the threshold still applies.
     allow_blurry: bool = Form(False),
+    # The app's ID for a photo it queued with no signal (g07): sent twice, it is checked once.
+    client_id: Optional[str] = Form(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    existing = _already_sent(db, current_user, client_id)
+    if existing:
+        return get_diagnosis(existing.diagnosis_id, db, current_user)
     _remember_county(db, current_user, county)
     affected = _check_affected(affected)
     image_path = save_clean_image(image)
     _require_checks(image_path, allow_blurry)
     # symptoms_text is stored, shown to officers, and on a referred photo reorders the crop's
     # diseases (notebook 20b); it never decides whether the farmer gets an answer.
-    return _diagnose(db, current_user, crop, image_path, symptoms_text, share_with_officer, allow_contact, affected)
+    return _diagnose(db, current_user, crop, image_path, symptoms_text, share_with_officer, allow_contact, affected,
+                     client_id)
 
 
 @router.post("/batch", response_model=BatchResponse, status_code=status.HTTP_201_CREATED)
@@ -204,6 +227,8 @@ def create_batch(
     allow_contact: bool = Form(False),
     county: Optional[str] = Form(None),
     affected: Optional[str] = Form(None),
+    # One app ID per photo, in the same order, for photos queued with no signal (g07).
+    client_ids: Optional[List[str]] = Form(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -222,6 +247,11 @@ def create_batch(
 
     results = []
     for index, image in enumerate(images):
+        client_id = client_ids[index] if client_ids and index < len(client_ids) else None
+        existing = _already_sent(db, current_user, client_id)
+        if existing:
+            results.append(BatchItem(index=index, result=get_diagnosis(existing.diagnosis_id, db, current_user)))
+            continue
         try:
             image_path = save_clean_image(image)
             _require_checks(image_path)
@@ -229,7 +259,8 @@ def create_batch(
             results.append(BatchItem(index=index, error=exc.detail))
             continue
         results.append(BatchItem(index=index, result=_diagnose(
-            db, current_user, crop, image_path, share=share_with_officer, contact=allow_contact, affected=affected)))
+            db, current_user, crop, image_path, share=share_with_officer, contact=allow_contact, affected=affected,
+            client_id=client_id)))
     return BatchResponse(results=results)
 
 

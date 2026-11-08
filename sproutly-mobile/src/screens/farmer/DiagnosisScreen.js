@@ -26,6 +26,8 @@ import { COLORS } from '../../constants/theme';
 import { showDialog } from '../../components/Dialog';
 import useKeyboardScroll from '../../utils/useKeyboardScroll';
 import { chooseOnePhoto } from '../../utils/choosePhoto';
+import { addToQueue, MAX_QUEUED } from '../../utils/offlineQueue';
+import { isOffline } from '../../utils/savedCopies';
 
 // "mixed" lets the model detect each photo's crop; the farmer can correct it on the results screen.
 const CROPS = [
@@ -244,6 +246,28 @@ export default function DiagnosisScreen({ navigation }) {
     // same photo twice (the duplicate checks in Your checks). The ref is set before anything awaits.
     const sending = useRef(false);
 
+    // No signal (g07): the photos go to the phone's queue and are sent by Home when online.
+    const saveForLater = async () => {
+        try {
+            const saved = await addToQueue({
+                photos: photos.map((p) => ({ uri: p.uri, crop: cropOf(p) === 'mixed' ? null : cropOf(p) })),
+                symptoms,
+                sharing,
+            });
+            navigation.popToTop();
+            showDialog(
+                saved ? 'Saved on your phone' : 'Too many waiting',
+                saved === 0
+                    ? `Up to ${MAX_QUEUED} checks can wait for signal. Send the waiting ones first (Home).`
+                    : saved < photos.length
+                      ? `${saved} of ${photos.length} photos were saved (up to ${MAX_QUEUED} can wait). They will be checked when you have signal.`
+                      : 'It will be checked by itself when you have signal. You can see it waiting on Home.'
+            );
+        } catch {
+            setError({ title: 'Could not save', message: 'The photo could not be saved on your phone. Try again.', retryable: false });
+        }
+    };
+
     // options.allowBlurry only from "Use this photo anyway" (a button's press event has no such field);
     // options.photo only from Retake, whose new photo is not in state yet.
     const handleSubmit = async (options) => {
@@ -272,6 +296,19 @@ export default function DiagnosisScreen({ navigation }) {
                 navigation.navigate('BatchResult', { results, imageUris, crops, sharing });
             }
         } catch (e) {
+            if (isOffline(e)) {
+                // No signal (g07): offer to keep the check and send it by itself later.
+                const many = photos.length > 1;
+                showDialog(
+                    'No signal',
+                    `Save ${many ? 'these photos' : 'this check'} on your phone? ${many ? 'They' : 'It'} will be sent and checked by itself when you have signal.`,
+                    [
+                        { text: 'Save and send later', onPress: saveForLater },
+                        { text: 'Not now', style: 'cancel' },
+                    ]
+                );
+                return;
+            }
             if (single && /too blurred/i.test(e?.message || '')) {
                 const uri = (options?.photo || photos[0]).uri;
                 setBlurredPhotos((current) => (current.includes(uri) ? current : [...current, uri]));

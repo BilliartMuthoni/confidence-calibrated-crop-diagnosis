@@ -8,6 +8,7 @@ import { toFriendlyError } from '../../utils/errorMessages';
 import ScreenHeader from '../../components/ScreenHeader';
 import ErrorBanner from '../../components/ErrorBanner';
 import { Group, NavRow } from '../../components/SettingsRows';
+import SavedCopyNote from '../../components/SavedCopyNote';
 import { COLORS, CROP_LABELS } from '../../constants/theme';
 
 const CROP_ORDER = ['maize', 'tomato', 'potato'];
@@ -43,6 +44,11 @@ export default function LibraryScreen({ navigation }) {
                     The diseases Sproutly can recognise, with what causes them and what to do. Everything is copied
                     from the sources shown on each page.
                 </Text>
+                {items?.savedCopy && (
+                    <View className="px-5">
+                        <SavedCopyNote what="the library" />
+                    </View>
+                )}
                 {error ? (
                     <View className="px-5 mt-4">
                         <ErrorBanner error={error} onRetry={load} />

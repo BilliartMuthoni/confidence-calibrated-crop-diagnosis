@@ -1,11 +1,11 @@
-import React, { useCallback, useContext, useRef, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect } from '@react-navigation/native';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { AuthContext } from '../../context/AuthContext';
-import { fetchHistory } from '../../api/DiagnosisService';
+import { fetchHistory, submitBatch, submitDiagnosis } from '../../api/DiagnosisService';
 import { acceptTerms, fetchCurrentUser } from '../../api/AuthService';
 import { showDialog } from '../../components/Dialog';
 import { toFriendlyError } from '../../utils/errorMessages';
@@ -14,6 +14,9 @@ import BottomBar from '../../components/BottomBar';
 import CheckRow from '../../components/CheckRow';
 import { COLORS } from '../../constants/theme';
 import { loadSeenReplies } from '../../utils/seenReplies';
+import QueueCard from '../../components/QueueCard';
+import SavedCopyNote from '../../components/SavedCopyNote';
+import { loadQueue, removeFromQueue, sendQueue, watchQueue } from '../../utils/offlineQueue';
 
 // Home shows the latest few; the full list is on the Your checks tab.
 const LATEST = 3;
@@ -65,16 +68,66 @@ export default function FarmerDashboard({ navigation }) {
         }
     }, [userToken, checkTerms]);
 
-    // Reload whenever the home screen comes back into view, e.g. after a new check.
+    // Checks saved with no signal (g07): shown here and sent by themselves when there is signal.
+    const [queue, setQueue] = useState([]);
+    const [sendingQueue, setSendingQueue] = useState(false);
+    useEffect(() => {
+        loadQueue().then(setQueue);
+        return watchQueue(setQueue);
+    }, []);
+
+    const sendItem = useCallback(
+        async (item) => {
+            if (item.crop) {
+                return submitDiagnosis({
+                    token: userToken,
+                    crop: item.crop,
+                    imageUri: item.uri,
+                    symptoms: item.symptoms,
+                    sharing: item.sharing,
+                    clientId: item.id,
+                });
+            }
+            // Crop not chosen ("Not sure"): the server detects it, as for several photos.
+            const { results } = await submitBatch({
+                token: userToken,
+                crop: null,
+                imageUris: [item.uri],
+                sharing: item.sharing,
+                clientIds: [item.id],
+            });
+            if (results[0]?.error) throw new Error(results[0].error);
+            return results[0].result;
+        },
+        [userToken]
+    );
+
+    const trySending = useCallback(async () => {
+        if (!(await loadQueue()).some((i) => !i.error)) return;
+        setSendingQueue(true);
+        try {
+            const { sent } = await sendQueue(sendItem);
+            if (sent) load(); // the new results appear under Latest checks
+        } finally {
+            setSendingQueue(false);
+        }
+    }, [sendItem, load]);
+
+    // Reload whenever the home screen comes back into view, e.g. after a new check; while Home is
+    // open, waiting checks are tried again every minute.
     useFocusEffect(
         useCallback(() => {
             load();
-        }, [load])
+            trySending();
+            const timer = setInterval(trySending, 60000);
+            return () => clearInterval(timer);
+        }, [load, trySending])
     );
 
     const refresh = () => {
         setRefreshing(true);
         load();
+        trySending();
     };
 
     const seeAll = () => navigation.reset({ index: 1, routes: [{ name: 'FarmerHome' }, { name: 'History', params: { tab: true } }] });
@@ -154,6 +207,9 @@ export default function FarmerDashboard({ navigation }) {
                     <Ionicons name="chevron-forward" size={20} color={COLORS.faint} />
                 </TouchableOpacity>
 
+                {/* Checks saved with no signal (g07) */}
+                <QueueCard items={queue} busy={sendingQueue} onTryNow={trySending} onRemove={removeFromQueue} />
+
                 {/* Latest checks */}
                 <View className="flex-row items-center justify-between mt-10 mb-1">
                     <Text className="text-lg font-bold" style={{ color: COLORS.ink }}>
@@ -167,6 +223,7 @@ export default function FarmerDashboard({ navigation }) {
                         </TouchableOpacity>
                     )}
                 </View>
+                {history.savedCopy && <SavedCopyNote what="your checks" />}
 
                 {loading ? (
                     <View className="py-10 items-center">

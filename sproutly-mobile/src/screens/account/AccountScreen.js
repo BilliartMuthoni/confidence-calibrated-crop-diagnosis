@@ -15,6 +15,7 @@ import { COLORS } from '../../constants/theme';
 import { APP_VERSION } from '../../constants/accountText';
 import BusyOverlay from '../../components/BusyOverlay';
 import { showDialog } from '../../components/Dialog';
+import { queuedCount } from '../../utils/offlineQueue';
 
 /**
  * The Account tab: the farmer's profile and every setting, grouped like the account pages of
@@ -104,11 +105,16 @@ export default function AccountScreen({ route, navigation }) {
         );
     };
 
-    const confirmLogout = () => {
+    const confirmLogout = async () => {
         const back = profile?.has_password
             ? 'You will need your password and a code from your authenticator app to get back in.'
             : 'You will need to continue with Google to get back in.';
-        showDialog('Log out?', back, [
+        // Photos saved with no signal (g07) are deleted on log out: say so first.
+        const waiting = await queuedCount();
+        const lost = waiting
+            ? ` ${waiting === 1 ? '1 check waiting to send' : `${waiting} checks waiting to send`} will be deleted.`
+            : '';
+        showDialog('Log out?', back + lost, [
             { text: 'Cancel', style: 'cancel' },
             { text: 'Log out', style: 'destructive', onPress: logout },
         ]);

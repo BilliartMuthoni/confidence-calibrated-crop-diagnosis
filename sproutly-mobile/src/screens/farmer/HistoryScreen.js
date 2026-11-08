@@ -5,6 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect } from '@react-navigation/native';
 import { AuthContext } from '../../context/AuthContext';
 import { fetchHistory } from '../../api/DiagnosisService';
+import SavedCopyNote from '../../components/SavedCopyNote';
 import { toFriendlyError } from '../../utils/errorMessages';
 import { parseUtc, startOfMonth, startOfWeek } from '../../utils/time';
 import ErrorBanner from '../../components/ErrorBanner';
@@ -93,6 +94,7 @@ export default function HistoryScreen({ navigation }) {
                 <Text className="text-2xl font-bold pt-4" style={{ color: COLORS.ink }}>
                     Your checks
                 </Text>
+                {history.savedCopy && <SavedCopyNote what="your checks" />}
 
                 <View
                     className="flex-row mt-4 rounded-xl p-1"

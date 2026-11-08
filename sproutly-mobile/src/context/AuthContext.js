@@ -3,6 +3,8 @@ import React, { createContext, useState, useEffect, useRef } from 'react';
 import {  } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { onSessionExpired } from '../api/session';
+import { clearSavedCopies } from '../utils/savedCopies';
+import { clearQueue } from '../utils/offlineQueue';
 import {
     clearTokens,
     endSessionOnServer,
@@ -71,6 +73,9 @@ export const AuthProvider = ({ children }) => {
             await endSessionOnServer();
             await clearTokens();
             await AsyncStorage.removeItem('userRoles');
+            // Offline copies and queued photos (g07) belong to this farmer: never to the next person.
+            await clearSavedCopies();
+            await clearQueue();
             setUserToken(null);
             setUserRoles([]);
         } catch (e) {

@@ -3,6 +3,7 @@ import axios from 'axios';
 import { API_BASE_URL } from '../constants/api';
 import { watchForExpiredSession } from './session';
 import { shrinkPhoto } from '../utils/shrinkPhoto';
+import { withSavedCopy } from '../utils/savedCopies';
 
 const client = axios.create({
     baseURL: API_BASE_URL,
@@ -22,6 +23,14 @@ function extractErrorMessage(error) {
     return error?.message || 'Something went wrong. Please try again.';
 }
 
+/** An Error with the server's message, marked offline when the request never reached the server
+ *  (no signal), so a check can be queued and a screen can show its saved copy (g07). */
+function fail(error) {
+    const e = new Error(extractErrorMessage(error));
+    e.offline = !error?.response && error?.code !== 'ERR_CANCELED';
+    return e;
+}
+
 /** The farmer's choices for a case Sproutly can't diagnose: share it with a county officer,
  *  (separately) let the officer phone them, and how much of the crop is affected. The county routes it to that county's officers. */
 function appendSharing(formData, sharing) {
@@ -33,13 +42,15 @@ function appendSharing(formData, sharing) {
 }
 
 /** allowBlurry: only after two retakes failed the blur check; the server still refers an unsure photo. */
-export async function submitDiagnosis({ token, crop, imageUri, symptoms, sharing, allowBlurry = false }) {
+export async function submitDiagnosis({ token, crop, imageUri, symptoms, sharing, allowBlurry = false, clientId }) {
     try {
         const formData = new FormData();
         formData.append('crop', crop);
         if (symptoms?.trim()) formData.append('symptoms_text', symptoms.trim());
         appendSharing(formData, sharing);
         if (allowBlurry) formData.append('allow_blurry', 'true');
+        // A photo queued with no signal (g07): sent twice, the server checks it once.
+        if (clientId) formData.append('client_id', clientId);
         formData.append('image', {
             uri: await shrinkPhoto(imageUri),
             name: 'leaf.jpg',
@@ -54,7 +65,7 @@ export async function submitDiagnosis({ token, crop, imageUri, symptoms, sharing
         });
         return data;
     } catch (error) {
-        throw new Error(extractErrorMessage(error));
+        throw fail(error);
     }
 }
 
@@ -62,11 +73,12 @@ export async function submitDiagnosis({ token, crop, imageUri, symptoms, sharing
  * Several photos at once. crop is 'maize' | 'tomato' | 'potato' for all photos, or null to
  * let the backend detect each photo's crop. Resolves to { results: [{ index, result, error }] }.
  */
-export async function submitBatch({ token, crop, imageUris, sharing }) {
+export async function submitBatch({ token, crop, imageUris, sharing, clientIds }) {
     try {
         const formData = new FormData();
         if (crop) formData.append('crop', crop);
         appendSharing(formData, sharing);
+        (clientIds || []).forEach((id) => formData.append('client_ids', id));
         // One at a time: shrinking ten full-size photos at once can run a cheap phone out of memory.
         for (const [i, uri] of imageUris.entries()) {
             formData.append('images', { uri: await shrinkPhoto(uri), name: `leaf-${i + 1}.jpg`, type: 'image/jpeg' });
@@ -82,7 +94,7 @@ export async function submitBatch({ token, crop, imageUris, sharing }) {
         });
         return data;
     } catch (error) {
-        throw new Error(extractErrorMessage(error));
+        throw fail(error);
     }
 }
 
@@ -96,7 +108,7 @@ export async function correctCrop({ token, diagnosisId, crop }) {
         );
         return data;
     } catch (error) {
-        throw new Error(extractErrorMessage(error));
+        throw fail(error);
     }
 }
 
@@ -111,7 +123,7 @@ export async function askAssistant({ token, diagnosisId, question, history }) {
         );
         return data;
     } catch (error) {
-        throw new Error(extractErrorMessage(error));
+        throw fail(error);
     }
 }
 
@@ -125,7 +137,7 @@ export async function doubtDiagnosis({ token, diagnosisId, allowContact, county,
         );
         return data;
     } catch (error) {
-        throw new Error(extractErrorMessage(error));
+        throw fail(error);
     }
 }
 
@@ -139,7 +151,7 @@ export async function rateReply({ token, diagnosisId, helpful, reason, note }) {
         );
         return data;
     } catch (error) {
-        throw new Error(extractErrorMessage(error));
+        throw fail(error);
     }
 }
 
@@ -155,36 +167,42 @@ export async function fetchServerVersion() {
 
 /** The disease library (g08): every result with its sourced advice, grouped by crop. */
 export async function fetchLibrary({ token }) {
-    try {
-        const { data } = await client.get('/library', { headers: { Authorization: `Bearer ${token}` } });
-        return data;
-    } catch (error) {
-        throw new Error(extractErrorMessage(error));
-    }
+    return withSavedCopy('library', async () => {
+        try {
+            const { data } = await client.get('/library', { headers: { Authorization: `Bearer ${token}` } });
+            return data;
+        } catch (error) {
+            throw fail(error);
+        }
+    });
 }
 
 export async function fetchHistory({ token }) {
-    try {
-        const { data } = await client.get('/diagnose/history', {
-            headers: { Authorization: `Bearer ${token}` },
-        });
-        return data;
-    } catch (error) {
-        throw new Error(extractErrorMessage(error));
-    }
+    return withSavedCopy('history', async () => {
+        try {
+            const { data } = await client.get('/diagnose/history', {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            return data;
+        } catch (error) {
+            throw fail(error);
+        }
+    });
 }
 
 /** One past check with everything about it: the result and advice, what the farmer described,
  *  the referral and the officer's reply. */
 export async function fetchDiagnosis({ token, diagnosisId }) {
-    try {
-        const { data } = await client.get(`/diagnose/${diagnosisId}`, {
-            headers: { Authorization: `Bearer ${token}` },
-        });
-        return data;
-    } catch (error) {
-        throw new Error(extractErrorMessage(error));
-    }
+    return withSavedCopy(`check.${diagnosisId}`, async () => {
+        try {
+            const { data } = await client.get(`/diagnose/${diagnosisId}`, {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            return data;
+        } catch (error) {
+            throw fail(error);
+        }
+    });
 }
 
 /** Image source for a check's photo: it is private, so the request carries the sign-in token. */
@@ -204,6 +222,6 @@ export async function fetchDiagnosisPhoto({ token, diagnosisId }) {
             reader.readAsDataURL(data);
         });
     } catch (error) {
-        throw new Error(extractErrorMessage(error));
+        throw fail(error);
     }
 }
