@@ -129,6 +129,20 @@ export async function doubtDiagnosis({ token, diagnosisId, allowContact, county,
     }
 }
 
+/** "Was this helpful?" on an officer's reply (PR C). Resolves to the updated check. */
+export async function rateReply({ token, diagnosisId, helpful, reason, note }) {
+    try {
+        const { data } = await client.post(
+            `/diagnose/${diagnosisId}/reply-feedback`,
+            { helpful, reason: helpful ? null : reason || null, note: helpful ? null : note?.trim() || null },
+            { headers: { Authorization: `Bearer ${token}` } }
+        );
+        return data;
+    } catch (error) {
+        throw new Error(extractErrorMessage(error));
+    }
+}
+
 /** Which model the server runs (no sign-in needed); null if the server cannot be reached. */
 export async function fetchServerVersion() {
     try {

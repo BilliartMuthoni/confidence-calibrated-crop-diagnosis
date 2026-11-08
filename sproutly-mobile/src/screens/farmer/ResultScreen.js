@@ -1,5 +1,5 @@
 import React, { useCallback, useContext, useEffect, useRef, useState } from 'react';
-import { View, Text, ScrollView, Image, Linking, KeyboardAvoidingView, Keyboard, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, Image, Linking, KeyboardAvoidingView, Keyboard, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
@@ -8,7 +8,7 @@ import ScreenHeader from '../../components/ScreenHeader';
 import ErrorBanner from '../../components/ErrorBanner';
 import { PrimaryButton, SecondaryButton, TextButton } from '../../components/Buttons';
 import { AuthContext } from '../../context/AuthContext';
-import { fetchDiagnosis, fetchDiagnosisPhoto } from '../../api/DiagnosisService';
+import { fetchDiagnosis, fetchDiagnosisPhoto, rateReply } from '../../api/DiagnosisService';
 import { toFriendlyError } from '../../utils/errorMessages';
 import { markReplySeen } from '../../utils/seenReplies';
 import { fullDateLabel, whenLabel } from '../../utils/time';
@@ -81,8 +81,112 @@ function OfficerNote({ children }) {
     );
 }
 
+// "Was this helpful?" on an officer's reply (PR C): what went wrong, when it was not.
+const FEEDBACK_REASONS = [
+    ['not_answered', "It didn't answer my question"],
+    ['did_not_work', "The advice didn't work"],
+    ['other', 'Something else'],
+];
+
+/** A small outlined pill, the same as the topic pills elsewhere; filled when chosen. */
+function Pill({ label, chosen, onPress, disabled }) {
+    return (
+        <TouchableOpacity
+            onPress={onPress}
+            disabled={disabled}
+            accessibilityRole="button"
+            accessibilityState={{ selected: chosen }}
+            className="mr-2 mb-2 px-4 py-2 rounded-full"
+            style={{ borderWidth: 1, borderColor: COLORS.referral, backgroundColor: chosen ? COLORS.referral : 'transparent' }}
+        >
+            <Text className="text-sm font-semibold" style={{ color: chosen ? '#FFFFFF' : COLORS.referral }}>
+                {label}
+            </Text>
+        </TouchableOpacity>
+    );
+}
+
+/** Under an officer's reply: the farmer says whether it helped (and may change it later). */
+function ReplyFeedbackBox({ diagnosisId, rating, onRated }) {
+    const { userToken } = useContext(AuthContext);
+    const [editing, setEditing] = useState(!rating);
+    const [notHelpful, setNotHelpful] = useState(false);
+    const [reason, setReason] = useState(null);
+    const [note, setNote] = useState('');
+    const [busy, setBusy] = useState(false);
+    const [error, setError] = useState(null);
+
+    const send = async (helpful) => {
+        setBusy(true);
+        setError(null);
+        try {
+            const updated = await rateReply({ token: userToken, diagnosisId, helpful, reason, note });
+            onRated(updated);
+            setEditing(false);
+            setNotHelpful(false);
+        } catch (e) {
+            setError(toFriendlyError(e).message);
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    if (!editing) {
+        return (
+            <Text className="text-sm mt-3 leading-5" style={{ color: COLORS.muted }}>
+                {rating === 'helpful' ? 'You said this reply was helpful. ' : 'You said this reply was not helpful. '}
+                <Text className="font-bold" style={{ color: COLORS.referral }} onPress={() => setEditing(true)} accessibilityRole="button">
+                    Change
+                </Text>
+            </Text>
+        );
+    }
+    return (
+        <View className="mt-3 pt-3" style={{ borderTopWidth: 1, borderTopColor: '#C9DAEC' }}>
+            <Text className="text-sm font-bold mb-2" style={{ color: COLORS.ink }}>
+                Was this helpful?
+            </Text>
+            <View className="flex-row flex-wrap">
+                <Pill label="Yes" onPress={() => send(true)} disabled={busy} />
+                <Pill label="No" chosen={notHelpful} onPress={() => setNotHelpful(true)} disabled={busy} />
+            </View>
+            {notHelpful && (
+                <>
+                    <Text className="text-sm font-semibold mt-1 mb-2" style={{ color: COLORS.ink }}>
+                        What went wrong?
+                    </Text>
+                    <View className="flex-row flex-wrap">
+                        {FEEDBACK_REASONS.map(([value, label]) => (
+                            <Pill key={value} label={label} chosen={reason === value} onPress={() => setReason(value)} disabled={busy} />
+                        ))}
+                    </View>
+                    <TextInput
+                        className="mt-1 rounded-xl px-4 py-3 text-base"
+                        style={{ backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.divider, color: COLORS.text, minHeight: 72 }}
+                        placeholder="Tell us more (optional)"
+                        placeholderTextColor={COLORS.faint}
+                        multiline
+                        textAlignVertical="top"
+                        maxLength={300}
+                        value={note}
+                        onChangeText={setNote}
+                    />
+                    <View className="flex-row mt-2">
+                        <Pill label={busy ? 'Sending…' : 'Send'} chosen onPress={() => send(false)} disabled={busy || !reason} />
+                    </View>
+                </>
+            )}
+            {error && (
+                <Text className="text-sm mt-1" style={{ color: COLORS.disease }}>
+                    {error}
+                </Text>
+            )}
+        </View>
+    );
+}
+
 /** The officer's reply as it was sent: their message, any advice they attached, who and when. */
-function OfficerReply({ reply }) {
+function OfficerReply({ reply, diagnosisId, onRated }) {
     const signed = [reply.officer, reply.replied_at && `replied ${whenLabel(reply.replied_at)}`].filter(Boolean).join(', ');
     return (
         <OfficerNote>
@@ -105,6 +209,10 @@ function OfficerReply({ reply }) {
                     {signed}
                 </Text>
             ) : null}
+            {/* Replies sent through the portal can be rated; older text-only replies have no date. */}
+            {onRated && reply.replied_at && (
+                <ReplyFeedbackBox diagnosisId={diagnosisId} rating={reply.rating} onRated={onRated} />
+            )}
         </OfficerNote>
     );
 }
@@ -217,6 +325,8 @@ export default function ResultScreen({ route, navigation }) {
             notDiagnosed: Boolean(result.is_referred),
             resultParams: route.params,
         });
+    // The farmer rated the officer's reply (PR C): show the check as the server now has it.
+    const rated = (updated) => setResult((current) => ({ ...current, ...updated }));
     // A new photo for a not-diagnosed check: the check screen (t47).
     const retake = () => navigation.navigate('Diagnosis');
 
@@ -321,7 +431,7 @@ export default function ResultScreen({ route, navigation }) {
                     {referred ? (
                         <>
                             {result.officer_reply ? (
-                                <OfficerReply reply={result.officer_reply} />
+                                <OfficerReply reply={result.officer_reply} diagnosisId={result.diagnosis_id} onRated={rated} />
                             ) : (
                                 <ReferralState result={result} past={past} />
                             )}
@@ -364,7 +474,7 @@ export default function ResultScreen({ route, navigation }) {
                         <>
                             {/* Sent with "This doesn't match what I see" (t31): the officer's reply, or that it is waiting. */}
                             {result.officer_reply ? (
-                                <OfficerReply reply={result.officer_reply} />
+                                <OfficerReply reply={result.officer_reply} diagnosisId={result.diagnosis_id} onRated={rated} />
                             ) : result.sent_to_officer ? (
                                 <ReferralState result={result} past={past} />
                             ) : null}

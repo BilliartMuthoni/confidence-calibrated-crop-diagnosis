@@ -3,6 +3,7 @@ import {
   IoBookOutline,
   IoCallOutline,
   IoChatbubblesOutline,
+  IoCheckmarkDoneOutline,
   IoGridOutline,
   IoListOutline,
   IoMenuOutline,
@@ -21,6 +22,7 @@ const PAGES = {
   overview: { to: '/', label: 'Overview', short: 'Overview', icon: IoGridOutline },
   referrals: { to: '/referrals', label: 'Referrals', short: 'Referrals', icon: IoChatbubblesOutline },
   audit: { to: '/audit', label: 'Audit log', short: 'Audit', icon: IoListOutline },
+  replies: { to: '/replies', label: 'Officer replies', short: 'Replies', icon: IoCheckmarkDoneOutline },
   users: { to: '/users', label: 'Users', short: 'Users', icon: IoPeopleOutline },
   contacts: { to: '/contacts', label: 'County contacts', short: 'Contacts', icon: IoCallOutline },
   advice: { to: '/advice', label: 'Advice library', short: 'Advice', icon: IoBookOutline },
@@ -30,7 +32,7 @@ const PAGES = {
 
 const GROUPS = {
   admin: [
-    ['Monitoring', ['overview', 'referrals', 'audit']],
+    ['Monitoring', ['overview', 'referrals', 'replies', 'audit']],
     ['Manage', ['users', 'contacts', 'advice', 'model']],
   ],
   officer: [['Work', ['referrals', 'contacts', 'advice']]],

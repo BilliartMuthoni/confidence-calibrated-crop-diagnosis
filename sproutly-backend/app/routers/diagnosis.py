@@ -17,6 +17,7 @@ from app.core.knowledge_base import display_name, get_guidance
 from app.core.leaf_check import NOT_A_LEAF, is_leaf
 from app.core.limiter import limiter
 from app.core.referrals import expire_overdue, open_referral
+from app.core.timeutil import utcnow
 from app.db.session import get_db
 from app.models.diagnosis import CropType, Diagnosis
 from app.models.referral import Referral
@@ -34,6 +35,7 @@ from app.schemas.diagnosis import (
     DiagnosisResponse,
     DoubtRequest,
     Guidance,
+    ReplyFeedback,
     OfficerReply,
     SavedTurnItem,
 )
@@ -335,7 +337,7 @@ def _officer_reply(db: Session, referral: Optional[Referral], record: Diagnosis)
             for a in referral.reply_advice or []
         ]
         return OfficerReply(text=referral.reply_text or "", officer=audit.label(officer) if officer else "",
-                            replied_at=referral.replied_at, advice=advice)
+                            replied_at=referral.replied_at, advice=advice, rating=referral.farmer_rating)
     if record.officer_response:
         return OfficerReply(text=record.officer_response, officer="", replied_at=record.responded_at)
     return None
@@ -420,6 +422,29 @@ def doubt_diagnosis(
     note = (payload.note or "").strip() or None
     # Not diagnosed (t47: sent later): an ordinary "model was not sure" case.
     open_referral(db, record, current_user, reason=None if record.is_referred else "doesnt_match", note=note)
+    db.commit()
+    return get_diagnosis(diagnosis_id, db, current_user)
+
+
+@router.post("/{diagnosis_id}/reply-feedback", response_model=DiagnosisDetail)
+@limiter.limit("20/minute")
+def reply_feedback(
+    request: Request,
+    diagnosis_id: int,
+    payload: ReplyFeedback,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """PR C (i08): "Was this helpful?" on an officer's reply to one of the farmer's own checks.
+    The farmer can change their answer; admins see it on the Officer replies page."""
+    record = _own_diagnosis(db, diagnosis_id, current_user)
+    referral = db.query(Referral).filter(Referral.diagnosis_id == record.diagnosis_id).first()
+    if not referral or not referral.replied_at:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="There is no officer's reply to rate yet")
+    referral.farmer_rating = "helpful" if payload.helpful else "not_helpful"
+    referral.feedback_reason = None if payload.helpful else payload.reason
+    referral.feedback_note = None if payload.helpful else ((payload.note or "").strip() or None)
+    referral.rated_at = utcnow()
     db.commit()
     return get_diagnosis(diagnosis_id, db, current_user)
 

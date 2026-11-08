@@ -355,6 +355,12 @@ export default function ReferralDetailPage() {
             {referral.reason === 'doesnt_match' && (
               <Row label="What they see">{referral.farmer_note ?? <span className="text-muted">Nothing written</span>}</Row>
             )}
+            {referral.farmer_rating && (
+              <Row label="Farmer's rating of the reply">
+                {referral.farmer_rating === 'helpful' ? 'Helpful' : 'Not helpful'}
+                {referral.feedback_note && <span className="text-muted"> - "{referral.feedback_note}"</span>}
+              </Row>
+            )}
             <Row label="How much is affected">
               {AFFECTED[referral.affected] ?? <span className="text-muted">Not answered</span>}
               {referral.urgent && <span className="ml-2"><Badge tone="urgent">Urgent</Badge></span>}

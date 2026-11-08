@@ -165,6 +165,11 @@ export function listAudit(token) {
   return apiFetch('/admin/audit', { token })
 }
 
+// Officer replies (PR C): answered cases, read only, admins only.
+export function listReplyReview(token) {
+  return apiFetch('/admin/reply-review', { token })
+}
+
 // -------------------------------------------------------------------------- advice
 
 export function listAdvice(token) {
