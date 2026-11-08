@@ -56,6 +56,8 @@ const RootNavigator = () => {
                         <Stack.Screen name="MfaSetup" component={MfaSetupScreen} />
                         <Stack.Screen name="MfaCode" component={MfaCodeScreen} />
                         <Stack.Screen name="EmailCode" component={EmailCodeScreen} />
+                        {/* Terms of use and Privacy policy, readable before signing up. */}
+                        <Stack.Screen name="Info" component={InfoScreen} />
                         <Stack.Screen name="LinkGoogle" component={LinkGoogleScreen} />
                     </>
                 ) : (

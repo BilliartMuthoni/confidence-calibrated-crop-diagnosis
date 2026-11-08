@@ -36,6 +36,8 @@ class RegisterRequest(_RequiresIdentifier):
     password: str
     # Decides which officers see the farmer's referrals and which support contacts they get.
     county: Optional[str] = None
+    # The tick-box "I agree to the Terms of use and Privacy policy" (t50); sign-up needs it.
+    accept_terms: bool = False
 
     @field_validator("password")
     @classmethod
@@ -224,6 +226,10 @@ class CurrentUserResponse(BaseModel):
     google_connected: bool = False
     # Keep assistant questions with the checks? None until the farmer is asked.
     keep_questions: Optional[bool] = None
+    # Terms (t50): the version agreed to, and whether it is the current one. False: the app
+    # asks once ("I agree") before going on. Always true for staff.
+    terms_version: Optional[str] = None
+    terms_current: bool = True
 
     model_config = {"from_attributes": True}
 

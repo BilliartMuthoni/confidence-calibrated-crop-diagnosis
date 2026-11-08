@@ -345,6 +345,10 @@ def _unused_sign_up(db: Session, user: User) -> bool:
 @router.post("/register", response_model=MfaChallengeResponse, status_code=status.HTTP_201_CREATED)
 @limiter.limit("5/minute")
 def register(request: Request, payload: RegisterRequest, db: Session = Depends(get_db)):
+    if not payload.accept_terms:
+        # Checked here too, so the tick-box can't be skipped by calling the API directly.
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="Please agree to the Terms of use and Privacy policy to sign up")
     if payload.phone_number and payload.email:
         # One sign-in name per sign-up, so an email can't ride along unconfirmed with a phone.
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
@@ -377,6 +381,7 @@ def register(request: Request, payload: RegisterRequest, db: Session = Depends(g
             county=payload.county,
         )
         db.add(user)
+    _record_terms(user)
     db.commit()
     db.refresh(user)
 
@@ -511,13 +516,30 @@ def verify_backup_code(request: Request, payload: BackupCodeLoginRequest, db: Se
     return _signed_in(db, user, request, f"With a backup code ({len(unused) - 1} left)")
 
 
+def _record_terms(user: User) -> None:
+    """The farmer agreed to the current terms of use and privacy policy (t50). The caller commits."""
+    user.terms_version = settings.terms_version
+    user.terms_accepted_at = utcnow()
+
+
 def _me(user: User) -> CurrentUserResponse:
     """The account, plus which ways in it has, so the app shows only the settings that apply."""
     return CurrentUserResponse.model_validate(user).model_copy(update={
         "has_password": bool(user.hashed_password),
         "mfa_enabled": bool(user.mfa_enabled),
         "google_connected": user.google_id is not None,
+        "terms_current": _is_staff(user) or user.terms_version == settings.terms_version,
     })
+
+
+@router.post("/me/terms", response_model=CurrentUserResponse)
+@limiter.limit("10/minute")
+def accept_terms(request: Request, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """"I agree" to the current terms of use and privacy policy: for accounts made before the
+    tick-box, Google sign-ups, and everyone again after the terms change."""
+    _record_terms(current_user)
+    db.commit()
+    return _me(current_user)
 
 
 @router.get("/me", response_model=CurrentUserResponse)

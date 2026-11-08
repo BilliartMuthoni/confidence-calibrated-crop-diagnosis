@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { AuthContext } from '../context/AuthContext';
 import { signInWith } from '../api/oauth';
+import * as AuthService from '../api/AuthService';
 import { toFriendlyError } from '../utils/errorMessages';
 import ErrorBanner from './ErrorBanner';
 import BusyOverlay from './BusyOverlay';
@@ -17,7 +18,7 @@ const PROVIDERS = {
  * onSignedIn, if given, receives the tokens of a plain Google sign-in instead of logging in
  * (sign-up uses it to add a password to a Google account once Google has confirmed who it is).
  */
-export default function SocialSignIn({ navigation, onSignedIn }) {
+export default function SocialSignIn({ navigation, onSignedIn, disabled = false, agreedToTerms = false }) {
     const { login } = useContext(AuthContext);
     // Google is switched on wherever Sproutly runs, so the button is part of the page from the
     // first frame. (It used to wait for the backend to list the options, and popped in late.)
@@ -57,6 +58,11 @@ export default function SocialSignIn({ navigation, onSignedIn }) {
                 await onSignedIn(tokens);
                 return;
             }
+            if (agreedToTerms) {
+                // Ticked on the sign-up screen: record it now, so Home doesn't ask again.
+                // If it fails, Home simply asks once.
+                await AuthService.acceptTerms({ token: tokens.access_token }).catch(() => {});
+            }
             await login(tokens.access_token, [tokens.role], tokens.refresh_token);
         } catch (e) {
             setError(toFriendlyError(e));
@@ -78,9 +84,10 @@ export default function SocialSignIn({ navigation, onSignedIn }) {
                 <TouchableOpacity
                     key={provider}
                     onPress={() => start(provider)}
-                    disabled={busy !== null}
+                    disabled={busy !== null || disabled}
                     accessibilityRole="button"
-                    className={`border border-white/20 py-4 rounded-2xl items-center flex-row justify-center mb-3 ${busy && busy !== provider ? 'opacity-50' : ''}`}
+                    accessibilityState={{ disabled: busy !== null || disabled }}
+                    className={`border border-white/20 py-4 rounded-2xl items-center flex-row justify-center mb-3 ${(busy && busy !== provider) || disabled ? 'opacity-50' : ''}`}
                 >
                     {busy === provider ? (
                         <ActivityIndicator color="#FFFFFF" />

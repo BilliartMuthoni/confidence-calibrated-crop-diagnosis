@@ -21,7 +21,8 @@ function extractErrorMessage(error) {
 
 export async function register({ phoneNumber, email, password }) {
     try {
-        const payload = { password };
+        // Only called once the farmer has ticked "I agree to the Terms of use and Privacy policy".
+        const payload = { password, accept_terms: true };
         if (phoneNumber) payload.phone_number = phoneNumber;
         if (email) payload.email = email;
         const { data } = await client.post('/auth/register', payload);
@@ -217,6 +218,11 @@ export function locateCounty({ token, latitude, longitude }) {
 /** Keep the questions asked about results (true) or stop keeping new ones (false). Answers the profile. */
 export function setKeepQuestions({ token, keep }) {
     return authorizedPost('/auth/me/privacy', token, { keep_questions: keep });
+}
+
+/** "I agree" to the current Terms of use and Privacy policy. Answers the profile. */
+export function acceptTerms({ token }) {
+    return authorizedPost('/auth/me/terms', token, {});
 }
 
 /** Delete every kept question on all checks; the checks themselves stay. */
