@@ -153,6 +153,18 @@ KNOWLEDGE_BASE = {
 }
 
 
+# n20: our own fixed wording (not an excerpt) for diseases that can destroy a field in days.
+# Backed by Plantwise 20157800231: "In cold and wet weather, the disease can kill the whole
+# field of plants within 2-3 days." Shown above the advice and under the assistant's advice.
+FAST_SPREADING = ("Potato___Late_blight", "Tomato___Late_blight")
+FAST_SPREAD_WARNING = ("Late blight can spread fast in wet weather. If you see it spreading, contact your "
+                       "extension officer now.")
+
+
+def warning_for(class_name: str):
+    return FAST_SPREAD_WARNING if class_name in FAST_SPREADING else None
+
+
 def display_name(class_name: str) -> str:
     return KNOWLEDGE_BASE.get(class_name, {}).get("name", class_name)
 
@@ -166,6 +178,7 @@ def get_guidance(class_name: str, db: Optional[Session] = None):
         return None
     guidance = {key: entry[key] for key in ("summary", "treatment", "prevention")}
     guidance["sources"] = []
+    guidance["warning"] = warning_for(class_name)
     if db is not None:
         library = (
             db.query(AdviceEntry)

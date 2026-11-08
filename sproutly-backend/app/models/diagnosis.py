@@ -49,6 +49,9 @@ class Diagnosis(Base):
     # and (separately) let the officer phone them.
     share_with_officer = Column(Boolean, nullable=False, default=False, server_default=false())
     allow_contact = Column(Boolean, nullable=False, default=False, server_default=false())
+    # The farmer's answer to "How much of your crop is affected?" when sharing (n20): few, patch
+    # or most; empty if not answered. "most" lists the case first for officers.
+    affected = Column(String, nullable=True)
 
     # Filled in once an extension officer responds to a referred case.
     officer_response = Column(Text, nullable=True)

@@ -29,11 +29,13 @@ function State({ referral: r }) {
   return <Badge tone={left.urgent ? 'urgent' : 'neutral'}>{left.text}</Badge>
 }
 
-// Time left: open cases with the least time left first; closed ones newest first.
+// Time left: open cases the farmer marked "most of the field" first (urgent, n20), then the
+// least time left; closed ones newest first.
 const byUrgency = (a, b) => {
   const aOpen = OPEN.includes(a.status)
   const bOpen = OPEN.includes(b.status)
   if (aOpen !== bOpen) return aOpen ? -1 : 1
+  if (a.urgent !== b.urgent) return a.urgent ? -1 : 1
   return aOpen
     ? parseUtc(a.expires_at) - parseUtc(b.expires_at)
     : parseUtc(b.created_at) - parseUtc(a.created_at)
@@ -123,7 +125,10 @@ export default function ReferralsPage() {
                     </td>
                     {isAdmin && <td className="px-4 py-3">{r.county}</td>}
                     <td className="whitespace-nowrap px-4 py-3 text-muted">{timeAgo(r.created_at)}</td>
-                    <td className="px-4 py-3 text-muted">{r.symptoms_text ? 'Photo and description' : 'Photo only'}</td>
+                    <td className="px-4 py-3 text-muted">
+                      {r.symptoms_text ? 'Photo and description' : 'Photo only'}
+                      {r.urgent && <span className="mt-1 block"><Badge tone="urgent">Urgent: most of the field</Badge></span>}
+                    </td>
                     <td className="px-4 py-3"><State referral={r} /></td>
                     <td className="px-4 py-3"><Who referral={r} meId={user.id} /></td>
                   </tr>

@@ -6,6 +6,9 @@ import {
 } from '../api/admin.js'
 import { useAuth } from '../auth/context.js'
 import { Badge, Button, ErrorBox, Loading, inputClass } from '../components/ui.jsx'
+
+// The farmer's own answer when sharing (n20); "Most of the field" lists the case first.
+const AFFECTED = { few: 'A few plants', patch: 'A patch of the field', most: 'Most of the field' }
 import {
   CROP_PREFIX, CROPS, DISEASES, JUDGEMENTS, diseaseName, formatDate, judgementName, percent, timeLeft,
 } from '../lib/format.js'
@@ -343,6 +346,10 @@ export default function ReferralDetailPage() {
           <dl className="mt-4 divide-y divide-divider">
             <Row label="Received">{formatDate(referral.created_at)}</Row>
             <Row label="Farmer">{referral.farmer}</Row>
+            <Row label="How much is affected">
+              {AFFECTED[referral.affected] ?? <span className="text-muted">Not answered</span>}
+              {referral.urgent && <span className="ml-2"><Badge tone="urgent">Urgent</Badge></span>}
+            </Row>
             <Row label="What they described">{referral.symptoms_text ?? <span className="text-muted">Nothing written</span>}</Row>
             <Row label="Phone">
               {referral.contact_consent

@@ -12,6 +12,9 @@ class Guidance(BaseModel):
     prevention: List[str]
     # Where the advice comes from, when it is from the reviewed advice library.
     sources: List[str] = []
+    # A fixed warning shown above the advice for a disease that can spread very fast
+    # (late blight, n20); None for every other result.
+    warning: Optional[str] = None
 
 
 class DiagnosisResponse(BaseModel):
@@ -82,6 +85,8 @@ class AssistantReply(BaseModel):
     advice: List[AdviceItem] = []
     # Replies the app offers as buttons when the assistant asks a question.
     choices: List[str] = []
+    # Late blight advice: the fixed "can spread fast" note, shown with the support contacts (n20).
+    warning: Optional[str] = None
     # The farmer's choice about keeping their questions: None until asked (the app then asks
     # once), True when this question and reply were kept with the check.
     keep_questions: Optional[bool] = None

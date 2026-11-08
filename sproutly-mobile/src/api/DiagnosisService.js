@@ -23,12 +23,13 @@ function extractErrorMessage(error) {
 }
 
 /** The farmer's choices for a case Sproutly can't diagnose: share it with a county officer,
- *  and (separately) let the officer phone them. The county routes it to that county's officers. */
+ *  (separately) let the officer phone them, and how much of the crop is affected. The county routes it to that county's officers. */
 function appendSharing(formData, sharing) {
     if (!sharing?.share) return;
     formData.append('share_with_officer', 'true');
     if (sharing.contact) formData.append('allow_contact', 'true');
     if (sharing.county) formData.append('county', sharing.county);
+    if (sharing.affected) formData.append('affected', sharing.affected);
 }
 
 /** allowBlurry: only after two retakes failed the blur check; the server still refers an unsure photo. */

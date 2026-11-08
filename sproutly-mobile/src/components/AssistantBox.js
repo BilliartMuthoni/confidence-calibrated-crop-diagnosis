@@ -19,7 +19,7 @@ function splitSource(source) {
 function Reply({ reply, onChoice, onSupport, busy }) {
     // Off-topic, greetings and thanks offer topic buttons instead; a person who may be hurt gets
     // a call button (999, Kenya's emergency line), never the officer.
-    const toOfficer = reply.kind === 'officer' || reply.kind === 'unavailable';
+    const toOfficer = reply.kind === 'officer' || reply.kind === 'unavailable' || Boolean(reply.warning);
     const emergency = reply.kind === 'safety' && reply.choices.length === 0;
     // One source line under the list, not a link under every line.
     const sources = [...new Set(reply.advice.map((item) => item.source))].map(splitSource);
@@ -74,6 +74,12 @@ function Reply({ reply, onChoice, onSupport, busy }) {
                         </TouchableOpacity>
                     ))}
                 </View>
+            )}
+            {reply.warning && (
+                // Late blight (n20): a fixed note under the advice, with the support contacts below.
+                <Text className="text-base font-semibold leading-6 mt-3" style={{ color: COLORS.disease }}>
+                    {reply.warning}
+                </Text>
             )}
             {toOfficer && (
                 <Text className="text-sm font-bold mt-3" style={{ color: COLORS.brand }} onPress={onSupport} accessibilityRole="button">

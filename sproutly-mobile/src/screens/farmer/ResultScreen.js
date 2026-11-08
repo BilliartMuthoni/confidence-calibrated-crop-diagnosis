@@ -2,6 +2,7 @@ import React, { useCallback, useContext, useEffect, useRef, useState } from 'rea
 import { View, Text, ScrollView, Image, Linking, KeyboardAvoidingView, Keyboard, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import { Ionicons } from '@expo/vector-icons';
 import AssistantBox from '../../components/AssistantBox';
 import ScreenHeader from '../../components/ScreenHeader';
 import ErrorBanner from '../../components/ErrorBanner';
@@ -328,6 +329,28 @@ export default function ResultScreen({ route, navigation }) {
                                 <Text className="text-base mt-3 leading-6" style={{ color: COLORS.text }}>
                                     {result.guidance.summary}
                                 </Text>
+                            )}
+                            {result.guidance?.warning && (
+                                // Late blight (n20): it can destroy a field in days, so the way to help comes first.
+                                <View
+                                    className="mt-5 rounded-xl px-4 py-3"
+                                    style={{ backgroundColor: '#FDF1E8', borderWidth: 1, borderColor: COLORS.disease }}
+                                >
+                                    <View className="flex-row items-start">
+                                        <Ionicons name="warning-outline" size={20} color={COLORS.disease} />
+                                        <Text className="flex-1 ml-2 text-base font-semibold leading-6" style={{ color: COLORS.ink }}>
+                                            {result.guidance.warning}
+                                        </Text>
+                                    </View>
+                                    <Text
+                                        className="text-base font-bold mt-2 ml-7"
+                                        style={{ color: COLORS.disease }}
+                                        onPress={openSupport}
+                                        accessibilityRole="button"
+                                    >
+                                        Support contacts
+                                    </Text>
+                                </View>
                             )}
                             <Steps title="What to do now" items={result.guidance?.treatment} />
                             {!healthy && result.guidance?.treatment?.length > 0 && (

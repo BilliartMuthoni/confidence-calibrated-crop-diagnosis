@@ -103,6 +103,8 @@ def _referral_out(db: Session, referral: Referral, viewer: User) -> ReferralOut:
         judgement=referral.judgement if (judged_by_viewer or referral.status not in OPEN) else None,
         crop_mismatch=(diagnosis.crop_probability or 1.0) < 0.5,
         symptoms_text=diagnosis.symptoms_text,
+        affected=diagnosis.affected,
+        urgent=diagnosis.affected == "most" and referral.status in OPEN,
         has_photo=os.path.exists(diagnosis.image_path),
         reply=Reply(
             text=referral.reply_text,
@@ -147,7 +149,9 @@ def list_referrals(status_: Optional[ReferralStatus] = Query(None, alias="status
     if mine:
         query = query.filter((Referral.claimed_by_id == user.user_id) | (Referral.replied_by_id == user.user_id))
     referrals = query.order_by(Referral.created_at.desc()).limit(200).all()
-    return [_referral_out(db, r, user) for r in referrals]
+    out = [_referral_out(db, r, user) for r in referrals]
+    # Urgent open cases (the farmer said most of the field is affected) first, newest first within each.
+    return sorted(out, key=lambda r: not r.urgent)
 
 
 @router.get("/referrals/{referral_id}", response_model=ReferralOut)
