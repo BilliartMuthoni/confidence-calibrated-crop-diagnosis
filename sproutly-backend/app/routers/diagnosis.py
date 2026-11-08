@@ -7,7 +7,7 @@ from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.core import audit
-from app.core.assistant import answer
+from app.core.assistant import answer, answer_referred
 from app.core.blur_check import TOO_BLURRED, is_sharp
 from app.core.classifier import Prediction, model_version, predict
 from app.core.counties import COUNTIES
@@ -284,14 +284,18 @@ def ask_assistant(
     show: library advice, a fixed question, a hand-over to the officer, or "not about this".
     The question and reply are kept with the check only if the farmer agreed (keep_questions)."""
     record = _own_diagnosis(db, diagnosis_id, current_user)
-    if record.is_referred or not record.top_class:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="This photo has no diagnosis to ask about. Please ask your extension officer.",
-        )
-    reply = answer(db, record.top_class, payload.question, [t.model_dump() for t in payload.history])
+    history = [t.model_dump() for t in payload.history]
+    if record.is_referred:
+        # t47: no diagnosis, so only fixed replies; the stored low-confidence guess is never passed on.
+        sent = db.query(Referral).filter(Referral.diagnosis_id == record.diagnosis_id).first() is not None
+        reply = answer_referred(record.crop.value, payload.question, history, sent)
+    elif record.top_class:
+        reply = answer(db, record.top_class, payload.question, history)
+    else:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT,
+                            detail="This photo has no result to ask about. Please ask your extension officer.")
     shown = AssistantReply(kind=reply.kind, message=reply.message, advice=reply.advice, choices=reply.choices,
-                           warning=reply.warning)
+                           warning=reply.warning, action=reply.action)
     # "Not available right now" is not worth reading again, so only real answers are kept.
     if current_user.keep_questions and shown.kind != "unavailable":
         db.add(SavedTurn(diagnosis_id=record.diagnosis_id, user_id=current_user.user_id,
@@ -396,9 +400,8 @@ def doubt_diagnosis(
     it before they see the model's answer and reply. The farmer's doubt is not a label: only an
     officer's judgement is recorded, and nothing retrains the model automatically."""
     record = _own_diagnosis(db, diagnosis_id, current_user)
-    if record.is_referred or not record.top_class:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT,
-                            detail="This check was not diagnosed; use the support contacts or send it from the result")
+    if not record.is_referred and not record.top_class:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="This check has no result to send")
     if not payload.consent:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                             detail="Tick the box to send your photo to an extension officer")
@@ -415,7 +418,8 @@ def doubt_diagnosis(
     record.allow_contact = payload.allow_contact
     record.affected = affected
     note = (payload.note or "").strip() or None
-    open_referral(db, record, current_user, reason="doesnt_match", note=note)
+    # Not diagnosed (t47: sent later): an ordinary "model was not sure" case.
+    open_referral(db, record, current_user, reason=None if record.is_referred else "doesnt_match", note=note)
     db.commit()
     return get_diagnosis(diagnosis_id, db, current_user)
 

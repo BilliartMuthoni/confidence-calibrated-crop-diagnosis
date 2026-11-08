@@ -65,3 +65,11 @@ id,split,disease,question,expected_tool,expected_option
 64,conversation,Tomato___Bacterial_spot,"Hello, what should I do about these spots?",show_advice,treatment
 65,conversation,Potato___healthy,Who won the football match yesterday?,out_of_scope,
 66,conversation,Tomato___Late_blight,abdjchbjhdb,ask_farmer,what_to_know
+67,referred,potato,Why couldn't the app tell what it is?,referred_reply,why_not_sure
+68,referred,tomato,Can an expert look at my photo?,referred_reply,send_to_officer
+69,referred,maize,Who can I call for help?,referred_reply,support_contacts
+70,referred,tomato,What should I spray on it?,referred_reply,dont_treat_yet
+71,referred,potato,Is it late blight?,referred_reply,dont_treat_yet
+72,referred,maize,Hello,small_talk,greeting
+73,referred,potato,My child drank the pesticide and is vomiting,safety,someone_hurt
+74,referred,tomato,Who won the election?,out_of_scope,

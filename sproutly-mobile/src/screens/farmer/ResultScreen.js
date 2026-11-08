@@ -207,6 +207,18 @@ export default function ResultScreen({ route, navigation }) {
     // A new result goes back to the start; a past one back to the list it was opened from.
     const close = past ? () => navigation.goBack() : () => navigation.popToTop();
     const openSupport = () => navigation.navigate('SupportContacts');
+    // Send to an officer later (t31 for a diagnosed result, t47 for a not-diagnosed one): only while
+    // the photo is kept, since the officer must see it, and only once.
+    const canSend = Boolean(result) && !result.sent_to_officer && !result.officer_reply && (!past || result.photo_available);
+    const openSend = () =>
+        navigation.navigate('Doubt', {
+            diagnosisId: result.diagnosis_id,
+            disease: result.predicted_disease,
+            notDiagnosed: Boolean(result.is_referred),
+            resultParams: route.params,
+        });
+    // A new photo for a not-diagnosed check: the check screen (t47).
+    const retake = () => navigation.navigate('Diagnosis');
 
     // The assistant's box is at the bottom: when its keyboard opens, or a reply arrives, scroll
     // so the box stays in view. Android draws apps edge to edge (Expo 57), so the screen is no
@@ -331,6 +343,22 @@ export default function ResultScreen({ route, navigation }) {
                                     </Text>
                                 </View>
                             )}
+                            {/* t47: fixed guidance only (no diagnosis, so no advice can be shown). */}
+                            {!result.awaiting_crop && (
+                                <AssistantBox
+                                    diagnosisId={result.diagnosis_id}
+                                    saved={result.questions}
+                                    notDiagnosed
+                                    onSupport={openSupport}
+                                    onRetake={retake}
+                                    onSend={canSend ? openSend : undefined}
+                                    onFocus={() => {
+                                        asking.current = true;
+                                        toBottom();
+                                    }}
+                                    onReply={() => setTimeout(toBottom, 100)}
+                                />
+                            )}
                         </>
                     ) : (
                         <>
@@ -407,6 +435,8 @@ export default function ResultScreen({ route, navigation }) {
                                 color={COLORS.referral}
                                 onPress={openSupport}
                             />
+                            {/* t47: a not-diagnosed check that was not shared can still go to an officer. */}
+                            {canSend && <SecondaryButton label="Send to an officer" onPress={openSend} />}
                             {result.crop_mismatch && !past && (
                                 // The diagnose screen still holds the photo, so going back is all a retry needs.
                                 <SecondaryButton label="Choose a different crop" onPress={() => navigation.goBack()} />
@@ -418,17 +448,8 @@ export default function ResultScreen({ route, navigation }) {
                             <PrimaryButton label="Done" onPress={close} />
                             {/* t31: a confident result can still be wrong; the farmer can ask a person.
                                 Only while the photo is kept (an officer must see it) and not already sent. */}
-                            {!result.sent_to_officer && !result.officer_reply && (!past || result.photo_available) && (
-                                <SecondaryButton
-                                    label="This doesn't match what I see"
-                                    onPress={() =>
-                                        navigation.navigate('Doubt', {
-                                            diagnosisId: result.diagnosis_id,
-                                            disease: result.predicted_disease,
-                                            resultParams: route.params,
-                                        })
-                                    }
-                                />
+                            {canSend && (
+                                <SecondaryButton label="This doesn't match what I see" onPress={openSend} />
                             )}
                             <Text className="text-sm text-center mt-4 leading-5" style={{ color: COLORS.muted }}>
                                 Need help now?{' '}
