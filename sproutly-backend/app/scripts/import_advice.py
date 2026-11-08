@@ -5,14 +5,16 @@ Run inside sproutly-backend:
     python -m app.scripts.import_advice path/to/advice.csv
     python -m app.scripts.import_advice path/to/advice.csv --if-empty
 
---if-empty imports only into an empty library (the deployed server runs it at every start: the
-first start fills a new database; later starts never re-add an entry an admin has corrected).
+--if-empty imports only into an empty library.
 
 The CSV has a header row with: disease, kind, text, source_title, source_url, licence.
 disease is a model class name (e.g. Tomato___Early_blight), kind is treatment, prevention, about or harvest
 (the last two only for the assistant),
-and text is the excerpt word for word. Rows already in the library (same disease, kind and
-text) are skipped, so the file can be imported again after adding rows.
+and text is the excerpt word for word. A row is skipped when the library already has, or ever
+had, that wording for the same disease and kind: current text, or any earlier version in the
+change history. So an entry an admin corrected or retired in the portal never comes back, and
+the deployed server can run this at every start (start.sh) to add only the rows that are new
+in the file (8 Nov 2026: the 67 rows of #65 reached the live library this way).
 """
 
 import csv
@@ -54,7 +56,11 @@ def main(path: str, if_empty: bool = False) -> int:
                 exists = db.query(AdviceEntry).filter(AdviceEntry.disease == item.disease,
                                                       AdviceEntry.kind == item.kind,
                                                       AdviceEntry.text == item.text).first()
-                if exists:
+                # An earlier wording of an entry (corrected since): never re-add it.
+                had = exists or (db.query(AdviceVersion).join(AdviceEntry, AdviceVersion.advice_id == AdviceEntry.advice_id)
+                                 .filter(AdviceEntry.disease == item.disease, AdviceEntry.kind == item.kind,
+                                         AdviceVersion.text == item.text).first())
+                if had:
                     skipped += 1
                     continue
                 entry = AdviceEntry(**item.model_dump(exclude={"note"}), version=1, status=AdviceStatus.active)
@@ -67,7 +73,9 @@ def main(path: str, if_empty: bool = False) -> int:
             print("\n".join(problems))
             db.rollback()
             return 1
-        audit.record(db, None, "advice_add", f"{added} entries", f"Imported from {path}", actor_label="(server command)")
+        if added:  # every server start runs this; only a real change goes in the audit log
+            audit.record(db, None, "advice_add", f"{added} entries", f"Imported from {path}",
+                         actor_label="(server command)")
         db.commit()
     finally:
         db.close()
