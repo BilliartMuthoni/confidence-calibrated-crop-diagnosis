@@ -4,11 +4,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { AuthContext } from '../../context/AuthContext';
-import { correctCrop } from '../../api/DiagnosisService';
+import { correctCrop, submitBatch } from '../../api/DiagnosisService';
+import { chooseOnePhoto } from '../../utils/choosePhoto';
 import { toFriendlyError } from '../../utils/errorMessages';
 import ErrorBanner from '../../components/ErrorBanner';
 import ScreenHeader from '../../components/ScreenHeader';
-import { PrimaryButton } from '../../components/Buttons';
+import { PrimaryButton, SecondaryButton } from '../../components/Buttons';
 import { COLORS, CROP_LABELS } from '../../constants/theme';
 import BusyOverlay from '../../components/BusyOverlay';
 
@@ -178,7 +179,8 @@ function PhotoRow({ item, imageUri, onOpen, onCorrect, busy, error }) {
 
 export default function BatchResultScreen({ route, navigation }) {
     const { userToken } = useContext(AuthContext);
-    const { imageUris } = route.params;
+    const { crops = [], sharing = null } = route.params;
+    const [imageUris, setImageUris] = useState(route.params.imageUris);
     const [items, setItems] = useState(route.params.results);
     const [busyIndex, setBusyIndex] = useState(null);
     const [rowErrors, setRowErrors] = useState({});
@@ -201,12 +203,34 @@ export default function BatchResultScreen({ route, navigation }) {
         }
     };
 
+    // A photo refused as too blurred (n21): a new photo (camera or gallery) is checked straight
+    // away with the same crop and sharing choices, and takes that photo's place in the list.
+    const retake = async (item) => {
+        const asset = await chooseOnePhoto();
+        if (!asset) return;
+        setBusyIndex(item.index);
+        try {
+            const { results } = await submitBatch({
+                token: userToken,
+                crop: crops[item.index] || null,
+                imageUris: [asset.uri],
+                sharing,
+            });
+            setImageUris((current) => current.map((uri, i) => (i === item.index ? asset.uri : uri)));
+            setItems((current) => current.map((i) => (i.index === item.index ? { ...results[0], index: item.index } : i)));
+        } catch (e) {
+            setItems((current) => current.map((i) => (i.index === item.index ? { index: i.index, error: e.message } : i)));
+        } finally {
+            setBusyIndex(null);
+        }
+    };
+
     const home = () => navigation.popToTop();
 
     return (
         <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }}>
             <StatusBar style="dark" />
-            <BusyOverlay visible={busyIndex !== null} message="Checking the photo again" />
+            <BusyOverlay visible={busyIndex !== null} message="Checking the photo" />
             <ScreenHeader title="Results" icon="close" onBack={home} />
             <ScrollView contentContainerClassName="px-5 pb-10">
                 <Text className="text-sm" style={{ color: COLORS.muted }}>
@@ -253,6 +277,12 @@ export default function BatchResultScreen({ route, navigation }) {
                                     <Text className="text-sm leading-5 mt-0.5" style={{ color: COLORS.text }}>
                                         {toFriendlyError(item.error).message}
                                     </Text>
+                                    {/* Too blurred only: a photo that is not a leaf gets no Retake (user, 8 Nov). */}
+                                    {/too blurred/i.test(item.error || '') && (
+                                        <View className="mt-2 self-start">
+                                            <SecondaryButton label="Retake photo" onPress={() => retake(item)} />
+                                        </View>
+                                    )}
                                 </View>
                             </View>
                         ))}
