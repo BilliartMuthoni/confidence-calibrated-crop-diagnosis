@@ -108,10 +108,12 @@ def _response(db: Session, record: Diagnosis, prediction: Prediction) -> Diagnos
 
 
 def _diagnose(db: Session, user: User, crop: Optional[CropType], image_path: str,
-              symptoms_text: Optional[str] = None, share: bool = False, contact: bool = False) -> DiagnosisResponse:
+              symptoms_text: Optional[str] = None, share: bool = False, contact: bool = False,
+              affected: Optional[str] = None) -> DiagnosisResponse:
     prediction = _hold_for_crop(predict(crop, image_path, symptoms_text))
     record = Diagnosis(user_id=user.user_id, image_path=image_path, symptoms_text=symptoms_text,
-                       share_with_officer=share, allow_contact=share and contact)
+                       share_with_officer=share, allow_contact=share and contact,
+                       affected=affected if share else None)
     _apply(record, prediction)
     db.add(record)
     db.commit()
@@ -139,6 +141,16 @@ def _require_checks(image_path: str, allow_blurry: bool = False) -> None:
         _refuse(image_path, NOT_A_LEAF)
 
 
+# "How much of your crop is affected?" when sharing a case (n20); "most" lists it first for officers.
+AFFECTED = ("few", "patch", "most")
+
+
+def _check_affected(affected: Optional[str]) -> Optional[str]:
+    if affected and affected not in AFFECTED:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Choose a few plants, a patch or most of the field")
+    return affected or None
+
+
 def _remember_county(db: Session, user: User, county: Optional[str]) -> None:
     """The app may send the farmer's county with a photo; it decides who sees their referrals."""
     if county:
@@ -160,17 +172,19 @@ def create_diagnosis(
     share_with_officer: bool = Form(False),
     allow_contact: bool = Form(False),
     county: Optional[str] = Form(None),
+    affected: Optional[str] = Form(None),
     # Sent by the app only after two retakes failed the blur check; the threshold still applies.
     allow_blurry: bool = Form(False),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     _remember_county(db, current_user, county)
+    affected = _check_affected(affected)
     image_path = save_clean_image(image)
     _require_checks(image_path, allow_blurry)
     # symptoms_text is stored, shown to officers, and on a referred photo reorders the crop's
     # diseases (notebook 20b); it never decides whether the farmer gets an answer.
-    return _diagnose(db, current_user, crop, image_path, symptoms_text, share_with_officer, allow_contact)
+    return _diagnose(db, current_user, crop, image_path, symptoms_text, share_with_officer, allow_contact, affected)
 
 
 @router.post("/batch", response_model=BatchResponse, status_code=status.HTTP_201_CREATED)
@@ -182,6 +196,7 @@ def create_batch(
     share_with_officer: bool = Form(False),
     allow_contact: bool = Form(False),
     county: Optional[str] = Form(None),
+    affected: Optional[str] = Form(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -196,6 +211,7 @@ def create_batch(
             detail=f"Send between 1 and {MAX_BATCH_PHOTOS} photos at a time",
         )
     _remember_county(db, current_user, county)
+    affected = _check_affected(affected)
 
     results = []
     for index, image in enumerate(images):
@@ -206,7 +222,7 @@ def create_batch(
             results.append(BatchItem(index=index, error=exc.detail))
             continue
         results.append(BatchItem(index=index, result=_diagnose(
-            db, current_user, crop, image_path, share=share_with_officer, contact=allow_contact)))
+            db, current_user, crop, image_path, share=share_with_officer, contact=allow_contact, affected=affected)))
     return BatchResponse(results=results)
 
 
@@ -269,7 +285,8 @@ def ask_assistant(
             detail="This photo has no diagnosis to ask about. Please ask your extension officer.",
         )
     reply = answer(db, record.top_class, payload.question, [t.model_dump() for t in payload.history])
-    shown = AssistantReply(kind=reply.kind, message=reply.message, advice=reply.advice, choices=reply.choices)
+    shown = AssistantReply(kind=reply.kind, message=reply.message, advice=reply.advice, choices=reply.choices,
+                           warning=reply.warning)
     # "Not available right now" is not worth reading again, so only real answers are kept.
     if current_user.keep_questions and shown.kind != "unavailable":
         db.add(SavedTurn(diagnosis_id=record.diagnosis_id, user_id=current_user.user_id,

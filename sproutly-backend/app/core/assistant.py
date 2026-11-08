@@ -31,7 +31,7 @@ import httpx
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.core.knowledge_base import display_name
+from app.core.knowledge_base import display_name, warning_for
 from app.models.advice import AdviceEntry, AdviceStatus
 
 logger = logging.getLogger(__name__)
@@ -106,6 +106,7 @@ class Reply:
     choices: list = field(default_factory=list)  # replies the app offers to an ask_farmer question
     tool: Optional[str] = None                   # the tool the model chose, for the evaluation
     option: Optional[str] = None                 # its fixed question or hand-over reason, likewise
+    warning: Optional[str] = None                # late blight: "can spread fast" note (n20)
 
 
 class Unavailable(Exception):
@@ -240,7 +241,7 @@ def _to_reply(name: str, arguments: dict, entries: list, class_name: str) -> Rep
         shown = [by_id[i] for i in dict.fromkeys(ids)][:MAX_ADVICE]
         return Reply("advice", _heading(class_name, {e.kind.value for e in shown}), tool=name, advice=[
             {"text": e.text, "kind": e.kind.value, "source": f"{e.source_title} ({e.licence}): {e.source_url}"}
-            for e in shown])
+            for e in shown], warning=warning_for(class_name))
     buttons, topics = _topics(class_name)
     result = display_name(class_name)
     if name == "ask_farmer" and arguments.get("question") in QUESTIONS:

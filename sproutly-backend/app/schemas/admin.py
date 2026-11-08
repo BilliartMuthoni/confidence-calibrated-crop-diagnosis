@@ -60,6 +60,10 @@ class ReferralOut(BaseModel):
     judgement: Optional[str]
     crop_mismatch: bool
     symptoms_text: Optional[str]
+    # The farmer's answer to "How much of your crop is affected?" (few, patch, most or None);
+    # urgent when "most": listed first while open. Never based on the model's guess.
+    affected: Optional[str] = None
+    urgent: bool = False
     has_photo: bool
     reply: Optional[Reply]
 

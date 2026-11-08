@@ -59,6 +59,9 @@ function Label({ title, hint, optional }) {
     );
 }
 
+// Answers to "How much of your crop is affected?" when sharing a case (n20).
+const AFFECTED = [['few', 'A few plants'], ['patch', 'A patch of the field'], ['most', 'Most of the field']];
+
 /** A tick-box row: the whole row is the touch target. */
 function Tick({ checked, onPress, title, hint }) {
     return (
@@ -95,6 +98,9 @@ export default function DiagnosisScreen({ navigation }) {
     // Consent is asked every time and is off until the farmer ticks it; the county is remembered.
     const [share, setShare] = useState(false);
     const [contact, setContact] = useState(false);
+    // "How much of your crop is affected?" (optional): "Most of the field" puts the case first
+    // in the officers' list (n20). Only the farmer's answer is used, never the model's guess.
+    const [affected, setAffected] = useState(null);
     const [county, setCounty] = useState(null);
     // Photos the blur check sent back. After the first one and two retakes, the farmer may send
     // the photo anyway: the threshold still refers it if the model is unsure.
@@ -112,9 +118,10 @@ export default function DiagnosisScreen({ navigation }) {
     const toggleShare = () => {
         setShare((on) => !on);
         setContact(false);
+        setAffected(null);
     };
 
-    const sharing = share ? { share: true, contact, county } : null;
+    const sharing = share ? { share: true, contact, county, affected } : null;
     const room = MAX_PHOTOS - photos.length;
     const addPhotos = (assets) => setPhotos((current) => [...current, ...assets].slice(0, MAX_PHOTOS));
 
@@ -466,6 +473,32 @@ export default function DiagnosisScreen({ navigation }) {
                                     title="The officer may phone me"
                                     hint="Your number is shared with that officer only."
                                 />
+                                <Text className="text-base font-semibold mt-3" style={{ color: COLORS.ink }}>
+                                    How much of your crop is affected?
+                                </Text>
+                                <View className="flex-row flex-wrap mt-2">
+                                    {AFFECTED.map(([value, label]) => (
+                                        <TouchableOpacity
+                                            key={value}
+                                            onPress={() => setAffected((current) => (current === value ? null : value))}
+                                            accessibilityRole="radio"
+                                            accessibilityState={{ checked: affected === value }}
+                                            className="mr-2 mb-2 px-4 py-2 rounded-full"
+                                            style={{
+                                                borderWidth: 1,
+                                                borderColor: affected === value ? COLORS.brand : COLORS.divider,
+                                                backgroundColor: affected === value ? COLORS.brand : COLORS.surface,
+                                            }}
+                                        >
+                                            <Text
+                                                className="text-sm font-semibold"
+                                                style={{ color: affected === value ? '#FFFFFF' : COLORS.text }}
+                                            >
+                                                {label}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
                                 <View className="mt-2">
                                     <CountyPicker value={county} onChange={chooseCounty} />
                                 </View>
