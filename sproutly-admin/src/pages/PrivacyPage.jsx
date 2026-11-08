@@ -6,7 +6,7 @@ export default function PrivacyPage() {
   return (
     <PublicPage
       title="Privacy policy"
-      updated="29 October 2026"
+      updated="8 November 2026"
       intro="Sproutly is a student research prototype (Strathmore University, 2026). This page says what it keeps about you, who can see it, for how long, and how to remove it."
     >
       <Section title="What Sproutly keeps" items={[
@@ -18,6 +18,10 @@ export default function PrivacyPage() {
         "Each check's result: the disease, how sure Sproutly was, and any reply from an extension officer.",
         'The questions you ask about a result and the replies you were shown, only if you chose "Keep them". You can turn this off at any time.',
         'If you use Continue with Google: the email and account number Google gives us. Never your Google password.',
+        'If you signed up with an email: when you confirmed it with the code we sent.',
+        'When you agreed to these terms and this privacy policy, and which version.',
+        'If you send a case to an officer: how much of your crop you said is affected, and anything you wrote about why a result does not match what you see.',
+        "If you rate an officer's reply: whether it helped, and anything you wrote about it.",
       ]} />
       <Section title="Why" items={[
         'To check your leaf photos and show you the result.',
