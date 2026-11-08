@@ -26,6 +26,13 @@ run once again:
     python -m app.scripts.evaluate_assistant report
     python -m app.scripts.evaluate_assistant kinds
     python -m app.scripts.evaluate_assistant conversation
+
+t47 (8 Nov 2026): not-diagnosed checks get their own assistant with fixed replies only (why
+no result, send to an officer, support contacts, don't treat yet, plus greetings and safety).
+Its eight questions were written before any run as the split "referred" (67-74; the
+"disease" column holds the crop), and run once on the final version:
+
+    python -m app.scripts.evaluate_assistant referred
 """
 
 import csv
@@ -45,6 +52,8 @@ PAUSE_SECONDS = 10
 def _ask(db, row):
     for attempt in range(2):
         try:
+            if row["split"] == "referred":  # t47: a not-diagnosed check; "disease" holds the crop
+                return assistant.choose_referred(row["disease"], row["question"]), ""
             return assistant.choose(db, row["disease"], row["question"]), ""
         except assistant.Unavailable as exc:
             if "HTTP 429" in str(exc) and attempt == 0:
@@ -57,7 +66,7 @@ def _ask(db, row):
 def main(split: str) -> int:
     rows = [r for r in csv.DictReader(QUESTIONS.open(encoding="utf-8")) if split == "all" or r["split"] == split]
     if not rows:
-        print("Choose tune, report, kinds, conversation or all")
+        print("Choose tune, report, kinds, conversation, referred or all")
         return 1
     db = SessionLocal()
     results = []
@@ -85,7 +94,8 @@ def main(split: str) -> int:
     print(f"\n{split}: {sum(r['correct'] for r in results)}/{total} correct, "
           f"{sum(r['right_tool'] for r in results)}/{total} right tool, "
           f"{sum(r['chosen_tool'] == 'unavailable' for r in results)} unavailable")
-    for tool in ("show_advice", "refer_to_officer", "ask_farmer", "small_talk", "safety", "out_of_scope"):
+    for tool in ("show_advice", "refer_to_officer", "referred_reply", "ask_farmer", "small_talk", "safety",
+                 "out_of_scope"):
         part = [r for r in results if r["expected_tool"] == tool]
         if part:
             print(f"  {tool}: {sum(r['correct'] for r in part)}/{len(part)}")

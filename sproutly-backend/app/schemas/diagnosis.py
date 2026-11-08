@@ -99,6 +99,8 @@ class AssistantReply(BaseModel):
     choices: List[str] = []
     # Late blight advice: the fixed "can spread fast" note, shown with the support contacts (n20).
     warning: Optional[str] = None
+    # Not-diagnosed checks (t47): which button goes with the reply: retake, send or contacts.
+    action: Optional[str] = None
     # The farmer's choice about keeping their questions: None until asked (the app then asks
     # once), True when this question and reply were kept with the check.
     keep_questions: Optional[bool] = None

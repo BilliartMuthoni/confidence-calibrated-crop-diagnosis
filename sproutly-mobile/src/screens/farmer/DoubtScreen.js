@@ -43,10 +43,11 @@ function Tick({ checked, onPress, title, hint }) {
 /**
  * "This doesn't match what I see" (t31, supervisor 24 Oct): a diagnosed result the farmer
  * doubts goes, with their consent, to an extension officer in their county, who looks at the
- * photo and replies in Your checks. Route params: diagnosisId, disease (the result's name).
+ * photo and replies in Your checks. Route params: diagnosisId, disease (the result's name),
+ * notDiagnosed (t47: a check Sproutly could not diagnose, sent later), resultParams.
  */
 export default function DoubtScreen({ route, navigation }) {
-    const { diagnosisId, disease } = route.params;
+    const { diagnosisId, disease, notDiagnosed = false } = route.params;
     const { userToken } = useContext(AuthContext);
     const [consent, setConsent] = useState(false);
     const [contact, setContact] = useState(false);
@@ -88,17 +89,24 @@ export default function DoubtScreen({ route, navigation }) {
     return (
         <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }}>
             <StatusBar style="dark" />
-            <ScreenHeader title="Doesn't match" onBack={() => navigation.goBack()} />
+            <ScreenHeader title={notDiagnosed ? 'Send to an officer' : "Doesn't match"} onBack={() => navigation.goBack()} />
             <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
                 <ScrollView contentContainerClassName="px-5 pb-6" keyboardShouldPersistTaps="handled">
                     <Text className="text-2xl font-bold" style={{ color: COLORS.ink }}>
-                        This doesn't match what I see
+                        {notDiagnosed ? 'Send your photo to an officer' : "This doesn't match what I see"}
                     </Text>
-                    <Text className="text-base leading-6 mt-2" style={{ color: COLORS.text }}>
-                        Sproutly said <Text className="font-bold">{disease}</Text>. An extension officer in your county
-                        can look at your photo and reply in Your checks, usually within 7 days. Until then, don't spray
-                        anything new.
-                    </Text>
+                    {notDiagnosed ? (
+                        <Text className="text-base leading-6 mt-2" style={{ color: COLORS.text }}>
+                            Sproutly couldn't diagnose this photo. An extension officer in your county can look at it
+                            and reply in Your checks, usually within 7 days. Until then, don't spray anything.
+                        </Text>
+                    ) : (
+                        <Text className="text-base leading-6 mt-2" style={{ color: COLORS.text }}>
+                            Sproutly said <Text className="font-bold">{disease}</Text>. An extension officer in your county
+                            can look at your photo and reply in Your checks, usually within 7 days. Until then, don't spray
+                            anything new.
+                        </Text>
+                    )}
 
                     <View className="mt-5">
                         <Tick

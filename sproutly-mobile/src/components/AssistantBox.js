@@ -16,10 +16,18 @@ function splitSource(source) {
 }
 
 /** One reply. Everything shown is library advice or fixed wording from the backend. */
-function Reply({ reply, onChoice, onSupport, busy }) {
+function Reply({ reply, onChoice, onSupport, onRetake, onSend, busy }) {
     // Off-topic, greetings and thanks offer topic buttons instead; a person who may be hurt gets
     // a call button (999, Kenya's emergency line), never the officer.
-    const toOfficer = reply.kind === 'officer' || reply.kind === 'unavailable' || Boolean(reply.warning);
+    const toOfficer =
+        reply.kind === 'officer' || reply.kind === 'unavailable' || Boolean(reply.warning) || reply.action === 'contacts';
+    // Not-diagnosed checks (t47): the button that goes with the reply, styled like the topic pills.
+    const actionButton =
+        reply.action === 'retake' && onRetake
+            ? { label: 'Retake photo', icon: 'camera-outline', onPress: onRetake }
+            : reply.action === 'send' && onSend
+              ? { label: 'Send to an officer', icon: 'send-outline', onPress: onSend }
+              : null;
     const emergency = reply.kind === 'safety' && reply.choices.length === 0;
     // One source line under the list, not a link under every line.
     const sources = [...new Set(reply.advice.map((item) => item.source))].map(splitSource);
@@ -74,6 +82,20 @@ function Reply({ reply, onChoice, onSupport, busy }) {
                         </TouchableOpacity>
                     ))}
                 </View>
+            )}
+            {actionButton && (
+                <TouchableOpacity
+                    onPress={actionButton.onPress}
+                    disabled={busy}
+                    accessibilityRole="button"
+                    className="flex-row items-center self-start mt-3 px-4 py-2 rounded-full"
+                    style={{ borderWidth: 1, borderColor: COLORS.brand }}
+                >
+                    <Ionicons name={actionButton.icon} size={16} color={COLORS.brand} />
+                    <Text className="text-sm font-semibold ml-1.5" style={{ color: COLORS.brand }}>
+                        {actionButton.label}
+                    </Text>
+                </TouchableOpacity>
             )}
             {reply.warning && (
                 // Late blight (n20): a fixed note under the advice, with the support contacts below.
@@ -143,7 +165,7 @@ function KeepCard({ onChoose, busy }) {
 /** "Ask about this result" (D9): the farmer's questions and the assistant's replies, starting
  *  with the ones kept earlier (saved, on a past result). onFocus and onReply let the screen
  *  scroll the box into view above the keyboard. */
-export default function AssistantBox({ diagnosisId, saved, onSupport, onFocus, onReply }) {
+export default function AssistantBox({ diagnosisId, saved, onSupport, onFocus, onReply, notDiagnosed = false, onRetake, onSend }) {
     const { userToken } = useContext(AuthContext);
     const [turns, setTurns] = useState(() => (saved || []).map(({ question, reply }) => ({ question, reply })));
     const [question, setQuestion] = useState('');
@@ -205,16 +227,18 @@ export default function AssistantBox({ diagnosisId, saved, onSupport, onFocus, o
     return (
         <View className="mt-6 pt-5" style={{ borderTopWidth: 1, borderTopColor: COLORS.divider }}>
             <Text className="text-base font-bold" style={{ color: COLORS.ink }}>
-                Ask about this result
+                {notDiagnosed ? 'Ask about this check' : 'Ask about this result'}
             </Text>
             {/* Kept apart from the model's prediction above (supervisor's tool-calling notes). */}
             <Text className="text-xs font-bold tracking-wider mt-1" style={{ color: COLORS.muted }}>
                 TOOL-ASSISTED NEXT-STEP GUIDANCE
             </Text>
             <Text className="text-sm leading-5 mt-2 mb-3" style={{ color: COLORS.muted }}>
-                Answers come only from the sourced advice for this result. For sprays and doses, ask your agrovet or
-                extension officer. Your question is sent to an AI service (Groq) to choose the answer; Groq does not
-                keep it. Sproutly keeps it only if you agree.
+                {notDiagnosed
+                    ? 'There is no diagnosis, so no treatment is suggested: answers are fixed guidance about what to do next. '
+                    : 'Answers come only from the sourced advice for this result. For sprays and doses, ask your agrovet or extension officer. '}
+                Your question is sent to an AI service (Groq) to choose the answer; Groq does not keep it. Sproutly keeps
+                it only if you agree.
             </Text>
 
             {keep === null && <KeepCard onChoose={choose} busy={busy} />}
@@ -231,7 +255,7 @@ export default function AssistantBox({ diagnosisId, saved, onSupport, onFocus, o
                             {q}
                         </Text>
                     </View>
-                    <Reply reply={reply} onChoice={send} onSupport={onSupport} busy={busy} />
+                    <Reply reply={reply} onChoice={send} onSupport={onSupport} onRetake={onRetake} onSend={onSend} busy={busy} />
                 </View>
             ))}
 
@@ -253,7 +277,7 @@ export default function AssistantBox({ diagnosisId, saved, onSupport, onFocus, o
                         maxHeight: 120,
                         textAlignVertical: 'top',
                     }}
-                    placeholder="e.g. How do I stop it coming back?"
+                    placeholder={notDiagnosed ? "e.g. Why couldn't it tell?" : 'e.g. How do I stop it coming back?'}
                     placeholderTextColor={COLORS.faint}
                     value={question}
                     onChangeText={setQuestion}
