@@ -9,7 +9,7 @@ import { chooseOnePhoto } from '../../utils/choosePhoto';
 import { toFriendlyError } from '../../utils/errorMessages';
 import ErrorBanner from '../../components/ErrorBanner';
 import ScreenHeader from '../../components/ScreenHeader';
-import { PrimaryButton, SecondaryButton } from '../../components/Buttons';
+import { PrimaryButton } from '../../components/Buttons';
 import { COLORS, CROP_LABELS } from '../../constants/theme';
 import BusyOverlay from '../../components/BusyOverlay';
 
@@ -278,10 +278,20 @@ export default function BatchResultScreen({ route, navigation }) {
                                         {toFriendlyError(item.error).message}
                                     </Text>
                                     {/* Too blurred only: a photo that is not a leaf gets no Retake (user, 8 Nov). */}
-                                    {/too blurred/i.test(item.error || '') && (
-                                        <View className="mt-2 self-start">
-                                            <SecondaryButton label="Retake photo" onPress={() => retake(item)} />
-                                        </View>
+                                    {/too blurred/i.test(item.error || '') && (
+                                        // Same pill as "Choose crop" and "It is maize" in the rows above.
+                                        <TouchableOpacity
+                                            onPress={() => retake(item)}
+                                            disabled={busyIndex !== null}
+                                            accessibilityRole="button"
+                                            className="flex-row items-center self-start mt-2 px-3 py-1.5 rounded-full"
+                                            style={{ borderWidth: 1, borderColor: COLORS.brand }}
+                                        >
+                                            <Ionicons name="camera-outline" size={16} color={COLORS.brand} />
+                                            <Text className="text-sm font-bold ml-1.5" style={{ color: COLORS.brand }}>
+                                                Retake photo
+                                            </Text>
+                                        </TouchableOpacity>
                                     )}
                                 </View>
                             </View>
