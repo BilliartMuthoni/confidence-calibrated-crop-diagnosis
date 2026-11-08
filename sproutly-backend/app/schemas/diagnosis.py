@@ -68,6 +68,15 @@ class AssistantTurn(BaseModel):
     text: str = Field(max_length=500)
 
 
+class DoubtRequest(BaseModel):
+    """t31: "This doesn't match what I see" on a diagnosed result. consent must be True."""
+    consent: bool
+    allow_contact: bool = False
+    county: Optional[str] = None
+    affected: Optional[str] = None
+    note: Optional[str] = Field(None, max_length=300)
+
+
 class AssistantQuestion(BaseModel):
     question: str = Field(min_length=1, max_length=300)
     # Earlier turns of this conversation, oldest first (only the last few are used).

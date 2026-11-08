@@ -35,6 +35,7 @@ import EditContactScreen from './src/screens/account/EditContactScreen';
 import ConnectGoogleScreen from './src/screens/account/ConnectGoogleScreen';
 import SupportContactsScreen from './src/screens/farmer/SupportContactsScreen';
 import HistoryScreen from './src/screens/farmer/HistoryScreen';
+import DoubtScreen from './src/screens/farmer/DoubtScreen';
 
 const Stack = createStackNavigator();
 
@@ -69,6 +70,7 @@ const RootNavigator = () => {
                         <Stack.Screen name="Diagnosis" component={DiagnosisScreen} />
                         <Stack.Screen name="Result" component={ResultScreen} />
                         <Stack.Screen name="BatchResult" component={BatchResultScreen} />
+                        <Stack.Screen name="Doubt" component={DoubtScreen} />
                         <Stack.Screen name="Notifications" component={NotificationsScreen} />
                         <Stack.Screen name="Account" component={AccountScreen} options={{ animation: 'none' }} />
                         <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} />

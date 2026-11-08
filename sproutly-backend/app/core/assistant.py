@@ -55,8 +55,8 @@ OFFICER = {
     "product_or_dose": ("Sprays and doses aren't given in the app, because the right product depends on what is "
                         "registered and suitable for your crop. Ask your agrovet or extension officer, and follow the "
                         "product label."),
-    "result_doubted": ("If you think this result is wrong, take another clear photo of one leaf, or ask your "
-                       "extension officer to look at the crop."),
+    "result_doubted": ("If you think this result is wrong, take another clear photo of one leaf, or tap "
+                       "\"This doesn't match what I see\" below the result to send it to an extension officer."),
     "needs_a_visit": ("This needs someone who can see your crop. Contact your county extension officer or a "
                       "local agrovet."),
     # A question about this result that no checked source answers (8 Nov): say so, then hand over.

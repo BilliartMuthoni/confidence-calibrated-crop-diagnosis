@@ -105,6 +105,8 @@ def _referral_out(db: Session, referral: Referral, viewer: User) -> ReferralOut:
         symptoms_text=diagnosis.symptoms_text,
         affected=diagnosis.affected,
         urgent=diagnosis.affected == "most" and referral.status in OPEN,
+        reason=referral.reason or "not_sure",
+        farmer_note=referral.farmer_note,
         has_photo=os.path.exists(diagnosis.image_path),
         reply=Reply(
             text=referral.reply_text,

@@ -73,7 +73,7 @@ export default function ReferralsPage() {
         title="Referrals"
         subtitle={isAdmin
           ? 'Every county\'s cases. Officers claim and answer them.'
-          : `Cases from ${user.county} the model was not sure about. Claim one before you answer it.`}
+          : `Cases from ${user.county}: the model was not sure, or the farmer says a diagnosis doesn't match. Claim one before you answer it.`}
       >
         {isAdmin && (
           <select className={filterClass} value={county} onChange={(e) => setCounty(e.target.value)} aria-label="County">
@@ -96,7 +96,7 @@ export default function ReferralsPage() {
               <Empty title="No cases match your search" />
             ) : (
               <Empty title={tab === 'new' ? 'No cases waiting' : 'Nothing here'}>
-                New cases arrive when the model is not sure and the farmer agrees to share the photo.
+                New cases arrive when the model is not sure, or a farmer says a diagnosis doesn't match, and agrees to share the photo.
               </Empty>
             )}
           </TableBox>
@@ -127,6 +127,7 @@ export default function ReferralsPage() {
                     <td className="whitespace-nowrap px-4 py-3 text-muted">{timeAgo(r.created_at)}</td>
                     <td className="px-4 py-3 text-muted">
                       {r.symptoms_text ? 'Photo and description' : 'Photo only'}
+                      {r.reason === 'doesnt_match' && <span className="block text-xs text-ink">Farmer: diagnosis doesn't match</span>}
                       {r.urgent && <span className="mt-1 block"><Badge tone="urgent">Urgent: most of the field</Badge></span>}
                     </td>
                     <td className="px-4 py-3"><State referral={r} /></td>

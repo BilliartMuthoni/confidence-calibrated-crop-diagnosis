@@ -21,7 +21,7 @@ export const PAGES = {
                 'The key of your authenticator app, stored encrypted.',
                 'The leaf photos you check, made smaller and with location (GPS) details removed, plus any description you type.',
                 "Each check's result: the disease, how sure Sproutly was, and any reply from an extension officer.",
-                'If you send a case to an officer and say how much of your crop is affected, that answer too.',
+                'If you send a case to an officer: how much of your crop you said is affected, and anything you wrote about why a result does not match what you see.',
                 'The questions you ask about a result and the replies you were shown, only if you chose "Keep them". You can turn this off at any time.',
                 'If you use Continue with Google: the email and account number Google gives us. Never your Google password.',
                 'If you signed up with an email: when you confirmed it with the code we sent.',

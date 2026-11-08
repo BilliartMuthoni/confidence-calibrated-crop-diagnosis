@@ -1,5 +1,6 @@
 """Referral queue rules shared by the diagnosis and admin routers."""
 
+from typing import Optional
 from datetime import timedelta
 
 from sqlalchemy.orm import Session
@@ -15,8 +16,10 @@ from app.models.user import User
 OTHER_JUDGEMENTS = ("other_disease", "cannot_tell", "farm_visit")
 
 
-def open_referral(db: Session, diagnosis: Diagnosis, farmer: User) -> Referral:
-    """Queue a referred case for the farmer's county. The caller commits."""
+def open_referral(db: Session, diagnosis: Diagnosis, farmer: User,
+                  reason: Optional[str] = None, note: Optional[str] = None) -> Referral:
+    """Queue a case for the farmer's county. The caller commits. reason "doesnt_match": the
+    farmer doubted a diagnosed result (t31); None: the model was not sure."""
     now = utcnow()
     referral = Referral(
         diagnosis_id=diagnosis.diagnosis_id,
@@ -24,6 +27,8 @@ def open_referral(db: Session, diagnosis: Diagnosis, farmer: User) -> Referral:
         status=ReferralStatus.new,
         created_at=now,
         expires_at=now + timedelta(days=settings.referral_days),
+        reason=reason,
+        farmer_note=note,
     )
     db.add(referral)
     return referral

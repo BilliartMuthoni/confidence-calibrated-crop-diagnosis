@@ -64,6 +64,10 @@ class ReferralOut(BaseModel):
     # urgent when "most": listed first while open. Never based on the model's guess.
     affected: Optional[str] = None
     urgent: bool = False
+    # Why it came (t31): "not_sure" (the model referred it) or "doesnt_match" (the farmer said a
+    # diagnosed result does not match what they see), with what they wrote.
+    reason: str = "not_sure"
+    farmer_note: Optional[str] = None
     has_photo: bool
     reply: Optional[Reply]
 

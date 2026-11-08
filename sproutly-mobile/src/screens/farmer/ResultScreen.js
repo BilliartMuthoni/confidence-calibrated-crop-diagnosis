@@ -177,6 +177,15 @@ export default function ResultScreen({ route, navigation }) {
         if (past) load();
     }, [past, load]);
 
+    // Back from "This doesn't match what I see" (t31): the check as the server now has it.
+    const sentResult = route.params.sentResult;
+    useEffect(() => {
+        if (sentResult) {
+            setResult((current) => ({ ...current, ...sentResult }));
+            navigation.setParams({ sentResult: undefined });
+        }
+    }, [sentResult, navigation]);
+
     // A past check's photo is fetched like any other request (so an expired sign-in is renewed),
     // with a spinner meanwhile and a visible retry if it fails, never a silent blank space.
     const tokenRef = useRef(userToken);
@@ -325,6 +334,12 @@ export default function ResultScreen({ route, navigation }) {
                         </>
                     ) : (
                         <>
+                            {/* Sent with "This doesn't match what I see" (t31): the officer's reply, or that it is waiting. */}
+                            {result.officer_reply ? (
+                                <OfficerReply reply={result.officer_reply} />
+                            ) : result.sent_to_officer ? (
+                                <ReferralState result={result} past={past} />
+                            ) : null}
                             {result.guidance?.summary && (
                                 <Text className="text-base mt-3 leading-6" style={{ color: COLORS.text }}>
                                     {result.guidance.summary}
@@ -401,8 +416,22 @@ export default function ResultScreen({ route, navigation }) {
                     ) : (
                         <>
                             <PrimaryButton label="Done" onPress={close} />
+                            {/* t31: a confident result can still be wrong; the farmer can ask a person.
+                                Only while the photo is kept (an officer must see it) and not already sent. */}
+                            {!result.sent_to_officer && !result.officer_reply && (!past || result.photo_available) && (
+                                <SecondaryButton
+                                    label="This doesn't match what I see"
+                                    onPress={() =>
+                                        navigation.navigate('Doubt', {
+                                            diagnosisId: result.diagnosis_id,
+                                            disease: result.predicted_disease,
+                                            resultParams: route.params,
+                                        })
+                                    }
+                                />
+                            )}
                             <Text className="text-sm text-center mt-4 leading-5" style={{ color: COLORS.muted }}>
-                                Not matching what you see?{' '}
+                                Need help now?{' '}
                                 <Text className="font-bold" style={{ color: COLORS.brand }} onPress={openSupport}>
                                     Support contacts
                                 </Text>
