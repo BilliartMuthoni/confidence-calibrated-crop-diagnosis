@@ -68,6 +68,13 @@ class AssistantTurn(BaseModel):
     text: str = Field(max_length=500)
 
 
+class ReplyFeedback(BaseModel):
+    """PR C (i08): "Was this helpful?" on an officer's reply."""
+    helpful: bool
+    reason: Optional[Literal["not_answered", "did_not_work", "other"]] = None
+    note: Optional[str] = Field(None, max_length=300)
+
+
 class DoubtRequest(BaseModel):
     """t31: "This doesn't match what I see" on a diagnosed result. consent must be True."""
     consent: bool
@@ -135,6 +142,8 @@ class OfficerReply(BaseModel):
     replied_at: Optional[datetime] = None
     # Advice library entries the officer attached, as they were when sent.
     advice: List[AdviceItem] = []
+    # The farmer's own rating of this reply (PR C): "helpful", "not_helpful" or None.
+    rating: Optional[str] = None
 
 
 class DiagnosisDetail(DiagnosisResponse):

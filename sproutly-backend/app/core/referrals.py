@@ -15,6 +15,18 @@ from app.models.user import User
 # so it can be compared with the model and kept as a candidate label.
 OTHER_JUDGEMENTS = ("other_disease", "cannot_tell", "farm_visit")
 
+# Why a farmer found an officer's reply not helpful (PR C, i08).
+FEEDBACK_REASONS = ("not_answered", "did_not_work", "other")
+
+
+def agreement(judgement, model_guess) -> str:
+    """The officer's judgement against the model's first guess, by the Overview page's rule:
+    a judgement naming a disease (or "another disease") agrees or differs; "cannot tell" and
+    "needs a farm visit" are "unsure". Report it as agreement on referred cases, never accuracy."""
+    if judgement in ("cannot_tell", "farm_visit") or not judgement:
+        return "unsure"
+    return "agreed" if judgement == model_guess else "differed"
+
 
 def open_referral(db: Session, diagnosis: Diagnosis, farmer: User,
                   reason: Optional[str] = None, note: Optional[str] = None) -> Referral:

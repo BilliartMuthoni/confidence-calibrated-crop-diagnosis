@@ -21,7 +21,7 @@ from app.core.leaf_check import load_leaf_check
 from app.core.config import settings
 from app.core.deps import require_role
 from app.core.knowledge_base import KNOWLEDGE_BASE, display_name
-from app.core.referrals import OTHER_JUDGEMENTS, expire_overdue
+from app.core.referrals import OTHER_JUDGEMENTS, agreement, expire_overdue
 from app.core.staff_links import issue_link
 from app.core.timeutil import utcnow
 from app.db.session import get_db
@@ -49,6 +49,7 @@ from app.schemas.admin import (
     ReferralOut,
     Reply,
     ReplyIn,
+    ReplyReviewItem,
 )
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -107,6 +108,9 @@ def _referral_out(db: Session, referral: Referral, viewer: User) -> ReferralOut:
         urgent=diagnosis.affected == "most" and referral.status in OPEN,
         reason=referral.reason or "not_sure",
         farmer_note=referral.farmer_note,
+        farmer_rating=referral.farmer_rating,
+        feedback_reason=referral.feedback_reason,
+        feedback_note=referral.feedback_note,
         has_photo=os.path.exists(diagnosis.image_path),
         reply=Reply(
             text=referral.reply_text,
@@ -274,6 +278,32 @@ def reply_to_referral(referral_id: int, payload: ReplyIn, request: Request, db: 
     audit.record(db, user, "referral_reply", f"Referral {referral.referral_id}", f"Judgement: {judged}", request)
     db.commit()
     return _referral_out(db, referral, user)
+
+
+# ------------------------------------------------------------------ officer replies (PR C)
+
+@router.get("/reply-review", response_model=list[ReplyReviewItem])
+def reply_review(db: Session = Depends(get_db), user: User = Depends(admin_only)):
+    """Admins' read-only review of answered cases (i07, decided 5 Nov): the model's first guess
+    next to the officer's judgement, the reply and the farmer's rating. No farmer name, phone
+    or photo; admins cannot reply here. Newest first."""
+    rows = (db.query(Referral, Diagnosis)
+            .join(Diagnosis, Diagnosis.diagnosis_id == Referral.diagnosis_id)
+            .filter(Referral.status == ReferralStatus.answered)
+            .order_by(Referral.replied_at.desc())
+            .limit(500).all())
+    out = []
+    for referral, diagnosis in rows:
+        replier = db.get(User, referral.replied_by_id) if referral.replied_by_id else None
+        out.append(ReplyReviewItem(
+            id=referral.referral_id, county=referral.county, crop=diagnosis.crop.value,
+            reason=referral.reason or "not_sure", created_at=referral.created_at,
+            replied_at=referral.replied_at, model_guess=diagnosis.top_class, judgement=referral.judgement,
+            agreement=agreement(referral.judgement, diagnosis.top_class), officer=_name(replier),
+            reply_text=referral.reply_text or "", farmer_rating=referral.farmer_rating,
+            feedback_reason=referral.feedback_reason, feedback_note=referral.feedback_note,
+        ))
+    return out
 
 
 # ---------------------------------------------------------------------------- overview

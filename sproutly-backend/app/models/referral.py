@@ -45,3 +45,10 @@ class Referral(Base):
     reply_advice = Column(JSON, nullable=True)
     replied_by_id = Column(Integer, ForeignKey("users.user_id"), nullable=True)
     replied_at = Column(DateTime, nullable=True)
+
+    # The farmer's view of the reply (PR C, i08): "helpful" or "not_helpful"; for not helpful,
+    # what went wrong (FEEDBACK_REASONS) and an optional note. They may change it later.
+    farmer_rating = Column(String, nullable=True)
+    feedback_reason = Column(String, nullable=True)
+    feedback_note = Column(Text, nullable=True)
+    rated_at = Column(DateTime, nullable=True)

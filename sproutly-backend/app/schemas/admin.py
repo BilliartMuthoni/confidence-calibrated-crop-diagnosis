@@ -68,8 +68,31 @@ class ReferralOut(BaseModel):
     # diagnosed result does not match what they see), with what they wrote.
     reason: str = "not_sure"
     farmer_note: Optional[str] = None
+    # The farmer's rating of the reply (PR C), shown to staff once answered.
+    farmer_rating: Optional[str] = None
+    feedback_reason: Optional[str] = None
+    feedback_note: Optional[str] = None
     has_photo: bool
     reply: Optional[Reply]
+
+
+class ReplyReviewItem(BaseModel):
+    """One answered case on the admins' read-only "Officer replies" page (PR C, i07).
+    No farmer name, phone or photo."""
+    id: int
+    county: Optional[str]
+    crop: str
+    reason: str
+    created_at: datetime
+    replied_at: datetime
+    model_guess: Optional[str]
+    judgement: Optional[str]
+    agreement: str  # agreed, differed or unsure
+    officer: str
+    reply_text: str
+    farmer_rating: Optional[str]
+    feedback_reason: Optional[str]
+    feedback_note: Optional[str]
 
 
 class JudgementIn(BaseModel):
