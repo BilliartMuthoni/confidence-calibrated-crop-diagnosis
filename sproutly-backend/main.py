@@ -15,6 +15,7 @@ from app.core.leaf_check import load_leaf_check
 from app.core.symptom_text import load_text_model
 from app.core.config import settings
 from app.core.limiter import limiter
+from app.core.monitoring import init_monitoring
 from app.core.retention import delete_old_photos
 from app.db.session import SessionLocal
 from app.routers.admin import router as admin_router
@@ -55,6 +56,9 @@ async def lifespan(app: FastAPI):
     yield
     cleanup.cancel()
 
+
+# Error reports to Sentry, only when SENTRY_DSN is set (deployed server), with no personal data.
+init_monitoring()
 
 #create a web server
 app = FastAPI(lifespan=lifespan)

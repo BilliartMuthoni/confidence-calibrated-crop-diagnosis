@@ -80,6 +80,10 @@ class Settings(BaseSettings):
     # was built from (sproutly-backend/model_revision.txt); "local" on a laptop.
     model_revision: str = "local"
 
+    # Error monitoring (g09, app/core/monitoring.py): server errors go to Sentry, with no personal
+    # data. Off when empty, so a laptop never reports; set only on the deployed server.
+    sentry_dsn: str = ""
+
     # Email confirmation at sign-up (t08): a 6-digit code sent by SMTP (Gmail with an App Password).
     # With no SMTP_HOST the code is written to the backend's log on a laptop; with APP_ENV=production
     # sending is refused instead, so a missing setting can't pass unnoticed.

@@ -80,6 +80,7 @@ These replace the `.env` file. Generate new keys for the cloud; do not reuse the
 | `SECRET_KEY` | `python -c "import secrets; print(secrets.token_urlsafe(48))"` |
 | `TOTP_ENCRYPTION_KEY` | `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` |
 | `GROQ_API_KEY` | a Groq key (make a separate one, e.g. `sproutly-prod`) |
+| `SENTRY_DSN` | optional: the DSN of a Sentry project (Settings, Client Keys). Server errors are then reported there with no personal data (app/core/monitoring.py); leave it out to switch monitoring off |
 | `UPLOAD_DIR` | `/home/uploads` |
 | `WEBSITES_ENABLE_APP_SERVICE_STORAGE` | `true` (keeps `/home` across restarts) |
 | `WEBSITES_PORT` | `8000` |
