@@ -25,6 +25,7 @@ import { loadCounty, saveCounty } from '../../utils/farmerCounty';
 import { COLORS } from '../../constants/theme';
 import { showDialog } from '../../components/Dialog';
 import useKeyboardScroll from '../../utils/useKeyboardScroll';
+import { chooseOnePhoto } from '../../utils/choosePhoto';
 
 // "mixed" lets the model detect each photo's crop; the farmer can correct it on the results screen.
 const CROPS = [
@@ -150,12 +151,15 @@ export default function DiagnosisScreen({ navigation }) {
         if (assets) addPhotos(assets);
     };
 
-    // The blur check sent the photo back: a new photo replaces it, keeping its crop.
+    // The blur check sent the photo back (n21): a new photo (camera or gallery) replaces it,
+    // keeping its crop, and is checked straight away.
     const retakePhoto = async () => {
-        const assets = await takePhoto();
-        if (!assets) return;
-        setPhotos((current) => [{ ...assets[0], crop: current[0]?.crop }]);
+        const asset = await chooseOnePhoto();
+        if (!asset) return;
+        const photo = { ...asset, crop: photos[0]?.crop };
+        setPhotos([photo]);
         setError(null);
+        handleSubmit({ photo });
     };
 
     const pickFromGallery = async () => {
@@ -240,32 +244,36 @@ export default function DiagnosisScreen({ navigation }) {
     // same photo twice (the duplicate checks in Your checks). The ref is set before anything awaits.
     const sending = useRef(false);
 
-    // options.allowBlurry only from "Use this photo anyway" (a button's press event has no such field).
+    // options.allowBlurry only from "Use this photo anyway" (a button's press event has no such field);
+    // options.photo only from Retake, whose new photo is not in state yet.
     const handleSubmit = async (options) => {
         if (sending.current) return;
         sending.current = true;
         setError(null);
         setSubmitting(true);
         try {
+            const photo = options?.photo || photos[0];
             if (single) {
                 const result = await submitDiagnosis({
                     token: userToken,
-                    crop: cropOf(photos[0]),
-                    imageUri: photos[0].uri,
+                    crop: cropOf(photo),
+                    imageUri: photo.uri,
                     symptoms,
                     sharing,
                     allowBlurry: options?.allowBlurry === true,
                 });
                 setBlurredPhotos([]);
-                navigation.navigate('Result', { result, imageUri: photos[0].uri });
+                navigation.navigate('Result', { result, imageUri: photo.uri });
             } else {
                 const imageUris = photos.map((p) => p.uri);
                 const results = await submitByCrop(imageUris);
-                navigation.navigate('BatchResult', { results, imageUris });
+                // Each photo's crop and the sharing choices, so a photo can be retaken there (n21).
+                const crops = photos.map((p) => (cropOf(p) === 'mixed' ? null : cropOf(p)));
+                navigation.navigate('BatchResult', { results, imageUris, crops, sharing });
             }
         } catch (e) {
             if (single && /too blurred/i.test(e?.message || '')) {
-                const uri = photos[0].uri;
+                const uri = (options?.photo || photos[0]).uri;
                 setBlurredPhotos((current) => (current.includes(uri) ? current : [...current, uri]));
             }
             setError(toFriendlyError(e));
