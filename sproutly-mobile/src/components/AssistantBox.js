@@ -17,7 +17,10 @@ function splitSource(source) {
 
 /** One reply. Everything shown is library advice or fixed wording from the backend. */
 function Reply({ reply, onChoice, onSupport, busy }) {
-    const toOfficer = reply.kind === 'officer' || reply.kind === 'unavailable' || reply.kind === 'out_of_scope';
+    // Off-topic, greetings and thanks offer topic buttons instead; a person who may be hurt gets
+    // a call button (999, Kenya's emergency line), never the officer.
+    const toOfficer = reply.kind === 'officer' || reply.kind === 'unavailable';
+    const emergency = reply.kind === 'safety' && reply.choices.length === 0;
     // One source line under the list, not a link under every line.
     const sources = [...new Set(reply.advice.map((item) => item.source))].map(splitSource);
     return (
@@ -76,6 +79,17 @@ function Reply({ reply, onChoice, onSupport, busy }) {
                 <Text className="text-sm font-bold mt-3" style={{ color: COLORS.brand }} onPress={onSupport} accessibilityRole="button">
                     Support contacts
                 </Text>
+            )}
+            {emergency && (
+                <TouchableOpacity
+                    onPress={() => Linking.openURL('tel:999')}
+                    accessibilityRole="button"
+                    className="mt-3 py-3 rounded-xl items-center flex-row justify-center"
+                    style={{ backgroundColor: COLORS.danger }}
+                >
+                    <Ionicons name="call" size={18} color="#FFFFFF" />
+                    <Text className="text-white text-base font-bold ml-2">Call 999</Text>
+                </TouchableOpacity>
             )}
         </View>
     );
