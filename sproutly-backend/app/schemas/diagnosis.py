@@ -15,6 +15,9 @@ class Guidance(BaseModel):
     # A fixed warning shown above the advice for a disease that can spread very fast
     # (late blight, n20); None for every other result.
     warning: Optional[str] = None
+    # A past check's advice is shown as it was then (t42); True when a line has been
+    # corrected or retired since, so the app can say the advice has been updated.
+    updated_since: bool = False
 
 
 class DiagnosisResponse(BaseModel):

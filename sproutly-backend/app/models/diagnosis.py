@@ -1,6 +1,7 @@
 import enum
 
 from sqlalchemy import (
+    JSON,
     Column,
     String,
     Integer,
@@ -52,6 +53,10 @@ class Diagnosis(Base):
     # The farmer's answer to "How much of your crop is affected?" when sharing (n20): few, patch
     # or most; empty if not answered. "most" lists the case first for officers.
     affected = Column(String, nullable=True)
+    # The advice library entries this result showed, as [{"id", "version"}] (t42), so opening
+    # the check later shows the wording the farmer was given, even after a correction.
+    # Empty for referred checks and for checks made before this was recorded.
+    advice_shown = Column(JSON, nullable=True)
 
     # Filled in once an extension officer responds to a referred case.
     officer_response = Column(Text, nullable=True)

@@ -362,6 +362,13 @@ export default function ResultScreen({ route, navigation }) {
                             )}
                             <Steps title="Stopping it coming back" items={result.guidance?.prevention} />
                             <Sources items={result.guidance?.sources} />
+                            {past && result.guidance?.updated_since && (
+                                // t42: a past check shows the advice as it was given; say when it has changed since.
+                                <Text className="text-sm mt-3 leading-5" style={{ color: COLORS.muted }}>
+                                    This is the advice you were shown at the time. It has been updated since: check a
+                                    new photo to see the latest advice.
+                                </Text>
+                            )}
                             <AssistantBox
                                 diagnosisId={result.diagnosis_id}
                                 saved={result.questions}

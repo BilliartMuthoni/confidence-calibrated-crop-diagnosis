@@ -99,6 +99,10 @@ def _response(db: Session, record: Diagnosis, prediction: Prediction) -> Diagnos
             sent_to_officer=sent,
         )
     guidance = get_guidance(prediction.class_name, db)
+    if guidance and guidance["shown"] and record.advice_shown is None:
+        # t42: remember which advice versions this result showed.
+        record.advice_shown = guidance["shown"]
+        db.commit()
     return DiagnosisResponse(
         **common,
         is_referred=False,
@@ -367,7 +371,8 @@ def get_diagnosis(
             crop_mismatch=record.crop_probability is not None and record.crop_probability < 0.5,
             sent_to_officer=referral is not None,
         )
-    guidance = get_guidance(record.top_class, db) if record.top_class else None
+    # As shown at the time (t42), or today's advice for checks made before that was recorded.
+    guidance = get_guidance(record.top_class, db, shown=record.advice_shown) if record.top_class else None
     return DiagnosisDetail(
         **common,
         predicted_disease=record.predicted_disease,
