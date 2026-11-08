@@ -15,7 +15,7 @@ from typing import Optional
 
 from sqlalchemy.orm import Session
 
-from app.models.advice import RESULT_KINDS, AdviceEntry, AdviceStatus
+from app.models.advice import RESULT_KINDS, AdviceEntry, AdviceStatus, AdviceVersion
 
 KNOWLEDGE_BASE = {
     "Corn_(maize)___Cercospora_leaf_spot Gray_leaf_spot": {
@@ -169,16 +169,50 @@ def display_name(class_name: str) -> str:
     return KNOWLEDGE_BASE.get(class_name, {}).get("name", class_name)
 
 
-def get_guidance(class_name: str, db: Optional[Session] = None):
+def _as_shown(guidance: dict, db: Session, shown: list) -> dict:
+    """A past check's advice exactly as it was shown (t42): each stored entry at its stored
+    version, from the change history. updated_since tells the farmer a line has been
+    corrected or retired since."""
+    updated = False
+    texts = {kind.value: [] for kind in RESULT_KINDS}
+    sources = set()
+    for item in shown:
+        entry = db.get(AdviceEntry, item["id"])
+        version = (db.query(AdviceVersion)
+                   .filter(AdviceVersion.advice_id == item["id"], AdviceVersion.version == item["version"])
+                   .first())
+        if entry is None or version is None:
+            updated = True  # cannot happen today (entries are retired, never deleted); stay safe
+            continue
+        texts[entry.kind.value].append(version.text)
+        sources.add(f"{entry.source_title} ({entry.licence}): {entry.source_url}")
+        if entry.version != item["version"] or entry.status != AdviceStatus.active:
+            updated = True
+    guidance.update(texts)
+    guidance["sources"] = sorted(sources)
+    guidance["updated_since"] = updated
+    guidance["shown"] = shown
+    return guidance
+
+
+def get_guidance(class_name: str, db: Optional[Session] = None, shown: Optional[list] = None):
     """Advice for one class. Once the advice library (managed in the admin portal, D16) has
     active entries for the class, those are shown word for word with their sources; until
-    then the placeholder text above."""
+    then the placeholder text above.
+
+    guidance["shown"] lists the library entries used, as {"id", "version"}, so a check can
+    store them (t42). Given ``shown`` (a past check's list), the advice is rebuilt exactly as
+    it was then, instead of today's library."""
     entry = KNOWLEDGE_BASE.get(class_name)
     if entry is None:
         return None
     guidance = {key: entry[key] for key in ("summary", "treatment", "prevention")}
     guidance["sources"] = []
     guidance["warning"] = warning_for(class_name)
+    guidance["shown"] = []
+    guidance["updated_since"] = False
+    if db is not None and shown:
+        return _as_shown(guidance, db, shown)
     if db is not None:
         library = (
             db.query(AdviceEntry)
@@ -192,4 +226,6 @@ def get_guidance(class_name: str, db: Optional[Session] = None):
                 guidance[kind.value] = [a.text for a in library if a.kind == kind]
             guidance["sources"] = sorted({f"{a.source_title} ({a.licence}): {a.source_url}"
                                           for a in library if a.kind in RESULT_KINDS})
+            guidance["shown"] = [{"id": a.advice_id, "version": a.version}
+                                 for a in library if a.kind in RESULT_KINDS]
     return guidance
