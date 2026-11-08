@@ -153,6 +153,16 @@ export async function fetchServerVersion() {
     }
 }
 
+/** The disease library (g08): every result with its sourced advice, grouped by crop. */
+export async function fetchLibrary({ token }) {
+    try {
+        const { data } = await client.get('/library', { headers: { Authorization: `Bearer ${token}` } });
+        return data;
+    } catch (error) {
+        throw new Error(extractErrorMessage(error));
+    }
+}
+
 export async function fetchHistory({ token }) {
     try {
         const { data } = await client.get('/diagnose/history', {
