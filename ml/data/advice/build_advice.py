@@ -2,9 +2,16 @@
 
 Run from the repository root: python ml/data/advice/build_advice.py
 
-Every entry is checked to appear word for word in the factsheet text saved in
+Every entry is checked to appear word for word in the source text saved in
+ml/data/advice/sources/ by save_sources.py (the whole sheet), or for the Njeru paper in
 ml/data/symptoms/management/ (PlantVillage clauses: split at semicolons, first letter
 capitalised, otherwise unchanged). Lines naming a pesticide product or a rate were left out.
+
+Kinds (t49, issue #65): treatment and prevention are shown on the result screen; about (what
+causes it, how it spreads, the weather it likes) and harvest (harvest and storage) are only
+chosen by the assistant. No licensed source says whether a diseased crop is safe to eat, so
+there are no eating entries. The NPCK Potato Production Handbook (2019) has no open licence
+and is not quoted.
 """
 import csv
 import re
@@ -24,6 +31,18 @@ SHEETS = {  # file -> (title, licence, url)
     "20137803397": ("Plantwise factsheet for farmers: Early blight management in tomatoes (Tanzania, 2012), CABI", "CC BY-SA 4.0"),
     "20127802686": ("Plantwise factsheet for farmers: Bacterial leaf spot (Trinidad and Tobago, 2011), CABI", "CC BY-SA 4.0"),
     "20147801404": ("Plantwise factsheet for farmers: Grey leaf spot disease management in maize (Zambia, 2013), CABI", "CC BY-SA 4.0"),
+    # Added for the About and Harvest and storage entries (t49)
+    "20137804212": ("Plantwise factsheet for farmers: Early blight on Tomato (Kenya, 2012), CABI", "CC BY-SA 4.0"),
+    "20147801161": ("Plantwise factsheet for farmers: Late blight disease management in tomatoes (Tanzania, 2012), CABI", "CC BY-SA 4.0"),
+    "20147801362": ("Plantwise factsheet for farmers: Late Blight of Potato (Pakistan, 2012), CABI", "CC BY-SA 4.0"),
+    "20157800166": ("Plantwise factsheet for farmers: Late Blight of Tomatoes (Pakistan, 2013), CABI", "CC BY-SA 4.0"),
+    "20157800171": ("Plantwise factsheet for farmers: Potato Late Blight (Pakistan, 2013), CABI", "CC BY-SA 4.0"),
+    "20197800158": ("Plantwise factsheet for farmers: Mechanical Control of Potato Early blight (Afghanistan, 2017), CABI", "CC BY-SA 4.0"),
+    "20127802679": ("Plantwise factsheet for farmers: Early blight (Trinidad and Tobago, 2011), CABI", "CC BY-SA 4.0"),
+    "20137804207": ("Plantwise factsheet for farmers: Bacterial Spot on tomato (Kenya, 2012), KENGAP Horticulture and CABI", "CC BY-SA 4.0"),
+    "20137804214": ("Plantwise factsheet for farmers: Late blight on Tomato (Kenya, 2012), KENGAP Horticulture and CABI", "CC BY-SA 4.0"),
+    "20127801767": ("Plantwise factsheet for farmers: Potato late blight (Rwanda, 2012), Rwanda Agriculture Board and CABI", "CC BY-SA 4.0"),
+    "20157801442": ("Plantwise factsheet for farmers: Management of Potato late blight (Myanmar, 2014), CABI", "CC BY-SA 4.0"),
 }
 OTHER = {  # file -> (title, licence, url): recent research with an open licence
     "njeru-2023-peerj": ("Njeru et al. (2023), Major biotic stresses affecting maize production in Kenya, PeerJ",
@@ -34,6 +53,8 @@ PV = {  # file -> (title, url)
     "plantvillage-corn-maize-common-rust": ("PlantVillage: Corn (maize), Common rust", "https://plantvillage.psu.edu/topics/corn-maize/infos"),
     "plantvillage-corn-maize-northern-leaf-blight": ("PlantVillage: Corn (maize), Northern Leaf Blight", "https://plantvillage.psu.edu/topics/corn-maize/infos"),
     "plantvillage-potato-potato-early-blight": ("PlantVillage: Potato, Early Blight", "https://plantvillage.psu.edu/topics/potato/infos"),
+    "plantvillage-potato-potato-late-blight": ("PlantVillage: Potato, Late Blight", "https://plantvillage.psu.edu/topics/potato/infos"),
+    "plantvillage-tomato-early-blight": ("PlantVillage: Tomato, Early blight", "https://plantvillage.psu.edu/topics/tomato/infos"),
     "plantvillage-tomato-bacterial-spot": ("PlantVillage: Tomato, Bacterial spot", "https://plantvillage.psu.edu/topics/tomato/infos"),
     "plantvillage-tomato-late-blight": ("PlantVillage: Tomato, Late blight", "https://plantvillage.psu.edu/topics/tomato/infos"),
 }
@@ -45,6 +66,7 @@ M_OK = "Corn_(maize)___healthy"
 T_BS, T_EB, T_LB, T_OK = "Tomato___Bacterial_spot", "Tomato___Early_blight", "Tomato___Late_blight", "Tomato___healthy"
 P_EB, P_LB, P_OK = "Potato___Early_blight", "Potato___Late_blight", "Potato___healthy"
 T, P = "treatment", "prevention"
+A, H = "about", "harvest"  # assistant only: cause, spread, weather; harvest and storage
 
 # (class, kind, source file, text)
 ROWS = [
@@ -122,6 +144,97 @@ ROWS = [
     (P_OK, P, "20117800552", "Use clean seed potatoes, from a source you trust."),
     (P_OK, P, "20117800552", "After harvesting potatoes, plant a different crop the following year."),
     (P_OK, P, "20103326450", "Keep the crop free of weeds to reduce moisture around the plants."),
+
+    # ---- Added 8 Nov 2026 (t49, issue #65): more prevention for potato early blight, the
+    # about entries (cause, spread, weather) and harvest and storage entries.
+    # Maize gray leaf spot
+    (GLS, A, "20147801404", "Grey leaf spot is a fungal disease that affects maize."),
+    (GLS, A, "20147801404", "The disease survives on maize residues left on the soil surface from season to season."),
+    (GLS, A, "20147801404", "When the weather is good, the fungus begins to develop on residues and produces a powdery substance."),
+    (GLS, A, "20147801404", "This substance is blown by wind onto the lower leaves of the maize plants and infects them."),
+    # Maize common rust
+    (RUST, A, "plantvillage-corn-maize-common-rust", "Disease is spread by wind-borne spores"),
+    # Maize northern leaf blight
+    (NLB, A, "plantvillage-corn-maize-northern-leaf-blight", "The disease mainly spread through rain splash and wind."),
+    # Tomato bacterial spot
+    (T_BS, A, "20127802686", "This disease can be carried in the seeds of the crop."),
+    (T_BS, A, "20127802686", "The disease is worse in wet conditions."),
+    (T_BS, A, "20127802686", "The disease spreads from diseased plants, from the soil and from the splash of water."),
+    (T_BS, A, "20127802686", "The bacteria can be spread by touching sick plants."),
+    (T_BS, A, "20127802686", "The disease can survive in crop remains."),
+    (T_BS, H, "20127802686", "Fruits develop raised spots and cannot be sold."),
+    # Tomato early blight
+    (T_EB, A, "20137804212", "Early blight is a seed-borne disease that results in poor germination of seedlings."),
+    (T_EB, A, "20137804212", "Disease development is most serious during warm wet conditions."),
+    (T_EB, A, "20137804212", "The disease is also spread by wind, rain, running water, farm tools and also farm workers."),
+    (T_EB, A, "20137803397", "The fungus spreads quickly during warm weather."),
+    (T_EB, A, "plantvillage-tomato-early-blight", "Disease can spread rapidly after plants have set fruit"),
+    # Tomato late blight
+    (T_LB, A, "20137804183", "The water mould produces spores which survive in soil and in plants (e.g. tomato seeds, crop carry over and weeds)."),
+    (T_LB, A, "20137804183", "Rain helps to splash spores on to new plants."),
+    (T_LB, A, "20137804183", "The disease is also spread by tools and on clothing."),
+    (T_LB, A, "20137804183", "Barafu is common during wet and cold weather and spreads rapidly between tomato plants close to each other."),
+    (T_LB, A, "20137804183", "Barafu also attacks potato and black nightshade."),
+    (T_LB, A, "20147801161", "Blight can be blown by wind from far away, and can infect your field."),
+    (T_LB, A, "20157800166", "Late blight can survive from one season to the next in infected tomato seeds."),
+    # Potato early blight
+    (P_EB, A, "20197800158", "Early blight is a fungal disease of potato, with the disease prevalent during periods of dry weather with intermittent rain."),
+    (P_EB, A, "20197800158", "Under humid conditions, the disease spreads rapidly from the lower leaves to those at the top and may cause premature death of plants."),
+    (P_EB, P, "20197800158", "Crop rotation with non-host crops like, cereals, pulses and clover."),
+    (P_EB, P, "20197800158", "Seed or tuber must be certified and disease free."),
+    (P_EB, P, "20197800158", "Weed control regularly."),
+    (P_EB, P, "20197800158", "Regular irrigation and avoid over-watering."),
+    (P_EB, H, "20197800158", "Crop debris should be destroyed by burning after the harvest."),
+    # Potato late blight
+    (P_LB, A, "20117800552", "Late blight is more common in wet weather."),
+    (P_LB, A, "20117800552", "The disease infects leaves and will spread to the tubers."),
+    (P_LB, A, "20117800552", "The disease can be carried in seed potatoes."),
+    (P_LB, A, "20103326450", "Potatoes get blight when the weather is cold and wet and when the plants are too close together."),
+    (P_LB, A, "20147801362", "The fungus can be spread from infected to healthy plants through wind, rain, dew, and high humidity."),
+    (P_LB, A, "20157800171", "The disease can be spread from one field to another through contact with people or agricultural tools."),
+    (P_LB, A, "20157800231", "In cold and wet weather, the disease can kill the whole field of plants within 2-3 days."),
+    (P_LB, H, "20117800552", "This disease will significantly reduce yield and make potato rot in store."),
+    (P_LB, H, "20147801362", "Seemingly healthy tubers of infected crops may rot later when in store."),
+    (P_LB, H, "20147801362", "Remove blighted tubers before putting in store"),
+    (P_LB, H, "20147801362", "Do not wash potatoes that are to be stored."),
+
+    # ---- Added 8 Nov 2026 after the wider source search (four AIs' leads, each checked here
+    # word for word and for its licence): five more Plantwise sheets. Mostly non-chemical
+    # treatment ("what to do now") the library was short of. Wikipedia was considered and left
+    # out: the symptom text already rejected it as not an institutional source, and its rows
+    # mostly repeated the Plantwise sheets.
+    # Maize gray leaf spot
+    # Maize northern leaf blight
+    # Tomato bacterial spot
+    (T_BS, T, "20137804207", "Avoid working on wet fields since the disease spreads faster."),
+    (T_BS, T, "20137804207", "Use flood or furrow irrigation where possible and in case of overhead irrigation, irrigate at a time when the leaves will dry quickly."),
+    (T_BS, P, "20137804207", "Plant certified disease-free seeds."),
+    (T_BS, P, "20137804207", "Practice crop rotation with crops not related to tomatoes (e.g. not pepper, brinjals or potatoes)"),
+    (T_BS, A, "20137804207", "Disease is spread in the farm when working during wet weather conditions."),
+    # Tomato early blight
+    (T_EB, T, "20127802679", "Remove diseased plant parts from the field and dispose."),
+    (T_EB, T, "20127802679", "Prune overgrown plants to keep humidity low and to let in the air."),
+    (T_EB, P, "20127802679", "Keep the crop dry by planting crops wide apart to allow free flow of air between plants."),
+    (T_EB, P, "20127802679", "Mulch around plants to reduce soil-water splash and help keep spores off healthy leaves."),
+    (T_EB, P, "20127802679", "Do not replant these types of crops (peppers or tomatoes) in the same field for at least two to three years."),
+    # Tomato late blight
+    (T_LB, T, "20137804214", "Stake the plant to keep them off soil."),
+    (T_LB, T, "20137804214", "Mulch the plant to reduce water splashes."),
+    (T_LB, T, "20137804214", "Irrigating during the day can help reduce the severity of the infection because this disease needs to have free water around to spread."),
+    (T_LB, P, "20137804214", "Practice crop rotation by avoiding tomato or related crops (e.g. Irish potatoes, capsicum, brinjals etc) for at least 3 to 4 seasons."),
+    (T_LB, P, "20137804214", "Transplants should be free of disease."),
+    (T_LB, A, "20137804214", "The disease survives in old crop residues and other plants related to the tomato."),
+    (T_LB, A, "20137804214", "The disease can also be spread by overhead irrigation and in overcrowded farms."),
+    # Potato early blight
+    # Potato late blight
+    (P_LB, T, "20127801767", "Wash field equipment and machinery after use"),
+    (P_LB, T, "20127801767", "Destroy all culled and volunteer potatoes"),
+    (P_LB, P, "20127801767", "Rotate with maize, wheat or beans after each season."),
+    (P_LB, P, "20127801767", "Use resistant and/or tolerant varieties"),
+    (P_LB, P, "20157801442", "Choose fields with good air ventilation and well-drained soil."),
+    (P_LB, A, "20127801767", "The fungus survives in the tubers, volunteer plants and discarded piles of potatoes."),
+    (P_LB, A, "20127801767", "The fungus is spread between plants by wind, rain, machinery and animals."),
+    (P_LB, H, "20157801442", "Low temperatures and good ventilation are needed for storage tubers."),
 ]
 
 # Never let a product name or a rate through.
@@ -129,8 +242,15 @@ FORBIDDEN = re.compile(r"mancozeb|metalaxyl|ridomil|dithane|propineb|copper|chlo
                        r"flusilazole|\bml\b|gram|litre|ltr|\bkg\b|%|@", re.I)
 
 
+SOURCES = ROOT / "advice" / "sources"
+
+
 def body(name):
-    return MANAGEMENT.joinpath(f"{name}.txt").read_text(encoding="utf-8").split("\n\n", 1)[1]
+    # The whole sheet (save_sources.py) where saved; otherwise its Management section.
+    path = SOURCES / f"{name}.txt"
+    if not path.exists():
+        path = MANAGEMENT / f"{name}.txt"
+    return path.read_text(encoding="utf-8").split("\n\n", 1)[1]
 
 
 def norm(text):

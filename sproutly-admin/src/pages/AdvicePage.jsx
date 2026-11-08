@@ -9,6 +9,13 @@ import { useLoad } from '../lib/useLoad.js'
 const LICENCES = ['CC BY 4.0', 'CC BY-SA 4.0', 'CC BY-SA 3.0', 'CC0', 'Public domain']
 const BLANK = { disease: '', kind: 'treatment', text: '', source_title: '', source_url: '', licence: '' }
 const isHealthy = (cls) => cls.endsWith('healthy')
+// Treatment and prevention are shown on the result; about and harvest only answer the assistant (t49).
+const KINDS = {
+  treatment: ['Treatment', 'What to do now (treatment)'],
+  prevention: ['Prevention', 'Stopping it coming back (prevention)'],
+  about: ['About', 'Cause, spread and weather (about, assistant only)'],
+  harvest: ['Harvest and storage', 'Harvest and storage (assistant only)'],
+}
 // A disease needs both kinds of advice; a healthy result only needs prevention.
 const needed = (cls) => (isHealthy(cls) ? ['prevention'] : ['treatment', 'prevention'])
 
@@ -86,8 +93,7 @@ function EntryForm({ initial, onDone, onCancel }) {
         </Field>
         <Field label="Type">
           <select className={inputClass} value={form.kind} onChange={set('kind')} disabled={isHealthy(form.disease)}>
-            <option value="treatment">What to do now (treatment)</option>
-            <option value="prevention">Stopping it coming back (prevention)</option>
+            {Object.entries(KINDS).map(([k, [, label]]) => <option key={k} value={k}>{label}</option>)}
           </select>
         </Field>
         <div className="sm:col-span-2">
@@ -131,7 +137,7 @@ function Entry({ entry, isAdmin, onEdit, onChanged }) {
   return (
     <li className="px-5 py-4">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-xs font-semibold text-ink">{entry.kind === 'treatment' ? 'Treatment' : 'Prevention'}</span>
+        <span className="text-xs font-semibold text-ink">{KINDS[entry.kind]?.[0] ?? entry.kind}</span>
         {entry.status === 'retired' && <Badge tone="retired">Retired</Badge>}
         <span className="text-xs text-muted">Version {entry.version}</span>
       </div>
@@ -168,16 +174,18 @@ export default function AdvicePage() {
   const { data, error, loading, reload } = useLoad(load)
   const [editing, setEditing] = useState(null)
   const [disease, setDisease] = useState('')
+  const [kind, setKind] = useState('')
   const [showRetired, setShowRetired] = useState(false)
 
-  const entries = (data ?? []).filter((a) => !disease || a.disease === disease).filter((a) => showRetired || a.status === 'active')
+  const entries = (data ?? []).filter((a) => !disease || a.disease === disease).filter((a) => !kind || a.kind === kind)
+    .filter((a) => showRetired || a.status === 'active')
   const groups = Object.keys(DISEASES).map((cls) => [cls, entries.filter((a) => a.disease === cls)]).filter(([, list]) => list.length)
 
   return (
     <>
       <PageHeader
         title="Advice library"
-        subtitle="Treatment and prevention advice shown to farmers, word for word with its source. The assistant uses the same entries."
+        subtitle="Advice shown to farmers, word for word with its source. Treatment and prevention appear on the result; the assistant can also choose About and Harvest and storage entries."
       >
         {isAdmin && !editing && <Button onClick={() => setEditing(BLANK)}>Add an entry</Button>}
       </PageHeader>
@@ -193,6 +201,10 @@ export default function AdvicePage() {
         <select className={filterClass} value={disease} onChange={(e) => setDisease(e.target.value)} aria-label="Disease">
           <option value="">All results</option>
           {Object.keys(DISEASES).map((c) => <option key={c} value={c}>{diseaseName(c)}</option>)}
+        </select>
+        <select className={filterClass} value={kind} onChange={(e) => setKind(e.target.value)} aria-label="Type">
+          <option value="">All types</option>
+          {Object.entries(KINDS).map(([k, [label]]) => <option key={k} value={k}>{label}</option>)}
         </select>
         <label className="flex items-center gap-2 text-sm text-muted">
           <input type="checkbox" checked={showRetired} onChange={(e) => setShowRetired(e.target.checked)} />

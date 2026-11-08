@@ -9,7 +9,8 @@ Run inside sproutly-backend:
 first start fills a new database; later starts never re-add an entry an admin has corrected).
 
 The CSV has a header row with: disease, kind, text, source_title, source_url, licence.
-disease is a model class name (e.g. Tomato___Early_blight), kind is treatment or prevention,
+disease is a model class name (e.g. Tomato___Early_blight), kind is treatment, prevention, about or harvest
+(the last two only for the assistant),
 and text is the excerpt word for word. Rows already in the library (same disease, kind and
 text) are skipped, so the file can be imported again after adding rows.
 """

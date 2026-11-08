@@ -9,6 +9,13 @@ from app.db.session import Base
 class AdviceKind(str, enum.Enum):
     treatment = "treatment"  # what to do now
     prevention = "prevention"  # stopping it coming back
+    # Only the assistant chooses these two (t49); the result screen shows treatment and prevention.
+    about = "about"  # what causes it, how it spreads, the weather it likes
+    harvest = "harvest"  # harvest and storage
+
+
+# Shown on the result screen; the other kinds answer the farmer's questions only.
+RESULT_KINDS = (AdviceKind.treatment, AdviceKind.prevention)
 
 
 class AdviceStatus(str, enum.Enum):

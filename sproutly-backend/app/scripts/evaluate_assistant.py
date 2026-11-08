@@ -11,6 +11,21 @@ and is the number reported. A question is answered correctly when the model chos
 expected tool and, for advice, only entries of the expected kind (treatment or prevention),
 or for a hand-over or question, the expected reason. Requests are spaced out to stay inside
 the free tier's per-minute token limit; one 429 is waited out and retried.
+
+Design change, 8 Nov 2026 (t49, issue #65): the advice library gained two kinds the assistant
+can choose, about (cause, spread, weather) and harvest (harvest and storage). Before any run
+with them, the answer key changed in one place (question 23, "Is it safe to eat the
+potatoes?", now expects refer_to_officer / food_safety instead of out_of_scope, because no
+licensed source answers it), and seven questions for the new kinds were added as their own
+split, "kinds" (51-57). In the same change the assistant gained small_talk (greetings, thanks)
+and safety (someone may be hurt: emergency numbers; a harmful request: a refusal), and its
+off-topic reply now says what can be asked; nine questions for these were added as the split
+"conversation" (58-66, the last one random letters). All of this was fixed before the run. The 25 report questions were then
+run once again:
+
+    python -m app.scripts.evaluate_assistant report
+    python -m app.scripts.evaluate_assistant kinds
+    python -m app.scripts.evaluate_assistant conversation
 """
 
 import csv
@@ -42,7 +57,7 @@ def _ask(db, row):
 def main(split: str) -> int:
     rows = [r for r in csv.DictReader(QUESTIONS.open(encoding="utf-8")) if split == "all" or r["split"] == split]
     if not rows:
-        print("Choose tune, report or all")
+        print("Choose tune, report, kinds, conversation or all")
         return 1
     db = SessionLocal()
     results = []
@@ -70,7 +85,7 @@ def main(split: str) -> int:
     print(f"\n{split}: {sum(r['correct'] for r in results)}/{total} correct, "
           f"{sum(r['right_tool'] for r in results)}/{total} right tool, "
           f"{sum(r['chosen_tool'] == 'unavailable' for r in results)} unavailable")
-    for tool in ("show_advice", "refer_to_officer", "ask_farmer", "out_of_scope"):
+    for tool in ("show_advice", "refer_to_officer", "ask_farmer", "small_talk", "safety", "out_of_scope"):
         part = [r for r in results if r["expected_tool"] == tool]
         if part:
             print(f"  {tool}: {sum(r['correct'] for r in part)}/{len(part)}")

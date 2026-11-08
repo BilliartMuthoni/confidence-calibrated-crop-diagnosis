@@ -15,7 +15,7 @@ from typing import Optional
 
 from sqlalchemy.orm import Session
 
-from app.models.advice import AdviceEntry, AdviceKind, AdviceStatus
+from app.models.advice import RESULT_KINDS, AdviceEntry, AdviceStatus
 
 KNOWLEDGE_BASE = {
     "Corn_(maize)___Cercospora_leaf_spot Gray_leaf_spot": {
@@ -174,7 +174,9 @@ def get_guidance(class_name: str, db: Optional[Session] = None):
             .all()
         )
         if library:
-            for kind in AdviceKind:
+            # Only treatment and prevention: about and harvest entries are for the assistant (t49).
+            for kind in RESULT_KINDS:
                 guidance[kind.value] = [a.text for a in library if a.kind == kind]
-            guidance["sources"] = sorted({f"{a.source_title} ({a.licence}): {a.source_url}" for a in library})
+            guidance["sources"] = sorted({f"{a.source_title} ({a.licence}): {a.source_url}"
+                                          for a in library if a.kind in RESULT_KINDS})
     return guidance
