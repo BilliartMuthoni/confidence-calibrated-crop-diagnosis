@@ -11,10 +11,11 @@ if ! touch "$UPLOAD_DIR/.write-test" 2>/dev/null; then
 fi
 rm -f "$UPLOAD_DIR/.write-test"
 
-# Bring the database up to date, fill the advice library if it is still empty, and add any
-# sourced support contact not yet in the table (an admin's edits are kept).
+# Bring the database up to date, add any advice row that is new in the reviewed file (one an
+# admin corrected or retired is never re-added), and add any sourced support contact not yet in
+# the table (an admin's edits are kept).
 alembic upgrade head
-python -m app.scripts.import_advice data/advice.csv --if-empty
+python -m app.scripts.import_advice data/advice.csv || echo "Advice not imported; see the lines above." >&2
 python -m app.scripts.import_contacts data/support_contacts.csv || echo "Support contacts not imported; see the lines above." >&2
 
 # One process: the models take about 650 MB each time they are loaded, and one copy fits the
