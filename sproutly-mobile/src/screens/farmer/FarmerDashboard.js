@@ -1,4 +1,4 @@
-import React, { useCallback, useContext, useState } from 'react';
+import React, { useCallback, useContext, useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -6,6 +6,8 @@ import { useFocusEffect } from '@react-navigation/native';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { AuthContext } from '../../context/AuthContext';
 import { fetchHistory } from '../../api/DiagnosisService';
+import { acceptTerms, fetchCurrentUser } from '../../api/AuthService';
+import { showDialog } from '../../components/Dialog';
 import { toFriendlyError } from '../../utils/errorMessages';
 import ErrorBanner from '../../components/ErrorBanner';
 import BottomBar from '../../components/BottomBar';
@@ -23,8 +25,34 @@ export default function FarmerDashboard({ navigation }) {
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState(null);
 
+    // Terms (t50): accounts from before the tick-box, Google sign-ups and everyone after the terms
+    // change are asked once. Reading the pages closes the pop-up; agreeing there saves it, and
+    // coming back without agreeing asks again.
+    const askingTerms = useRef(false);
+    const checkTerms = useCallback(async () => {
+        if (askingTerms.current) return;
+        try {
+            const me = await fetchCurrentUser({ token: userToken });
+            if (me.terms_current !== false || askingTerms.current) return;
+            askingTerms.current = true;
+            const done = () => { askingTerms.current = false; };
+            showDialog(
+                'Terms of use and Privacy policy',
+                'Please read and agree to the Terms of use and Privacy policy to keep using Sproutly.',
+                [
+                    { text: 'I agree', onPress: () => acceptTerms({ token: userToken }).catch(() => {}).finally(done) },
+                    // Both pages as tabs, with "I agree to both" at the bottom.
+                    { text: 'Read them first', style: 'cancel', onPress: () => { done(); navigation.navigate('Info', { page: 'terms', agree: 'home' }); } },
+                ],
+            );
+        } catch {
+            // No signal: ask next time Home opens.
+        }
+    }, [userToken, navigation]);
+
     const load = useCallback(async () => {
         setError(null);
+        checkTerms();
         try {
             const [checks, opened] = await Promise.all([fetchHistory({ token: userToken }), loadSeenReplies()]);
             setHistory(checks);
@@ -35,7 +63,7 @@ export default function FarmerDashboard({ navigation }) {
             setLoading(false);
             setRefreshing(false);
         }
-    }, [userToken]);
+    }, [userToken, checkTerms]);
 
     // Reload whenever the home screen comes back into view, e.g. after a new check.
     useFocusEffect(

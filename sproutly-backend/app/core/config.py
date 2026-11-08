@@ -93,6 +93,10 @@ class Settings(BaseSettings):
     email_resend_seconds: int = 60
     email_codes_per_day: int = 10
 
+    # Terms of use and privacy policy (t50): the version a farmer agrees to at sign-up. Change it
+    # (e.g. to the new date) when the texts in the app change, and every farmer is asked again once.
+    terms_version: str = "2026-11-06"
+
     # Admin portal and staff accounts.
     # Where the portal runs: one-time links for new officers and password resets point here.
     admin_portal_url: str = "http://localhost:5173"

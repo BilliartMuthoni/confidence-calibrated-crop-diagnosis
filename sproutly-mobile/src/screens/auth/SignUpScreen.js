@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
     View,
     Text,
@@ -20,7 +20,7 @@ import SocialSignIn from '../../components/SocialSignIn';
 import BusyOverlay from '../../components/BusyOverlay';
 import useKeyboardScroll from '../../utils/useKeyboardScroll';
 
-export default function SignUpScreen({ navigation }) {
+export default function SignUpScreen({ navigation, route }) {
     const scrollRef = useKeyboardScroll();
     const [authMethod, setAuthMethod] = useState('phone'); // 'phone' or 'email'
     // An error belongs to the tab it came from; switching tabs clears it.
@@ -39,9 +39,23 @@ export default function SignUpScreen({ navigation }) {
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
+    // "I agree to the Terms of use and Privacy policy" (t50): Sign up and Google wait for it.
+    const [agreed, setAgreed] = useState(false);
+    // "I agree to both" on the reading screen comes back here with agreed: tick the box.
+    useEffect(() => {
+        if (route.params?.agreed) {
+            setAgreed(true);
+            navigation.setParams({ agreed: undefined });
+        }
+    }, [route.params?.agreed, navigation]);
+    const readTerms = (page) => navigation.navigate('Info', { page, agree: 'signup' });
 
     const handleSignUpSubmit = async () => {
         setError(null);
+        if (!agreed) {
+            setError({ title: 'Agree to the terms', message: 'Tick the box to agree to the Terms of use and Privacy policy.', retryable: false });
+            return;
+        }
 
         if (authMethod === 'phone' && phoneNumber.trim().length < 9) {
             setError({ title: 'Check your phone number', message: 'It looks too short. Enter it like 0712345678.', retryable: false });
@@ -199,6 +213,29 @@ export default function SignUpScreen({ navigation }) {
                                 />
                             </View>
 
+                            <View className="flex-row items-start mb-4 mt-1">
+                                <TouchableOpacity
+                                    onPress={() => setAgreed((v) => !v)}
+                                    accessibilityRole="checkbox"
+                                    accessibilityState={{ checked: agreed }}
+                                    accessibilityLabel="I agree to the Terms of use and Privacy policy"
+                                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                    className={`w-6 h-6 rounded-md border-2 items-center justify-center mr-3 mt-0.5 ${agreed ? 'bg-white border-white' : 'border-white/60'}`}
+                                >
+                                    {agreed && <Ionicons name="checkmark" size={16} color="#1B4332" />}
+                                </TouchableOpacity>
+                                <Text className="flex-1 text-white/80 text-sm leading-6">
+                                    I agree to the{' '}
+                                    <Text className="text-white font-bold underline" onPress={() => readTerms('terms')}>
+                                        Terms of use
+                                    </Text>
+                                    {' '}and{' '}
+                                    <Text className="text-white font-bold underline" onPress={() => readTerms('privacy')}>
+                                        Privacy policy
+                                    </Text>
+                                </Text>
+                            </View>
+
                             {error && (
                                 <View className="mb-4">
                                     <ErrorBanner error={error} tone="dark" onDismiss={() => setError(null)} />
@@ -206,7 +243,7 @@ export default function SignUpScreen({ navigation }) {
                             )}
 
                             <TouchableOpacity
-                                className={`bg-white py-4 rounded-2xl items-center mt-4 shadow-lg ${loading ? 'opacity-70' : ''}`}
+                                className={`bg-white py-4 rounded-2xl items-center mt-4 shadow-lg ${loading || !agreed ? 'opacity-50' : ''}`}
                                 onPress={handleSignUpSubmit}
                                 disabled={loading}
                             >
@@ -221,6 +258,8 @@ export default function SignUpScreen({ navigation }) {
                         <SocialSignIn
                             navigation={navigation}
                             onSignedIn={confirmWithGoogle ? addPasswordAfterGoogle : undefined}
+                            disabled={!agreed}
+                            agreedToTerms={agreed}
                         />
 
                         <View className="flex-row justify-center mt-6">

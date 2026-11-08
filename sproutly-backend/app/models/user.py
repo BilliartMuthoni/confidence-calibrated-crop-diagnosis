@@ -42,6 +42,11 @@ class User(Base):
     email_codes_day = Column(Date, nullable=True)
     email_codes_today = Column(Integer, nullable=False, default=0, server_default="0")
 
+    # Terms of use and privacy policy (t50): which version the farmer agreed to, and when.
+    # Empty, or older than settings.terms_version: the app asks once before going on.
+    terms_version = Column(String, nullable=True)
+    terms_accepted_at = Column(DateTime, nullable=True)
+
     # Staff accounts have a name; officers have the county whose referrals they answer.
     # A farmer's county decides which officers see their referrals and which contacts they get.
     full_name = Column(String, nullable=True)

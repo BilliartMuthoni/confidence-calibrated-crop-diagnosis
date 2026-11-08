@@ -23,6 +23,8 @@ export const PAGES = {
                 "Each check's result: the disease, how sure Sproutly was, and any reply from an extension officer.",
                 'The questions you ask about a result and the replies you were shown, only if you chose "Keep them". You can turn this off at any time.',
                 'If you use Continue with Google: the email and account number Google gives us. Never your Google password.',
+                'If you signed up with an email: when you confirmed it with the code we sent.',
+                'When you agreed to these terms and this privacy policy, and which version.',
             ]],
             ['Why', [
                 'To check your leaf photos and show you the result.',
