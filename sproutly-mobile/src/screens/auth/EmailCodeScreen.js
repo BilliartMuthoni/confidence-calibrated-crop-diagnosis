@@ -9,10 +9,12 @@ import ErrorBanner from '../../components/ErrorBanner';
 import CodeInput from '../../components/CodeInput';
 import BusyOverlay from '../../components/BusyOverlay';
 
-// Confirm the email (t08): the 6-digit code sent there at sign-up, or at sign-in with an email
-// that was never confirmed. A right code goes on to the authenticator, as before.
+// Confirm the email (t08) or phone number (t22): the 6-digit code sent there at sign-up, or at
+// sign-in when it was never confirmed. A right code goes on to the authenticator, as before.
 export default function EmailCodeScreen({ route, navigation }) {
-    const { email } = route.params;
+    const { email, phone, byPhone = false } = route.params;
+    const verify = byPhone ? AuthService.verifyPhoneCode : AuthService.verifyEmailCode;
+    const resendCode = byPhone ? AuthService.resendPhoneCode : AuthService.resendEmailCode;
     const [mfaToken, setMfaToken] = useState(route.params.mfaToken);
     const [code, setCode] = useState('');
     const [loading, setLoading] = useState(false);
@@ -34,8 +36,8 @@ export default function EmailCodeScreen({ route, navigation }) {
         setError(null);
         setNotice(null);
         try {
-            const data = await AuthService.verifyEmailCode({ mfaToken, code: value });
-            // Email confirmed: on to the authenticator (set up, or its code).
+            const data = await verify({ mfaToken, code: value });
+            // Confirmed: on to the authenticator (set up, or its code).
             navigation.replace(...AuthService.challengeScreen(data));
         } catch (e) {
             setError(toFriendlyError(e));
@@ -51,7 +53,7 @@ export default function EmailCodeScreen({ route, navigation }) {
         setError(null);
         setNotice(null);
         try {
-            const data = await AuthService.resendEmailCode({ mfaToken });
+            const data = await resendCode({ mfaToken });
             setMfaToken(data.mfa_token);
             setWait(data.resend_in_seconds ?? 60);
             setCode('');
@@ -76,12 +78,14 @@ export default function EmailCodeScreen({ route, navigation }) {
                 </View>
 
                 <View className="flex-1 px-8 pt-10 items-center">
-                    <Ionicons name="mail" size={32} color="#FFFFFF" style={{ marginBottom: 10 }} />
-                    <Text className="text-2xl font-bold text-white mb-2.5 text-center">Check your email</Text>
+                    <Ionicons name={byPhone ? 'chatbubble-ellipses' : 'mail'} size={32} color="#FFFFFF" style={{ marginBottom: 10 }} />
+                    <Text className="text-2xl font-bold text-white mb-2.5 text-center">
+                        {byPhone ? 'Check your messages' : 'Check your email'}
+                    </Text>
                     <Text className="text-base text-white/70 text-center mb-8 leading-6">
-                        We sent a 6-digit code to{' '}
-                        <Text className="text-white font-semibold">{email}</Text>. Type it below to confirm this
-                        email is yours.
+                        We sent a 6-digit code {byPhone ? 'by SMS ' : ''}to{' '}
+                        <Text className="text-white font-semibold">{byPhone ? phone : email}</Text>. Type it below to
+                        confirm this {byPhone ? 'number' : 'email'} is yours.
                     </Text>
 
                     <CodeInput value={code} onChangeText={setCode} onComplete={submit} />
@@ -114,8 +118,9 @@ export default function EmailCodeScreen({ route, navigation }) {
                     </TouchableOpacity>
 
                     <Text className="text-sm text-white/50 text-center mt-4 leading-5">
-                        The code works for 15 minutes. Not there? Look in Spam or Promotions. Wrong email? Go back and
-                        sign up again with the right one.
+                        {byPhone
+                            ? 'The code works for 15 minutes. It can take a minute to arrive. Wrong number? Go back and sign up again with the right one.'
+                            : 'The code works for 15 minutes. Not there? Look in Spam or Promotions. Wrong email? Go back and sign up again with the right one.'}
                     </Text>
                 </View>
             </KeyboardAvoidingView>

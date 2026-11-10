@@ -80,6 +80,8 @@ These replace the `.env` file. Generate new keys for the cloud; do not reuse the
 | `SECRET_KEY` | `python -c "import secrets; print(secrets.token_urlsafe(48))"` |
 | `TOTP_ENCRYPTION_KEY` | `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` |
 | `GROQ_API_KEY` | a Groq key (make a separate one, e.g. `sproutly-prod`) |
+| `AT_USERNAME`, `AT_API_KEY` | optional: an Africa's Talking **live** app's username and API key (t22). Then farmers who sign up or sign in with a phone number confirm it with an SMS code. Leave both out to keep phone sign-in as it was. Never set `sandbox` here: sandbox messages only reach Africa's Talking's simulator, so the server ignores it. Needs credit on the account (about KES 1 per SMS) |
+| `AT_SENDER_ID` | optional: a sender name registered with Africa's Talking; leave out to use theirs |
 | `SENTRY_DSN` | optional: the DSN of a Sentry project (Settings, Client Keys). Server errors are then reported there with no personal data (app/core/monitoring.py); leave it out to switch monitoring off |
 | `UPLOAD_DIR` | `/home/uploads` |
 | `WEBSITES_ENABLE_APP_SERVICE_STORAGE` | `true` (keeps `/home` across restarts) |

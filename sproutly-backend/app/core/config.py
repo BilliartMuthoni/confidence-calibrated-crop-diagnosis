@@ -97,6 +97,14 @@ class Settings(BaseSettings):
     email_resend_seconds: int = 60
     email_codes_per_day: int = 10
 
+    # SMS codes for phone sign-ups (t22, app/core/sms.py), with Africa's Talking. The code length,
+    # time limit, tries, resend wait and daily cap are the email ones above. AT_USERNAME "sandbox"
+    # sends to their simulator; a live app's username sends real SMS (needs credit). Empty on a
+    # laptop: the code goes to the log. On the server, phone codes are asked only with a live account.
+    at_username: str = ""
+    at_api_key: str = ""
+    at_sender_id: str = ""  # optional: a registered sender name; empty uses Africa's Talking's own
+
     # Terms of use and privacy policy (t50): the version a farmer agrees to at sign-up. Change it
     # (e.g. to the new date) when the texts in the app change, and every farmer is asked again once.
     terms_version: str = "2026-11-06"
