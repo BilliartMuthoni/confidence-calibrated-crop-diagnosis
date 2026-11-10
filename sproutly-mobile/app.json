@@ -3,6 +3,7 @@
   "slug": "sproutly",
   "version": "1.0.0",
   "scheme": "sproutly",
+  "userInterfaceStyle": "light",
   "icon": "./assets/images/sproutly-logo.png",
   "android": {
     "package": "app.sproutly.mobile",
@@ -29,7 +30,9 @@
         "resizeMode": "contain",
         "backgroundColor": "#1B3D2F"
       }
-    ]
+    ],
+    "expo-font",
+    "@sentry/react-native"
   ],
   "extra": {
     "eas": {

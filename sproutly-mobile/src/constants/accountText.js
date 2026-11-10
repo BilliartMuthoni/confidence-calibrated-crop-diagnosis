@@ -43,7 +43,7 @@ export const PAGES = {
                 'The Sproutly administrators, to run and check the service.',
                 'If you use "Ask about this result": your question and the result (never your name, number or photo) go to Groq, an AI service in the United States, which only chooses which of the Sproutly advice to show. Groq does not keep them.',
                 "If you sign up with a phone number: your number and a one-time code go to Africa's Talking, an SMS service, only to send you that code.",
-                'If the Sproutly server has an error, a report with no personal details (no name, number, email or photo) goes to Sentry, an error-reporting service that stores it in the European Union, so it can be fixed.',
+                'If the Sproutly server or app has an error, a report with no personal details (no name, number, email or photo) goes to Sentry, an error-reporting service that stores it in the European Union, so it can be fixed.',
                 'Questions you chose to keep are shown only to you, never to extension officers.',
                 'Nobody else. Your data is not sold, and your photos are not used to train the model.',
             ]],
