@@ -13,6 +13,7 @@ from app.core.config import settings
 from app.core.county_locator import county_at
 from app.core.limiter import limiter
 from app.core.lockout import ensure_not_locked, register_failure, register_success
+from app.core.sms import SmsNotSent, send_sms_code, sms_ready
 from app.core.mailer import MailNotSent, send_email_code
 from app.core.security import (
     create_reenrol_token,
@@ -251,6 +252,7 @@ def logout(request: Request, payload: RefreshRequest, db: Session = Depends(get_
 # --- Email confirmation (t08) ---
 
 EMAIL_STEP = "email_verify"
+PHONE_STEP = "phone_verify"  # t22: the same code rules, sent by SMS
 EMAIL_STEP_EXPIRED = "This step has expired. Please log in again."
 
 
@@ -258,6 +260,13 @@ def _needs_email_check(user: User) -> bool:
     """A farmer's email that was never confirmed. Staff are made by an admin and Google
     confirmed the email of accounts joined to it, so both count as confirmed."""
     return user.role == UserRole.farmer and bool(user.user_email) and user.email_verified_at is None
+
+
+def _needs_phone_check(user: User) -> bool:
+    """A farmer's phone number that was never confirmed (t22), when SMS codes can be sent
+    (always on a laptop; on the server only with a live Africa's Talking account)."""
+    return (user.role == UserRole.farmer and bool(user.user_phone_number) and user.phone_verified_at is None
+            and sms_ready())
 
 
 def _resend_wait(user: User) -> int:
@@ -268,8 +277,8 @@ def _resend_wait(user: User) -> int:
     return max(0, int(settings.email_resend_seconds - passed + 0.999))
 
 
-def _send_code(db: Session, user: User) -> None:
-    """Email a new code, replacing any earlier one. At most email_codes_per_day a day; a code is
+def _send_code(db: Session, user: User, by_sms: bool = False) -> None:
+    """Email (or, for a phone, SMS) a new code, replacing any earlier one. At most email_codes_per_day a day; a code is
     counted even if sending then fails, so retries can't hammer the mail server."""
     now = utcnow()
     if user.email_codes_day != now.date():
@@ -286,6 +295,13 @@ def _send_code(db: Session, user: User) -> None:
     user.email_code_sent_at = now
     user.email_codes_today += 1
     db.commit()
+    if by_sms:
+        try:
+            send_sms_code(user.user_phone_number, code)
+        except SmsNotSent:
+            raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                                detail="We couldn't send the SMS just now. Please try again in a few minutes.")
+        return
     try:
         send_email_code(user.user_email, code)
     except MailNotSent:
@@ -309,6 +325,41 @@ def _email_challenge(db: Session, user: User) -> MfaChallengeResponse:
     )
 
 
+def _phone_challenge(db: Session, user: User) -> MfaChallengeResponse:
+    """Ask for the SMS code (t22), with the same rules as the emailed one."""
+    code_alive = user.email_code_hash and user.email_code_expires and user.email_code_expires > utcnow()
+    if not (code_alive and _resend_wait(user) > 0):
+        _send_code(db, user, by_sms=True)
+    minutes = settings.email_code_minutes
+    return MfaChallengeResponse(
+        next_step="verify_phone",
+        mfa_token=create_mfa_token(str(user.user_id), PHONE_STEP, minutes),
+        expires_in_minutes=minutes,
+        phone=user.user_phone_number,
+        resend_in_seconds=_resend_wait(user),
+    )
+
+
+def _check_code(db: Session, user: User, code: str) -> None:
+    """The emailed or SMS code: right, or an error that says how many tries are left."""
+    if not user.email_code_hash or not user.email_code_expires or user.email_code_expires < utcnow():
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="This code has expired. Tap Send a new code.")
+    if user.email_code_tries >= settings.email_code_tries:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="Too many wrong codes. Tap Send a new code.")
+    if not hmac.compare_digest(hash_email_code(user.user_id, code), user.email_code_hash):
+        user.email_code_tries += 1
+        db.commit()
+        left = settings.email_code_tries - user.email_code_tries
+        detail = (f"That code is not right. {left} {'try' if left == 1 else 'tries'} left."
+                  if left > 0 else "Too many wrong codes. Tap Send a new code.")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=detail)
+    user.email_code_hash = None
+    user.email_code_expires = None
+    user.email_code_tries = 0
+
+
 def _code_challenge(user: User) -> MfaChallengeResponse:
     """Ask for the current authenticator code (MFA is on)."""
     minutes = settings.mfa_token_expire_minutes
@@ -319,14 +370,20 @@ def _code_challenge(user: User) -> MfaChallengeResponse:
     )
 
 
-def _user_from_email_token(db: Session, token: str) -> User:
+def _user_from_code_token(db: Session, token: str, step: str) -> User:
+    """The farmer a confirmation step (EMAIL_STEP or PHONE_STEP) belongs to."""
     payload = decode_token(token)
-    if not payload or payload.get("type") != EMAIL_STEP or not payload.get("sub"):
+    if not payload or payload.get("type") != step or not payload.get("sub"):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=EMAIL_STEP_EXPIRED)
     user = db.get(User, int(payload["sub"]))
-    if not user or not user.is_active or user.role != UserRole.farmer or not user.user_email:
+    contact = user.user_email if (user and step == EMAIL_STEP) else (user.user_phone_number if user else None)
+    if not user or not user.is_active or user.role != UserRole.farmer or not contact:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=EMAIL_STEP_EXPIRED)
     return user
+
+
+def _user_from_email_token(db: Session, token: str) -> User:
+    return _user_from_code_token(db, token, EMAIL_STEP)
 
 
 def _unused_sign_up(db: Session, user: User) -> bool:
@@ -336,6 +393,7 @@ def _unused_sign_up(db: Session, user: User) -> bool:
     return (
         user.role == UserRole.farmer
         and user.email_verified_at is None
+        and user.phone_verified_at is None
         and not user.mfa_enabled
         and user.google_id is None
         and db.query(Diagnosis.diagnosis_id).filter(Diagnosis.user_id == user.user_id).first() is None
@@ -358,7 +416,7 @@ def register(request: Request, payload: RegisterRequest, db: Session = Depends(g
         # Typing an email proves nothing, so the password is only added after a Google
         # sign-in proves the account is theirs (/auth/password/add).
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=GOOGLE_CONFIRM)
-    if existing and not (payload.email and _unused_sign_up(db, existing)):
+    if existing and not ((payload.email or _needs_phone_check(existing)) and _unused_sign_up(db, existing)):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="An account with this phone number or email already exists",
@@ -388,6 +446,8 @@ def register(request: Request, payload: RegisterRequest, db: Session = Depends(g
     # An email is confirmed with a code first; then, as for a phone, the authenticator.
     if _needs_email_check(user):
         return _email_challenge(db, user)
+    if _needs_phone_check(user):
+        return _phone_challenge(db, user)
     return _start_setup(db, user)
 
 
@@ -398,23 +458,8 @@ def verify_email(request: Request, payload: EmailCodeRequest, db: Session = Depe
     authenticator (set up, or its code). Five wrong tries or 15 minutes end that code."""
     user = _user_from_email_token(db, payload.mfa_token)
     if user.email_verified_at is None:
-        if not user.email_code_hash or not user.email_code_expires or user.email_code_expires < utcnow():
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                                detail="This code has expired. Tap Send a new code.")
-        if user.email_code_tries >= settings.email_code_tries:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                                detail="Too many wrong codes. Tap Send a new code.")
-        if not hmac.compare_digest(hash_email_code(user.user_id, payload.code), user.email_code_hash):
-            user.email_code_tries += 1
-            db.commit()
-            left = settings.email_code_tries - user.email_code_tries
-            detail = (f"That code is not right. {left} {'try' if left == 1 else 'tries'} left."
-                      if left > 0 else "Too many wrong codes. Tap Send a new code.")
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=detail)
+        _check_code(db, user, payload.code)
         user.email_verified_at = utcnow()
-        user.email_code_hash = None
-        user.email_code_expires = None
-        user.email_code_tries = 0
         db.commit()
     return _code_challenge(user) if user.mfa_enabled else _start_setup(db, user)
 
@@ -433,6 +478,35 @@ def resend_email_code(request: Request, payload: EmailResendRequest, db: Session
                             detail=f"Please wait {wait} seconds before asking for a new code.")
     _send_code(db, user)
     return _email_challenge(db, user)
+
+
+@router.post("/phone/verify", response_model=MfaChallengeResponse)
+@limiter.limit("10/minute")
+def verify_phone(request: Request, payload: EmailCodeRequest, db: Session = Depends(get_db)):
+    """The code from the SMS (t22). Right: the phone number is confirmed and the sign-in goes on
+    to the authenticator. Same rules as the email code."""
+    user = _user_from_code_token(db, payload.mfa_token, PHONE_STEP)
+    if user.phone_verified_at is None:
+        _check_code(db, user, payload.code)
+        user.phone_verified_at = utcnow()
+        db.commit()
+    return _code_challenge(user) if user.mfa_enabled else _start_setup(db, user)
+
+
+@router.post("/phone/resend", response_model=MfaChallengeResponse)
+@limiter.limit("5/minute")
+def resend_phone_code(request: Request, payload: EmailResendRequest, db: Session = Depends(get_db)):
+    """Send a new SMS code: one a minute, ten a day (shared with email codes)."""
+    user = _user_from_code_token(db, payload.mfa_token, PHONE_STEP)
+    if user.phone_verified_at is not None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="This phone number is already confirmed. Please log in.")
+    wait = _resend_wait(user)
+    if wait > 0:
+        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                            detail=f"Please wait {wait} seconds before asking for a new code.")
+    _send_code(db, user, by_sms=True)
+    return _phone_challenge(db, user)
 
 
 @router.post("/login", response_model=MfaChallengeResponse)
@@ -458,6 +532,8 @@ def login(request: Request, payload: LoginRequest, db: Session = Depends(get_db)
     # address gets "Invalid credentials" and their inbox stays empty.
     if payload.email and _needs_email_check(user):
         return _email_challenge(db, user)
+    if payload.phone_number and _needs_phone_check(user):
+        return _phone_challenge(db, user)
 
     # Accounts from before MFA, new staff, or a reset authenticator: set it up now.
     if not user.mfa_enabled:
@@ -595,6 +671,10 @@ def change_my_contact(request: Request, payload: ContactChangeRequest, db: Sessi
     if email != user.user_email:
         # A new email is not confirmed yet: the code is asked at the next sign-in with it (t08).
         user.email_verified_at = None
+        user.email_code_hash = None
+    if phone != user.user_phone_number:
+        # Likewise a new phone number: an SMS code at the next sign-in with it (t22).
+        user.phone_verified_at = None
         user.email_code_hash = None
     user.user_phone_number, user.user_email = phone, email
     # Which details changed, never the old or new values themselves.

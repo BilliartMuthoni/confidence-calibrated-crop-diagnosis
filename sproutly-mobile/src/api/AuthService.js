@@ -73,14 +73,37 @@ export async function setMyCounty({ token, county }) {
 
 /** The screen (and its params) for a challenge from register, login or email verify. */
 export function challengeScreen(data) {
-    const name = { verify_email: 'EmailCode', setup: 'MfaSetup' }[data.next_step] || 'MfaCode';
+    // An email or SMS code (t08, t22) uses the same code screen.
+    const name = { verify_email: 'EmailCode', verify_phone: 'EmailCode', setup: 'MfaSetup' }[data.next_step] || 'MfaCode';
     return [name, {
         mfaToken: data.mfa_token,
         expiresInMinutes: data.expires_in_minutes,
         setup: data.setup,
         email: data.email,
+        phone: data.phone,
+        byPhone: data.next_step === 'verify_phone',
         resendInSeconds: data.resend_in_seconds,
     }];
+}
+
+/** The 6-digit code from the SMS (t22); answers the next challenge (authenticator). */
+export async function verifyPhoneCode({ mfaToken, code }) {
+    try {
+        const { data } = await client.post('/auth/phone/verify', { mfa_token: mfaToken, code });
+        return data;
+    } catch (error) {
+        throw new Error(extractErrorMessage(error));
+    }
+}
+
+/** Send a new SMS code (one a minute, ten a day). */
+export async function resendPhoneCode({ mfaToken }) {
+    try {
+        const { data } = await client.post('/auth/phone/resend', { mfa_token: mfaToken });
+        return data;
+    } catch (error) {
+        throw new Error(extractErrorMessage(error));
+    }
 }
 
 /** The 6-digit code from the confirmation email; answers the next challenge (authenticator). */

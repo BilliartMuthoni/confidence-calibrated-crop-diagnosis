@@ -88,13 +88,16 @@ class MfaChallengeResponse(BaseModel):
     # "setup": confirm the first code at /auth/mfa/setup/confirm.
     # "verify": send the current code to /auth/mfa/verify.
     # "verify_email": send the code emailed to `email` to /auth/email/verify (t08).
-    next_step: Literal["setup", "verify", "verify_email"]
+    # "verify_phone": send the code sent by SMS to `phone` to /auth/phone/verify (t22).
+    next_step: Literal["setup", "verify", "verify_email", "verify_phone"]
     mfa_token: str
     expires_in_minutes: int
     setup: Optional[MfaSetup] = None
     # The address the code went to (verify_email only), shown on the "Check your email" screen.
     email: Optional[str] = None
-    # Seconds before "Send a new code" may be used (verify_email only).
+    # The phone number the SMS code went to (verify_phone only).
+    phone: Optional[str] = None
+    # Seconds before "Send a new code" may be used (verify_email and verify_phone).
     resend_in_seconds: Optional[int] = None
 
 

@@ -34,6 +34,9 @@ class User(Base):
     # farmer who signs in with it must enter the code sent there first. Staff and accounts made
     # with Google count as confirmed. The code itself is never stored, only a keyed hash.
     email_verified_at = Column(DateTime, nullable=True)
+    # Phone confirmation (t22): when the phone number was confirmed with an SMS code. The code
+    # itself uses the email_code_* columns below: an account signs up with one or the other.
+    phone_verified_at = Column(DateTime, nullable=True)
     email_code_hash = Column(String, nullable=True)
     email_code_expires = Column(DateTime, nullable=True)
     email_code_tries = Column(Integer, nullable=False, default=0, server_default="0")
