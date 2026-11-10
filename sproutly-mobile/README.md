@@ -19,6 +19,15 @@ EXPO_PUBLIC_API_URL=https://YOUR-ADDRESS
 
 and restart Expo. See [`src/constants/api.js`](src/constants/api.js).
 
+## Crash reports (optional)
+
+With `EXPO_PUBLIC_SENTRY_DSN` set (the DSN of a Sentry React Native project, Settings, Client
+Keys), app crashes and unexpected errors are reported to Sentry with no personal data: no user,
+no breadcrumbs, no screenshots, and emails, phone numbers and tokens replaced
+([`src/utils/monitoring.js`](src/utils/monitoring.js)). Without it, nothing is reported. For a
+local run put it in `sproutly-mobile/.env`; for an APK add it as an EAS environment variable
+(expo.dev, the project, Environment variables, environment "preview").
+
 ## Screens
 
 | Screen | What the farmer does there |

@@ -10,7 +10,8 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://sproutly-api-afawaxhjf5begzb7.italynorth-01.azurewebsites.net"
+        "EXPO_PUBLIC_API_URL": "https://sproutly-api-afawaxhjf5begzb7.italynorth-01.azurewebsites.net",
+        "SENTRY_DISABLE_AUTO_UPLOAD": "true"
       }
     }
   }

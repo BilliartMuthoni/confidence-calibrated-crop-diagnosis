@@ -6,6 +6,10 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { AuthContext, AuthProvider } from './src/context/AuthContext';
 import DialogHost from './src/components/Dialog';
+import { initMonitoring } from './src/utils/monitoring';
+
+// Crash reports to Sentry, only when the app was built with a DSN (see src/utils/monitoring.js).
+initMonitoring();
 
 // Auth Screens
 import LandingScreen from './src/screens/auth/LandingScreen';
