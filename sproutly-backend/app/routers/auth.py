@@ -340,8 +340,10 @@ def _phone_challenge(db: Session, user: User) -> MfaChallengeResponse:
     )
 
 
-def _check_code(db: Session, user: User, code: str) -> None:
-    """The emailed or SMS code: right, or an error that says how many tries are left."""
+def _check_sent_code(db: Session, user: User, code: str) -> None:
+    """The emailed or SMS code: right, or an error that says how many tries are left.
+    (Not _check_code, which checks the authenticator code: one name for both broke every
+    authenticator check.)"""
     if not user.email_code_hash or not user.email_code_expires or user.email_code_expires < utcnow():
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                             detail="This code has expired. Tap Send a new code.")
@@ -458,7 +460,7 @@ def verify_email(request: Request, payload: EmailCodeRequest, db: Session = Depe
     authenticator (set up, or its code). Five wrong tries or 15 minutes end that code."""
     user = _user_from_email_token(db, payload.mfa_token)
     if user.email_verified_at is None:
-        _check_code(db, user, payload.code)
+        _check_sent_code(db, user, payload.code)
         user.email_verified_at = utcnow()
         db.commit()
     return _code_challenge(user) if user.mfa_enabled else _start_setup(db, user)
@@ -487,7 +489,7 @@ def verify_phone(request: Request, payload: EmailCodeRequest, db: Session = Depe
     to the authenticator. Same rules as the email code."""
     user = _user_from_code_token(db, payload.mfa_token, PHONE_STEP)
     if user.phone_verified_at is None:
-        _check_code(db, user, payload.code)
+        _check_sent_code(db, user, payload.code)
         user.phone_verified_at = utcnow()
         db.commit()
     return _code_challenge(user) if user.mfa_enabled else _start_setup(db, user)
