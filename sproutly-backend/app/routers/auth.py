@@ -15,6 +15,7 @@ from app.core.limiter import limiter
 from app.core.lockout import ensure_not_locked, register_failure, register_success
 from app.core.sms import SmsNotSent, send_sms_code, sms_ready
 from app.core.mailer import MailNotSent, send_email_code
+from app.core.phone import local_form
 from app.core.security import (
     create_reenrol_token,
     hash_password,
@@ -59,10 +60,13 @@ from app.schemas.auth import (
     DeleteAccountRequest,
     EmailCodeRequest,
     EmailResendRequest,
+    ForgotPasswordRequest,
     KeepQuestionsUpdate,
     LocateRequest,
     LocateResponse,
     PasswordChangeRequest,
+    PasswordResetStart,
+    ResetPasswordRequest,
     ReenrolConfirmRequest,
     ReenrolStart,
     RefreshRequest,
@@ -335,9 +339,16 @@ def _phone_challenge(db: Session, user: User) -> MfaChallengeResponse:
         next_step="verify_phone",
         mfa_token=create_mfa_token(str(user.user_id), PHONE_STEP, minutes),
         expires_in_minutes=minutes,
-        phone=user.user_phone_number,
+        phone=local_form(user.user_phone_number),  # stored as +254..., shown as 07...
         resend_in_seconds=_resend_wait(user),
     )
+
+
+def _sent_code_ok(user: User, code: str) -> bool:
+    """Would _check_sent_code accept this code? Changes nothing."""
+    return bool(user.email_code_hash and user.email_code_expires and user.email_code_expires >= utcnow()
+                and user.email_code_tries < settings.email_code_tries
+                and hmac.compare_digest(hash_email_code(user.user_id, code), user.email_code_hash))
 
 
 def _check_sent_code(db: Session, user: User, code: str) -> None:
@@ -581,8 +592,15 @@ def verify_mfa(request: Request, payload: MfaCodeRequest, db: Session = Depends(
 def verify_backup_code(request: Request, payload: BackupCodeLoginRequest, db: Session = Depends(get_db)):
     """Second step with a backup code, for a lost or broken phone. Each code works once."""
     user = _user_from_mfa_token(db, payload.mfa_token, "mfa_login")
+    left = _use_backup_code(db, user, payload.code, request)
+    return _signed_in(db, user, request, f"With a backup code ({left} left)")
+
+
+def _use_backup_code(db: Session, user: User, code: str, request: Request) -> int:
+    """Accept one unused backup code and mark it used (the caller commits); a wrong one counts
+    towards the lockout. Answers how many codes are left."""
     ensure_not_locked(user)
-    code = normalise_backup_code(payload.code)
+    code = normalise_backup_code(code)
     unused = db.query(BackupCode).filter(BackupCode.user_id == user.user_id, BackupCode.used_at.is_(None)).all()
     match = next((c for c in unused if code and verify_password(code, c.code_hash)), None)
     if not match:
@@ -591,7 +609,78 @@ def verify_backup_code(request: Request, payload: BackupCodeLoginRequest, db: Se
         register_failure(db, user)
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="That backup code is wrong or already used")
     match.used_at = utcnow()
-    return _signed_in(db, user, request, f"With a backup code ({len(unused) - 1} left)")
+    return len(unused) - 1
+
+
+# --- Forgot password ---
+
+RESET_STEP = "password_reset"
+RESET_EXPIRED = "This password reset has expired. Tap Forgot password? again."
+NO_SMS = "We can't send SMS codes right now. Use Email if your account has one, or contact support."
+
+
+def _can_reset(user: Optional[User]) -> bool:
+    """Farmers with a Sproutly password. Staff ask an administrator for a reset link (portal);
+    an account made only with Google has no password to reset (Google keeps it)."""
+    return bool(user and user.is_active and user.role == UserRole.farmer and user.hashed_password)
+
+
+@router.post("/password/forgot", response_model=PasswordResetStart)
+@limiter.limit("5/minute")
+def forgot_password(request: Request, payload: ForgotPasswordRequest, db: Session = Depends(get_db)):
+    """Send a code to the phone number (SMS) or email of the account. The answer is the same
+    whether or not such an account exists, so nobody can use this to find out who has one; the
+    code only goes to a real account. Same code rules as sign-up: one a minute, ten a day."""
+    by_sms = bool(payload.phone_number)
+    if by_sms and not sms_ready():
+        # Depends only on the server's settings, never on the account.
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=NO_SMS)
+    user = _get_user_by_identifier(db, payload.phone_number, payload.email)
+    minutes = settings.email_code_minutes
+    if not _can_reset(user):
+        # A token that matches no account: the next step answers as if the code were wrong.
+        return PasswordResetStart(reset_token=create_mfa_token("0", RESET_STEP, minutes),
+                                  expires_in_minutes=minutes, resend_in_seconds=settings.email_resend_seconds)
+    code_alive = user.email_code_hash and user.email_code_expires and user.email_code_expires > utcnow()
+    if not (code_alive and _resend_wait(user) > 0):
+        _send_code(db, user, by_sms=by_sms)
+    return PasswordResetStart(reset_token=create_mfa_token(str(user.user_id), RESET_STEP, minutes),
+                              expires_in_minutes=minutes, resend_in_seconds=_resend_wait(user))
+
+
+@router.post("/password/reset", status_code=status.HTTP_204_NO_CONTENT)
+@limiter.limit("5/minute")
+def reset_password(request: Request, payload: ResetPasswordRequest, db: Session = Depends(get_db)):
+    """The sent code plus the authenticator code (or a backup code), then the new password.
+    Every phone is signed out, as after a password change; the farmer then logs in again."""
+    token = decode_token(payload.reset_token)
+    if not token or token.get("type") != RESET_STEP or not token.get("sub"):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=RESET_EXPIRED)
+    user = db.get(User, int(token["sub"])) if token["sub"] != "0" else None
+    if not _can_reset(user):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="That code is not right. Tap Send a new code.")
+    ensure_not_locked(user)
+    # The sent code is checked first without using it up (a wrong one counts as a try and says
+    # how many are left); then the authenticator or backup code, whose wrong answers count
+    # towards the lockout. Only when both are right are they used up, so a mistake in one never
+    # burns the other (a backup code works once).
+    if not _sent_code_ok(user, payload.code):
+        _check_sent_code(db, user, payload.code)  # raises with the right message
+    if user.mfa_enabled:
+        if payload.backup_code:
+            _use_backup_code(db, user, payload.backup_code, request)
+        elif payload.mfa_code:
+            _check_code(db, user, payload.mfa_code, request)
+        else:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                                detail="Enter the code from your authenticator app, or a backup code.")
+    _check_sent_code(db, user, payload.code)
+    user.hashed_password = hash_password(payload.new_password)
+    user.refresh_token_id = None  # every phone signed out
+    register_success(user)
+    audit.record(db, user, "password_reset", user.user_email or "",
+                 "Forgot password: sent code" + (" and authenticator" if user.mfa_enabled else ""), request)
+    db.commit()
 
 
 def _record_terms(user: User) -> None:

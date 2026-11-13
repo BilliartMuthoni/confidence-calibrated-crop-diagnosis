@@ -7,6 +7,7 @@ import {
     TextInput,
     Image,
     KeyboardAvoidingView,
+    Modal,
     Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -30,15 +31,76 @@ import { addToQueue, MAX_QUEUED } from '../../utils/offlineQueue';
 import { isOffline } from '../../utils/savedCopies';
 
 // "mixed" lets the model detect each photo's crop; the farmer can correct it on the results screen.
+// Four equal segments; the last label takes two lines ("Not sure" over "mixed") so the text can
+// stay full size.
 const CROPS = [
     { id: 'maize', label: 'Maize' },
     { id: 'tomato', label: 'Tomato' },
     { id: 'potato', label: 'Potato' },
-    { id: 'mixed', label: 'Not sure / mixed' },
+    { id: 'mixed', label: 'Not sure /\nmixed' },
 ];
-// The label under each photo, and the order a tap moves through.
+
+/** The four crops as one row of segments (the crop at the top, and a photo's own crop). */
+function CropSegments({ value, onChange }) {
+    return (
+        // Four separate buttons with a gap, so each reads as its own choice (not one block).
+        <View className="flex-row" style={{ gap: 8 }} accessibilityRole="radiogroup">
+            {CROPS.map((item) => {
+                const selected = value === item.id;
+                return (
+                    <TouchableOpacity
+                        key={item.id}
+                        onPress={() => onChange(item.id)}
+                        activeOpacity={0.8}
+                        accessibilityRole="radio"
+                        accessibilityState={{ selected }}
+                        className="flex-1 items-center justify-center py-2.5 px-1 rounded-xl"
+                        style={{
+                            backgroundColor: selected ? COLORS.brand : COLORS.surface,
+                            borderWidth: 1,
+                            borderColor: selected ? COLORS.brand : COLORS.divider,
+                        }}
+                    >
+                        <Text
+                            className="text-sm font-semibold text-center"
+                            maxFontSizeMultiplier={1.3}
+                            style={{ color: selected ? '#FFFFFF' : COLORS.text, lineHeight: 18 }}
+                        >
+                            {item.label}
+                        </Text>
+                    </TouchableOpacity>
+                );
+            })}
+        </View>
+    );
+}
+
+/** A photo's own crop: the photo stays in view while the crop is chosen (it used to be covered). */
+function PhotoCropSheet({ photo, value, onChange, onClose }) {
+    return (
+        <Modal visible={Boolean(photo)} transparent animationType="slide" onRequestClose={onClose}>
+            <TouchableOpacity activeOpacity={1} onPress={onClose} className="flex-1" style={{ backgroundColor: 'rgba(0,0,0,0.35)' }} />
+            {photo && (
+                <SafeAreaView edges={['bottom']} style={{ backgroundColor: COLORS.background, borderTopLeftRadius: 20, borderTopRightRadius: 20 }}>
+                    <View className="px-5 pt-5 pb-4">
+                        <Text className="text-lg font-bold mb-3" style={{ color: COLORS.ink }}>
+                            Crop of this photo
+                        </Text>
+                        <Image source={{ uri: photo.uri }} className="w-full h-48 rounded-xl mb-4" resizeMode="cover" />
+                        <CropSegments value={value} onChange={onChange} />
+                        <TouchableOpacity onPress={onClose} accessibilityRole="button" className="items-center py-3 mt-2">
+                            <Text className="text-base font-semibold" style={{ color: COLORS.muted }}>
+                                Cancel
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
+                </SafeAreaView>
+            )}
+        </Modal>
+    );
+}
+// The label under each photo.
 const PHOTO_CROP_LABELS = { maize: 'Maize', tomato: 'Tomato', potato: 'Potato', mixed: 'Not sure' };
-const PHOTO_CROP_ORDER = ['maize', 'tomato', 'potato', 'mixed'];
 const MAX_PHOTOS = 10; // same limit as the backend
 
 function Label({ title, hint, optional }) {
@@ -90,10 +152,13 @@ function Tick({ checked, onPress, title, hint }) {
     );
 }
 
-export default function DiagnosisScreen({ navigation }) {
+export default function DiagnosisScreen({ navigation, route }) {
     const scrollRef = useKeyboardScroll();
     const { userToken } = useContext(AuthContext);
-    const [crop, setCrop] = useState(null);
+    // Retake from a not-diagnosed result (n22): same crop to start with, and the new check
+    // replaces that one in Your checks (one photo only).
+    const retakeOf = route?.params?.retakeOf;
+    const [crop, setCrop] = useState(route?.params?.crop || null);
     const [photos, setPhotos] = useState([]);
     const [symptoms, setSymptoms] = useState('');
     const [submitting, setSubmitting] = useState(false);
@@ -197,14 +262,11 @@ export default function DiagnosisScreen({ navigation }) {
     // Each photo has its own crop, which is the crop chosen above until the farmer changes it:
     // the farmer knows the crop of each photo better than the model can guess it.
     const cropOf = (photo) => photo.crop || crop;
-    const nextPhotoCrop = (index) =>
-        setPhotos((current) =>
-            current.map((photo, i) => {
-                if (i !== index) return photo;
-                const at = PHOTO_CROP_ORDER.indexOf(cropOf(photo));
-                return { ...photo, crop: PHOTO_CROP_ORDER[(at + 1) % PHOTO_CROP_ORDER.length] };
-            })
-        );
+    const setPhotoCrop = (index, value) =>
+        setPhotos((current) => current.map((photo, i) => (i === index ? { ...photo, crop: value } : photo)));
+    // Tapping the crop under a photo opens a panel with that photo and the choices (PhotoCropSheet).
+    const [cropSheet, setCropSheet] = useState(null); // index of the photo, or null
+    const choosePhotoCrop = (index) => setCropSheet(index);
 
     // One photo of a known crop keeps the original flow (with symptom text); anything else
     // (several photos, or crop not sure) goes through the batch flow.
@@ -285,6 +347,7 @@ export default function DiagnosisScreen({ navigation }) {
                     symptoms,
                     sharing,
                     allowBlurry: options?.allowBlurry === true,
+                    retakeOf,
                 });
                 setBlurredPhotos([]);
                 navigation.navigate('Result', { result, imageUri: photo.uri });
@@ -354,47 +417,38 @@ export default function DiagnosisScreen({ navigation }) {
                             title="Which crop is it?"
                             hint={
                                 photos.length > 1
-                                    ? "This is every photo's crop. If one photo is a different crop, tap the crop under it to change it."
+                                    ? 'Used for all photos. Different crops or not sure? Choose Not sure / mixed.'
                                     : crop === 'mixed'
-                                      ? "We'll work out the crop. Check it on the result and correct it if it's wrong."
-                                      : 'Choosing the crop gives the most reliable result'
+                                      ? "We'll work out the crop. You can correct it on the result."
+                                      : null
                             }
                         />
-                        <View className="flex-row flex-wrap">
-                            {CROPS.map((item) => {
-                                const selected = crop === item.id;
-                                return (
-                                    <TouchableOpacity
-                                        key={item.id}
-                                        onPress={() => setCrop(item.id)}
-                                        activeOpacity={0.8}
-                                        accessibilityRole="radio"
-                                        accessibilityState={{ selected }}
-                                        className="mr-2 mb-2 px-5 py-2.5 rounded-full"
-                                        style={{
-                                            backgroundColor: selected ? COLORS.brand : COLORS.surface,
-                                            borderWidth: 1,
-                                            borderColor: selected ? COLORS.brand : COLORS.divider,
-                                        }}
-                                    >
-                                        <Text
-                                            className="text-base font-semibold"
-                                            style={{ color: selected ? '#FFFFFF' : COLORS.text }}
-                                        >
-                                            {item.label}
-                                        </Text>
-                                    </TouchableOpacity>
-                                );
-                            })}
-                        </View>
+                        {/* Without a hint the choices sit a little below the title. */}
+                        {!(photos.length > 1 || crop === 'mixed') && <View className="h-3" />}
+                        <CropSegments value={crop} onChange={setCrop} />
                     </View>
 
                     {/* Photos */}
                     <View className="mt-6">
-                        <Label
-                            title={photos.length > 1 ? `Photos (${photos.length} of ${MAX_PHOTOS})` : 'Photo of the affected leaf'}
-                            hint="One leaf filling the frame, in daylight, against a plain background. You can add up to 10."
-                        />
+                        <View className="flex-row items-start">
+                            <View className="flex-1">
+                                <Label
+                                    title={photos.length > 1 ? `Photos (${photos.length} of ${MAX_PHOTOS})` : 'Leaf photo'}
+                                    hint="One leaf filling the photo, in daylight."
+                                />
+                            </View>
+                            {/* The full tips are on the Help page; most farmers only need the line above. */}
+                            <TouchableOpacity
+                                onPress={() => navigation.navigate('Info', { page: 'help' })}
+                                accessibilityRole="link"
+                                hitSlop={8}
+                                className="ml-3 pt-0.5"
+                            >
+                                <Text className="text-sm font-semibold" style={{ color: COLORS.brand }}>
+                                    Photo tips
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
                         {photos.length === 0 ? (
                             <TouchableOpacity
                                 onPress={choosePhoto}
@@ -413,7 +467,7 @@ export default function DiagnosisScreen({ navigation }) {
                                     Add photos
                                 </Text>
                                 <Text className="text-sm mt-0.5" style={{ color: COLORS.muted }}>
-                                    Take one now or choose several from your gallery
+                                    Camera or gallery
                                 </Text>
                             </TouchableOpacity>
                         ) : (
@@ -423,7 +477,7 @@ export default function DiagnosisScreen({ navigation }) {
                                         <Image source={{ uri: photo.uri }} className="w-full aspect-square rounded-lg" resizeMode="cover" />
                                         {photos.length > 1 && crop && (
                                             <TouchableOpacity
-                                                onPress={() => nextPhotoCrop(index)}
+                                                onPress={() => choosePhotoCrop(index)}
                                                 accessibilityRole="button"
                                                 accessibilityLabel={`Crop of photo ${index + 1}: ${PHOTO_CROP_LABELS[cropOf(photo)]}. Tap to change.`}
                                                 className="flex-row items-center justify-center mt-1 py-1.5 rounded-full"
@@ -441,7 +495,7 @@ export default function DiagnosisScreen({ navigation }) {
                                                 >
                                                     {PHOTO_CROP_LABELS[cropOf(photo)]}
                                                 </Text>
-                                                <Ionicons name="swap-horizontal" size={14} color={COLORS.brand} style={{ marginLeft: 4 }} />
+                                                <Ionicons name="chevron-down" size={14} color={COLORS.brand} style={{ marginLeft: 4 }} />
                                             </TouchableOpacity>
                                         )}
                                         <TouchableOpacity
@@ -478,9 +532,9 @@ export default function DiagnosisScreen({ navigation }) {
                     {/* Symptoms: one photo of a known crop only, where it belongs to a single diagnosis */}
                     {photos.length <= 1 && crop !== 'mixed' && (
                         <View className="mt-8">
-                            <Label title="What are you seeing?" optional hint="Details a photo can't show, such as when it started" />
+                            <Label title="Describe the problem" optional />
                             <TextInput
-                                className="rounded-xl px-4 py-3 text-base h-28"
+                                className="rounded-xl px-4 py-3 text-base h-28 mt-3"
                                 style={{
                                     backgroundColor: COLORS.surface,
                                     borderWidth: 1,
@@ -502,13 +556,13 @@ export default function DiagnosisScreen({ navigation }) {
                         <Label
                             title="If we can't be sure"
                             optional
-                            hint="We won't guess. We'll show you support contacts, and if you agree, an extension officer can look at it. Leave these off and no officer sees your photo or your number."
+                            hint="We won't guess. Nothing is shared unless you tick below."
                         />
                         <Tick
                             checked={share}
                             onPress={toggleShare}
                             title="Send my photo to an extension officer in my county"
-                            hint="Only if we can't diagnose it. Their reply appears in Your checks within 7 days."
+                            hint="Their reply appears in Your checks within 7 days."
                         />
                         {share && (
                             <>
@@ -521,30 +575,32 @@ export default function DiagnosisScreen({ navigation }) {
                                 <Text className="text-base font-semibold mt-3" style={{ color: COLORS.ink }}>
                                     How much of your crop is affected?
                                 </Text>
-                                <View className="flex-row flex-wrap mt-2">
-                                    {AFFECTED.map(([value, label]) => (
-                                        <TouchableOpacity
-                                            key={value}
-                                            onPress={() => setAffected((current) => (current === value ? null : value))}
-                                            accessibilityRole="radio"
-                                            accessibilityState={{ checked: affected === value }}
-                                            className="mr-2 mb-2 px-4 py-2 rounded-full"
-                                            style={{
-                                                borderWidth: 1,
-                                                borderColor: affected === value ? COLORS.brand : COLORS.divider,
-                                                backgroundColor: affected === value ? COLORS.brand : COLORS.surface,
-                                            }}
-                                        >
-                                            <Text
-                                                className="text-sm font-semibold"
-                                                style={{ color: affected === value ? '#FFFFFF' : COLORS.text }}
+                                {/* One row per answer with a round radio, like the tick boxes above. Tap again to clear. */}
+                                <View className="mt-1" accessibilityRole="radiogroup">
+                                    {AFFECTED.map(([value, label]) => {
+                                        const chosen = affected === value;
+                                        return (
+                                            <TouchableOpacity
+                                                key={value}
+                                                onPress={() => setAffected((current) => (current === value ? null : value))}
+                                                activeOpacity={0.8}
+                                                accessibilityRole="radio"
+                                                accessibilityState={{ checked: chosen }}
+                                                className="flex-row items-center py-2"
                                             >
-                                                {label}
-                                            </Text>
-                                        </TouchableOpacity>
-                                    ))}
+                                                <Ionicons
+                                                    name={chosen ? 'radio-button-on' : 'radio-button-off'}
+                                                    size={24}
+                                                    color={chosen ? COLORS.brand : COLORS.faint}
+                                                />
+                                                <Text className="ml-3 text-base" style={{ color: COLORS.ink }}>
+                                                    {label}
+                                                </Text>
+                                            </TouchableOpacity>
+                                        );
+                                    })}
                                 </View>
-                                <View className="mt-2">
+                                <View className="mt-3">
                                     <CountyPicker value={county} onChange={chooseCounty} />
                                 </View>
                             </>
@@ -569,12 +625,11 @@ export default function DiagnosisScreen({ navigation }) {
                             )}
                         </View>
                     )}
+                    {/* No loading state on the button: the "Checking your leaf" pop-up is the one message. */}
                     <PrimaryButton
                         label={buttonLabel}
-                        loadingLabel={photos.length > 1 ? 'Sending photos…' : 'Sending photo…'}
                         onPress={handleSubmit}
-                        disabled={!canSubmit && !submitting}
-                        loading={submitting}
+                        disabled={!canSubmit || submitting}
                     />
                     {missing && (
                         <Text className="text-sm text-center mt-2" style={{ color: COLORS.muted }}>
@@ -583,6 +638,15 @@ export default function DiagnosisScreen({ navigation }) {
                     )}
                 </View>
             </KeyboardAvoidingView>
+            <PhotoCropSheet
+                photo={cropSheet !== null ? photos[cropSheet] : null}
+                value={cropSheet !== null && photos[cropSheet] ? cropOf(photos[cropSheet]) : null}
+                onChange={(value) => {
+                    setPhotoCrop(cropSheet, value);
+                    setCropSheet(null);
+                }}
+                onClose={() => setCropSheet(null)}
+            />
         </SafeAreaView>
     );
 }

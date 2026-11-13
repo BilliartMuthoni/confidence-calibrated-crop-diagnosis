@@ -68,7 +68,9 @@ export function SwitchRow({ icon, label, hint, value, onChange, disabled, last }
 }
 
 /** A row that opens another screen. */
-export function NavRow({ icon, label, hint, onPress, color = COLORS.ink, last }) {
+// icon is optional (the disease library has none); iconColor colours only the icon, otherwise it
+// follows color, as before.
+export function NavRow({ icon, label, hint, onPress, color = COLORS.ink, iconColor, last }) {
     return (
         <TouchableOpacity
             onPress={onPress}
@@ -76,8 +78,8 @@ export function NavRow({ icon, label, hint, onPress, color = COLORS.ink, last })
             className="flex-row items-center py-4 ml-5 pr-4"
             style={rowLine(last)}
         >
-            <Ionicons name={icon} size={20} color={color === COLORS.ink ? COLORS.brand : color} />
-            <View className="flex-1 ml-3">
+            {icon && <Ionicons name={icon} size={20} color={iconColor || (color === COLORS.ink ? COLORS.brand : color)} />}
+            <View className={`flex-1 ${icon ? 'ml-3' : ''}`}>
                 <Text className="text-base" style={{ color }}>
                     {label}
                 </Text>

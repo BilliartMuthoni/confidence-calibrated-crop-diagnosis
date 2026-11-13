@@ -221,7 +221,7 @@ def get_guidance(class_name: str, db: Optional[Session] = None, shown: Optional[
             .all()
         )
         if library:
-            # Only treatment and prevention: about and harvest entries are for the assistant (t49).
+            # Treatment, prevention and about (n22); harvest entries are for the assistant only (t49).
             for kind in RESULT_KINDS:
                 guidance[kind.value] = [a.text for a in library if a.kind == kind]
             guidance["sources"] = sorted({f"{a.source_title} ({a.licence}): {a.source_url}"

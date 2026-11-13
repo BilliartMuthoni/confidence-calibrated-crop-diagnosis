@@ -100,11 +100,6 @@ export default function SocialSignIn({ navigation, onSignedIn, disabled = false,
                 </TouchableOpacity>
             ))}
 
-            {/* Google can't tell us a phone number, so it can't find a phone account. */}
-            <Text className="text-white/50 text-xs text-center mb-2">
-                Signed up with your phone number? Use Phone above instead.
-            </Text>
-
             {error && (
                 <View className="mt-1">
                     <ErrorBanner error={error} tone="dark" onDismiss={() => setError(null)} />

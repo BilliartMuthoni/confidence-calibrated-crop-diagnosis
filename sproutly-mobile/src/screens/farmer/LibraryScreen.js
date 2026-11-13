@@ -10,8 +10,26 @@ import ErrorBanner from '../../components/ErrorBanner';
 import { Group, NavRow } from '../../components/SettingsRows';
 import SavedCopyNote from '../../components/SavedCopyNote';
 import { COLORS, CROP_LABELS } from '../../constants/theme';
+import { shortDiseaseLabel } from '../../utils/diseaseName';
 
 const CROP_ORDER = ['maize', 'tomato', 'potato'];
+
+// What each disease looks like, so the rows can be told apart at a glance. Short versions of
+// the sourced symptom sentences in ml/data/symptoms (Plantwise and PlantVillage fact sheets).
+const LOOKS_LIKE = {
+    'Corn_(maize)___Common_rust_': 'Brown powdery spots on both sides of the leaf',
+    'Corn_(maize)___Cercospora_leaf_spot Gray_leaf_spot': 'Long rectangular spots along the veins',
+    'Corn_(maize)___Northern_Leaf_Blight': 'Long, narrow grey-green to tan patches',
+    'Tomato___Bacterial_spot': 'Small wet-looking spots on leaves and fruit',
+    'Tomato___Early_blight': 'Brown spots with rings, from the lower leaves up',
+    'Tomato___Late_blight': 'Brown to black patches that spread fast',
+    'Potato___Early_blight': 'Dark spots with rings and a yellow edge',
+    'Potato___Late_blight': 'Dark patches that spread and rot leaves and tubers',
+};
+
+// Under the MAIZE heading "Maize Common Rust" reads "Common rust": the crop is already the
+// heading, and the app uses sentence case. The detail page keeps the full name.
+const shortName = shortDiseaseLabel;
 
 /**
  * Disease library (g08): the diseases Sproutly can recognise, by crop, each with its sourced
@@ -41,8 +59,7 @@ export default function LibraryScreen({ navigation }) {
             <ScreenHeader title="Disease library" onBack={() => navigation.goBack()} />
             <ScrollView contentContainerClassName="pb-10">
                 <Text className="text-base leading-6 px-5 mt-1" style={{ color: COLORS.muted }}>
-                    The diseases Sproutly can recognise, with what causes them and what to do. Everything is copied
-                    from the sources shown on each page.
+                    Learn what causes each disease, how it spreads and what to do.
                 </Text>
                 {items?.savedCopy && (
                     <View className="px-5">
@@ -65,9 +82,8 @@ export default function LibraryScreen({ navigation }) {
                                 {rows.map((d, index) => (
                                     <NavRow
                                         key={d.class_name}
-                                        icon={d.healthy ? 'leaf-outline' : 'bug-outline'}
-                                        label={d.healthy ? `Keeping ${CROP_LABELS[crop]?.toLowerCase() || crop} healthy` : d.name}
-                                        hint={d.healthy ? 'Stopping diseases before they start' : 'Causes, spread and what to do'}
+                                        label={d.healthy ? `Keeping ${CROP_LABELS[crop]?.toLowerCase() || crop} healthy` : shortName(d.name)}
+                                        hint={d.healthy ? 'How to prevent these diseases' : LOOKS_LIKE[d.class_name]}
                                         onPress={() => navigation.navigate('LibraryDisease', { disease: d })}
                                         last={index === rows.length - 1}
                                     />

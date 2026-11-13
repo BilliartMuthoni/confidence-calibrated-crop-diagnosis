@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
     View,
     Text,
@@ -11,6 +11,7 @@ import {
     ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import * as AuthService from '../../api/AuthService';
@@ -36,6 +37,10 @@ export default function SignUpScreen({ navigation, route }) {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
+    // The keyboard's Enter key: "Next" moves phone/email -> Password -> Confirm; "Done" there only
+    // closes the keyboard, so the farmer sees the terms box before signing up.
+    const passwordRef = useRef(null);
+    const confirmRef = useRef(null);
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
@@ -107,12 +112,14 @@ export default function SignUpScreen({ navigation, route }) {
         <LinearGradient colors={['#0B1A13', '#1B3D2F', '#2D5A43']} style={{ flex: 1 }}>
             <StatusBar style="light" />
             <BusyOverlay visible={loading} message="Creating your account" />
+            {/* Content stops below the status bar (the app draws edge to edge); the gradient fills behind it. */}
+            <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1 }}>
             <KeyboardAvoidingView
                 behavior="padding"
                 className="flex-1"
             >
-                <ScrollView ref={scrollRef} contentContainerClassName="flex-grow pb-10" keyboardShouldPersistTaps="handled">
-                    <View className="pt-12 px-5">
+                <ScrollView ref={scrollRef} contentContainerClassName="flex-grow pb-10" keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
+                    <View className="pt-3 px-5">
                         <TouchableOpacity
                             onPress={() => navigation.goBack()}
                             className="p-2.5 self-start flex-row items-center"
@@ -123,7 +130,7 @@ export default function SignUpScreen({ navigation, route }) {
                     </View>
 
                     <View className="flex-1 px-8 pt-2.5">
-                        <Text className="text-3xl font-bold text-white text-center">Create Account</Text>
+                        <Text className="text-3xl font-bold text-white text-center">Create account</Text>
                         <Text className="text-base text-white/70 text-center mb-6">Join the Sproutly community</Text>
 
                         {/* Method Selector */}
@@ -150,7 +157,7 @@ export default function SignUpScreen({ navigation, route }) {
                         <View>
                             {authMethod === 'phone' ? (
                                 <View className="mb-4">
-                                    <Text className="text-white text-sm font-semibold mb-2 ml-1">Phone Number</Text>
+                                    <Text className="text-white text-base font-semibold mb-2 ml-1">Phone number</Text>
                                     <TextInput
                                         className="bg-white/10 border border-white/20 rounded-2xl px-4 py-3.5 text-base text-white"
                                         placeholder="0712 345 678"
@@ -158,14 +165,17 @@ export default function SignUpScreen({ navigation, route }) {
                                         keyboardType="phone-pad"
                                         value={phoneNumber}
                                         onChangeText={setPhoneNumber}
+                                        returnKeyType="next"
+                                        submitBehavior="submit"
+                                        onSubmitEditing={() => passwordRef.current?.focus()}
                                     />
                                 </View>
                             ) : (
                                 <View className="mb-4">
-                                    <Text className="text-white text-sm font-semibold mb-2 ml-1">Email Address</Text>
+                                    <Text className="text-white text-base font-semibold mb-2 ml-1">Email address</Text>
                                     <TextInput
                                         className="bg-white/10 border border-white/20 rounded-2xl px-4 py-3.5 text-base text-white"
-                                        placeholder="farmer@sproutly.com"
+                                        placeholder="you@example.com"
                                         placeholderTextColor="rgba(255,255,255,0.4)"
                                         autoCapitalize="none"
                                         keyboardType="email-address"
@@ -174,12 +184,15 @@ export default function SignUpScreen({ navigation, route }) {
                                             setEmail(text);
                                             setConfirmWithGoogle(false);
                                         }}
+                                        returnKeyType="next"
+                                        submitBehavior="submit"
+                                        onSubmitEditing={() => passwordRef.current?.focus()}
                                     />
                                 </View>
                             )}
 
                             <View className="mb-4">
-                                <Text className="text-white text-sm font-semibold mb-2 ml-1">Password</Text>
+                                <Text className="text-white text-base font-semibold mb-2 ml-1">Password</Text>
                                 <View className="flex-row items-center bg-white/10 border border-white/20 rounded-2xl px-4">
                                     <TextInput
                                         className="flex-1 py-3.5 text-base text-white"
@@ -188,6 +201,10 @@ export default function SignUpScreen({ navigation, route }) {
                                         secureTextEntry={!showPassword}
                                         value={password}
                                         onChangeText={setPassword}
+                                        ref={passwordRef}
+                                        returnKeyType="next"
+                                        submitBehavior="submit"
+                                        onSubmitEditing={() => confirmRef.current?.focus()}
                                     />
                                     <TouchableOpacity
                                         onPress={() => setShowPassword((v) => !v)}
@@ -202,7 +219,7 @@ export default function SignUpScreen({ navigation, route }) {
                                 </View>
                             </View>
                             <View className="mb-4">
-                                <Text className="text-white text-sm font-semibold mb-2 ml-1">Confirm Password</Text>
+                                <Text className="text-white text-base font-semibold mb-2 ml-1">Confirm password</Text>
                                 <TextInput
                                     className="bg-white/10 border border-white/20 rounded-2xl px-4 py-3.5 text-base text-white"
                                     placeholder="••••••••"
@@ -210,6 +227,8 @@ export default function SignUpScreen({ navigation, route }) {
                                     secureTextEntry={!showPassword}
                                     value={confirmPassword}
                                     onChangeText={setConfirmPassword}
+                                    ref={confirmRef}
+                                    returnKeyType="done"
                                 />
                             </View>
 
@@ -224,7 +243,7 @@ export default function SignUpScreen({ navigation, route }) {
                                 >
                                     {agreed && <Ionicons name="checkmark" size={16} color="#1B4332" />}
                                 </TouchableOpacity>
-                                <Text className="flex-1 text-white/80 text-sm leading-6">
+                                <Text className="flex-1 text-white/80 text-base leading-6">
                                     I agree to the{' '}
                                     <Text className="text-white font-bold underline" onPress={() => readTerms('terms')}>
                                         Terms of use
@@ -250,7 +269,7 @@ export default function SignUpScreen({ navigation, route }) {
                                 {loading ? (
                                     <ActivityIndicator color="#1B4332" />
                                 ) : (
-                                    <Text className="text-primary text-lg font-bold">Sign Up</Text>
+                                    <Text className="text-primary text-lg font-bold">Create account</Text>
                                 )}
                             </TouchableOpacity>
                         </View>
@@ -263,14 +282,15 @@ export default function SignUpScreen({ navigation, route }) {
                         />
 
                         <View className="flex-row justify-center mt-6">
-                            <Text className="text-white/70 text-sm">Already have an account? </Text>
+                            <Text className="text-white/70 text-base">Already have an account? </Text>
                             <TouchableOpacity onPress={() => navigation.navigate('Login')}>
-                                <Text className="text-white text-sm font-bold underline">Login</Text>
+                                <Text className="text-white text-base font-bold underline">Log in</Text>
                             </TouchableOpacity>
                         </View>
                     </View>
                 </ScrollView>
             </KeyboardAvoidingView>
+            </SafeAreaView>
         </LinearGradient>
     );
 }
