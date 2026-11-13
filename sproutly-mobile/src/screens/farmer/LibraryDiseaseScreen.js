@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import ScreenHeader from '../../components/ScreenHeader';
 import { PrimaryButton } from '../../components/Buttons';
 import { COLORS, CROP_LABELS } from '../../constants/theme';
+import { diseaseLabel } from '../../utils/diseaseName';
 
 /** A titled, numbered list: the same look as "What to do now" on a result. */
 function Steps({ title, items }) {
@@ -61,7 +62,7 @@ function Sources({ items }) {
 export default function LibraryDiseaseScreen({ route, navigation }) {
     const { disease } = route.params;
     const cropLabel = CROP_LABELS[disease.crop] || disease.crop;
-    const title = disease.healthy ? `Keeping ${cropLabel.toLowerCase()} healthy` : disease.name;
+    const title = disease.healthy ? `Keeping ${cropLabel.toLowerCase()} healthy` : diseaseLabel(disease.name);
 
     return (
         <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }}>

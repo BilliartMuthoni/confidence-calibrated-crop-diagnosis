@@ -18,6 +18,7 @@ from app.core.knowledge_base import display_name, get_guidance
 from app.core.leaf_check import NOT_A_LEAF, is_leaf
 from app.core.limiter import limiter
 from app.core.referrals import expire_overdue, open_referral
+from app.core.retention import inside_uploads
 from app.core.timeutil import utcnow
 from app.db.session import get_db
 from app.models.diagnosis import CropType, Diagnosis
@@ -117,11 +118,12 @@ def _response(db: Session, record: Diagnosis, prediction: Prediction) -> Diagnos
 
 def _diagnose(db: Session, user: User, crop: Optional[CropType], image_path: str,
               symptoms_text: Optional[str] = None, share: bool = False, contact: bool = False,
-              affected: Optional[str] = None, client_id: Optional[str] = None) -> DiagnosisResponse:
+              affected: Optional[str] = None, client_id: Optional[str] = None,
+              retake_of: Optional[int] = None) -> DiagnosisResponse:
     prediction = _hold_for_crop(predict(crop, image_path, symptoms_text))
     record = Diagnosis(user_id=user.user_id, image_path=image_path, symptoms_text=symptoms_text,
                        share_with_officer=share, allow_contact=share and contact,
-                       affected=affected if share else None, client_id=client_id)
+                       affected=affected if share else None, client_id=client_id, retake_of=retake_of)
     _apply(record, prediction)
     db.add(record)
     db.commit()
@@ -201,12 +203,19 @@ def create_diagnosis(
     allow_blurry: bool = Form(False),
     # The app's ID for a photo it queued with no signal (g07): sent twice, it is checked once.
     client_id: Optional[str] = Form(None),
+    # Retake from a not-diagnosed result (n22): the check this new photo replaces.
+    retake_of: Optional[int] = Form(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     existing = _already_sent(db, current_user, client_id)
     if existing:
         return get_diagnosis(existing.diagnosis_id, db, current_user)
+    if retake_of is not None:
+        replaced = _own_diagnosis(db, retake_of, current_user)  # 404 for someone else's check
+        if not replaced.is_referred:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                                detail="Only a check that was not diagnosed can be retaken")
     _remember_county(db, current_user, county)
     affected = _check_affected(affected)
     image_path = save_clean_image(image)
@@ -214,7 +223,7 @@ def create_diagnosis(
     # symptoms_text is stored, shown to officers, and on a referred photo reorders the crop's
     # diseases (notebook 20b); it never decides whether the farmer gets an answer.
     return _diagnose(db, current_user, crop, image_path, symptoms_text, share_with_officer, allow_contact, affected,
-                     client_id)
+                     client_id, retake_of)
 
 
 @router.post("/batch", response_model=BatchResponse, status_code=status.HTTP_201_CREATED)
@@ -303,6 +312,38 @@ def correct_crop(
     return _response(db, record, prediction)
 
 
+OFFICER_HAS_IT = "An officer is already looking at this photo, so it can't be removed."
+
+
+@router.post("/{diagnosis_id}/other-crop", status_code=status.HTTP_204_NO_CONTENT)
+@limiter.limit("30/minute")
+def other_crop(
+    request: Request,
+    diagnosis_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """"None of these crops" (n02): the photo shows a crop Sproutly can't check, so there is
+    nothing to diagnose. The check and its photo are removed, as if it had not been sent. A case
+    an officer has already picked up stays (removing it would take it from under them)."""
+    record = _own_diagnosis(db, diagnosis_id, current_user)
+    referral = db.query(Referral).filter(Referral.diagnosis_id == record.diagnosis_id).first()
+    if referral and referral.status.value != "new":
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=OFFICER_HAS_IT)
+    if record.image_path and inside_uploads(record.image_path):
+        try:
+            os.remove(record.image_path)
+        except OSError:
+            pass
+    db.query(SavedTurn).filter(SavedTurn.diagnosis_id == record.diagnosis_id).delete(synchronize_session=False)
+    if referral:
+        db.delete(referral)
+    db.query(Diagnosis).filter(Diagnosis.retake_of == record.diagnosis_id).update(
+        {Diagnosis.retake_of: None}, synchronize_session=False)
+    db.delete(record)
+    db.commit()
+
+
 @router.post("/{diagnosis_id}/ask", response_model=AssistantReply)
 # The free provider allows about 30 requests a minute for everyone together.
 @limiter.limit("6/minute")
@@ -343,10 +384,17 @@ def list_diagnoses(
     current_user: User = Depends(get_current_user),
 ):
     expire_overdue(db)
+    # A not-diagnosed check the farmer retook (n22) is replaced by the new one, so it is left out;
+    # one that went to an officer stays, so the officer's reply is never hidden.
+    retaken = (
+        db.query(Diagnosis.retake_of)
+        .filter(Diagnosis.user_id == current_user.user_id, Diagnosis.retake_of.isnot(None))
+    )
     rows = (
         db.query(Diagnosis, Referral.status)
         .outerjoin(Referral, Referral.diagnosis_id == Diagnosis.diagnosis_id)
         .filter(Diagnosis.user_id == current_user.user_id)
+        .filter(~(Diagnosis.diagnosis_id.in_(retaken) & Referral.diagnosis_id.is_(None)))
         .order_by(Diagnosis.created_at.desc())
         .limit(50)
         .all()

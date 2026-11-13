@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, KeyboardAvoidingView, ActivityIndicator } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import * as AuthService from '../../api/AuthService';
@@ -57,7 +58,7 @@ export default function EmailCodeScreen({ route, navigation }) {
             setMfaToken(data.mfa_token);
             setWait(data.resend_in_seconds ?? 60);
             setCode('');
-            setNotice('A new code is on its way. Earlier codes no longer work.');
+            setNotice('A new code has been sent. Earlier codes no longer work.');
         } catch (e) {
             setError(toFriendlyError(e));
         } finally {
@@ -69,8 +70,10 @@ export default function EmailCodeScreen({ route, navigation }) {
         <LinearGradient colors={['#0B1A13', '#1B3D2F', '#2D5A43']} style={{ flex: 1 }}>
             <StatusBar style="light" />
             <BusyOverlay visible={loading} message="Checking your code" />
+            {/* Content stops below the status bar (the app draws edge to edge); the gradient fills behind it. */}
+            <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1 }}>
             <KeyboardAvoidingView behavior="padding" className="flex-1">
-                <View className="pt-12 px-5">
+                <View className="pt-3 px-5">
                     <TouchableOpacity onPress={() => navigation.goBack()} className="p-2.5 self-start flex-row items-center">
                         <Ionicons name="arrow-back" size={20} color="#FFFFFF" />
                         <Text className="text-white text-base font-semibold ml-1">Back</Text>
@@ -117,13 +120,13 @@ export default function EmailCodeScreen({ route, navigation }) {
                         </Text>
                     </TouchableOpacity>
 
-                    <Text className="text-sm text-white/50 text-center mt-4 leading-5">
-                        {byPhone
-                            ? 'The code works for 15 minutes. It can take a minute to arrive. Wrong number? Go back and sign up again with the right one.'
-                            : 'The code works for 15 minutes. Not there? Look in Spam or Promotions. Wrong email? Go back and sign up again with the right one.'}
-                    </Text>
+                    {/* Codes from a new sender often land in Gmail's Spam or Promotions tab. */}
+                    {!byPhone && (
+                        <Text className="text-sm text-white/60 text-center mt-4">Not there? Check Spam or Promotions.</Text>
+                    )}
                 </View>
             </KeyboardAvoidingView>
+            </SafeAreaView>
         </LinearGradient>
     );
 }

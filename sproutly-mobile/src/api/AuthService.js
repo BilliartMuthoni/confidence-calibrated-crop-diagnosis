@@ -86,6 +86,30 @@ export function challengeScreen(data) {
     }];
 }
 
+/** "Forgot password?": a code goes to that phone (SMS) or email if an account uses it.
+ *  The answer looks the same either way: { reset_token, expires_in_minutes, resend_in_seconds }. */
+export async function forgotPassword({ phoneNumber, email }) {
+    try {
+        const { data } = await client.post('/auth/password/forgot', phoneNumber ? { phone_number: phoneNumber } : { email });
+        return data;
+    } catch (error) {
+        throw new Error(extractErrorMessage(error));
+    }
+}
+
+/** The sent code, the authenticator code (or a backup code) and the new password. Every phone is
+ *  signed out; the farmer then logs in with the new password. */
+export async function resetPassword({ resetToken, code, mfaCode, backupCode, newPassword }) {
+    try {
+        const payload = { reset_token: resetToken, code, new_password: newPassword };
+        if (backupCode) payload.backup_code = backupCode;
+        else payload.mfa_code = mfaCode;
+        await client.post('/auth/password/reset', payload);
+    } catch (error) {
+        throw new Error(extractErrorMessage(error));
+    }
+}
+
 /** The 6-digit code from the SMS (t22); answers the next challenge (authenticator). */
 export async function verifyPhoneCode({ mfaToken, code }) {
     try {

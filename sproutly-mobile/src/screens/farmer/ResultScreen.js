@@ -14,6 +14,7 @@ import { toFriendlyError } from '../../utils/errorMessages';
 import { markReplySeen } from '../../utils/seenReplies';
 import { fullDateLabel, whenLabel } from '../../utils/time';
 import { COLORS, CROP_LABELS } from '../../constants/theme';
+import { diseaseLabel } from '../../utils/diseaseName';
 
 /** A titled, numbered list separated from what comes before by a thin rule. */
 function Steps({ title, items }) {
@@ -33,6 +34,34 @@ function Steps({ title, items }) {
                     </Text>
                 </View>
             ))}
+        </View>
+    );
+}
+
+/** "About this disease" (n22): what causes it, how it spreads and the weather it likes, folded
+ *  away under the steps so what to do comes first. Same rule and heading style as Steps. */
+function AboutSection({ items }) {
+    const [open, setOpen] = useState(false);
+    if (!items?.length) return null;
+    return (
+        <View className="mt-6 pt-5" style={{ borderTopWidth: 1, borderTopColor: COLORS.divider }}>
+            <TouchableOpacity
+                onPress={() => setOpen((v) => !v)}
+                accessibilityRole="button"
+                accessibilityState={{ expanded: open }}
+                className="flex-row items-center"
+            >
+                <Text className="flex-1 text-base font-bold" style={{ color: COLORS.ink }}>
+                    About this disease
+                </Text>
+                <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={20} color={COLORS.muted} />
+            </TouchableOpacity>
+            {open &&
+                items.map((line, index) => (
+                    <Text key={index} className="text-base leading-6 mt-3" style={{ color: COLORS.text }}>
+                        {line}
+                    </Text>
+                ))}
         </View>
     );
 }
@@ -322,14 +351,15 @@ export default function ResultScreen({ route, navigation }) {
     const openSend = () =>
         navigation.navigate('Doubt', {
             diagnosisId: result.diagnosis_id,
-            disease: result.predicted_disease,
+            disease: diseaseLabel(result.predicted_disease),
             notDiagnosed: Boolean(result.is_referred),
             resultParams: route.params,
         });
     // The farmer rated the officer's reply (PR C): show the check as the server now has it.
     const rated = (updated) => setResult((current) => ({ ...current, ...updated }));
-    // A new photo for a not-diagnosed check: the check screen (t47).
-    const retake = () => navigation.navigate('Diagnosis');
+    // A new photo for a not-diagnosed check: the check screen (t47), with the same crop. The new
+    // check replaces this one in Your checks (n22).
+    const retake = () => navigation.navigate('Diagnosis', { retakeOf: result.diagnosis_id, crop: result.crop });
 
     // The assistant's box is at the bottom: when its keyboard opens, or a reply arrives, scroll
     // so the box stays in view. Android draws apps edge to edge (Expo 57), so the screen is no
@@ -371,7 +401,7 @@ export default function ResultScreen({ route, navigation }) {
 
     const accent = referred ? COLORS.referral : healthy ? COLORS.healthy : COLORS.disease;
     const status = referred ? 'Not diagnosed' : healthy ? 'No disease found' : 'Diagnosis';
-    const title = referred ? "We couldn't diagnose this reliably" : result.predicted_disease;
+    const title = referred ? "We couldn't diagnose this reliably" : diseaseLabel(result.predicted_disease);
     const photoUri = imageUri || (photo.state === 'ready' ? photo.uri : null);
 
     return (
@@ -516,6 +546,7 @@ export default function ResultScreen({ route, navigation }) {
                                 </Text>
                             )}
                             <Steps title="Stopping it coming back" items={result.guidance?.prevention} />
+                            <AboutSection items={result.guidance?.about} />
                             <Sources items={result.guidance?.sources} />
                             {past && result.guidance?.updated_since && (
                                 // t42: a past check shows the advice as it was given; say when it has changed since.

@@ -15,8 +15,11 @@ import { COLORS } from '../constants/theme';
  * "Use my location" finds it instead: the phone's position is sent once to the backend, which
  * checks it against the official county outlines and keeps nothing. If the farmer says no, or
  * is outside Kenya, they choose from the list as before.
+ *
+ * asRow: a settings row ("County  Nakuru  >") for a grouped list such as Account, with
+ * "Use my location" at the top of the list that opens instead of under the field.
  */
-export default function CountyPicker({ value, onChange }) {
+export default function CountyPicker({ value, onChange, asRow = false }) {
     const { userToken } = useContext(AuthContext);
     const [open, setOpen] = useState(false);
     const [search, setSearch] = useState('');
@@ -45,6 +48,7 @@ export default function CountyPicker({ value, onChange }) {
             if (county) {
                 onChange(county);
                 setNote(`Found from your location: ${county}.`);
+                if (asRow) setOpen(false); // the row now shows it
             } else {
                 setNote("You don't seem to be in Kenya. Choose your county from the list.");
             }
@@ -55,42 +59,86 @@ export default function CountyPicker({ value, onChange }) {
         }
     };
 
+    const label = value ? `County: ${value}. Change` : 'Choose your county';
     return (
         <>
-            <TouchableOpacity
-                onPress={() => setOpen(true)}
-                activeOpacity={0.8}
-                accessibilityRole="button"
-                accessibilityLabel={value ? `County: ${value}. Change` : 'Choose your county'}
-                className="flex-row items-center rounded-xl px-4 py-3.5"
-                style={{ backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.divider }}
-            >
-                <Ionicons name="location-outline" size={18} color={COLORS.brand} />
-                <Text className="flex-1 ml-2 text-base" style={{ color: value ? COLORS.text : COLORS.faint }}>
-                    {value || 'Choose your county'}
-                </Text>
-                <Ionicons name="chevron-down" size={18} color={COLORS.faint} />
-            </TouchableOpacity>
+            {asRow ? (
+                // The same look as the other rows of a settings group (SettingsRows NavRow).
+                <TouchableOpacity
+                    onPress={() => setOpen(true)}
+                    accessibilityRole="button"
+                    accessibilityLabel={label}
+                    className="flex-row items-center py-4 ml-5 pr-4"
+                >
+                    <Ionicons name="location-outline" size={20} color={COLORS.brand} />
+                    <Text className="flex-1 ml-3 text-base" style={{ color: COLORS.ink }}>
+                        County
+                    </Text>
+                    <Text className="text-base mr-2" style={{ color: value ? COLORS.muted : COLORS.faint }}>
+                        {value || 'Choose'}
+                    </Text>
+                    <Ionicons name="chevron-forward" size={18} color={COLORS.faint} />
+                </TouchableOpacity>
+            ) : (
+                <>
+                    <TouchableOpacity
+                        onPress={() => setOpen(true)}
+                        activeOpacity={0.8}
+                        accessibilityRole="button"
+                        accessibilityLabel={label}
+                        className="flex-row items-center rounded-xl px-4 py-3.5"
+                        style={{ backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.divider }}
+                    >
+                        <Ionicons name="location-outline" size={18} color={COLORS.brand} />
+                        <Text className="flex-1 ml-2 text-base" style={{ color: value ? COLORS.text : COLORS.faint }}>
+                            {value || 'Choose your county'}
+                        </Text>
+                        <Ionicons name="chevron-down" size={18} color={COLORS.faint} />
+                    </TouchableOpacity>
 
-            <TouchableOpacity
-                onPress={findFromLocation}
-                disabled={locating}
-                accessibilityRole="button"
-                accessibilityHint="Your location is used once to find your county and is not kept"
-                className="flex-row items-center self-start mt-2.5 py-1"
-            >
-                <Text className="ml-1.5 text-sm font-bold" style={{ color: COLORS.brand }}>
-                    Use my location
-                </Text>
-            </TouchableOpacity>
-            <Text className="text-xs mt-0.5 leading-4" style={{ color: COLORS.muted }}>
-                {note || 'Used once to find your county. Your location is not kept.'}
-            </Text>
-            <BusyOverlay visible={locating} message="Finding your county" />
+                    <TouchableOpacity
+                        onPress={findFromLocation}
+                        disabled={locating}
+                        accessibilityRole="button"
+                        accessibilityHint="Your location is used once to find your county and is not kept"
+                        className="flex-row items-center self-start mt-2.5 py-1"
+                    >
+                        {/* The same icon as in the county list (row style), so both read alike. */}
+                        <Ionicons name="navigate-outline" size={16} color={COLORS.brand} />
+                        <Text className="ml-1.5 text-sm font-bold" style={{ color: COLORS.brand }}>
+                            Use my location
+                        </Text>
+                    </TouchableOpacity>
+                    <Text className="text-xs mt-0.5 leading-4" style={{ color: COLORS.muted }}>
+                        {note || 'Used once to find your county. Your location is not kept.'}
+                    </Text>
+                    <BusyOverlay visible={locating} message="Finding your county" />
+                </>
+            )}
 
             <Modal visible={open} animationType="slide" onRequestClose={() => setOpen(false)}>
                 <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }}>
                     <ScreenHeader title="Your county" icon="close" onBack={() => setOpen(false)} />
+                    {asRow && (
+                        // "Use my location" lives here for the row: the list is where the county is chosen.
+                        <View className="px-5 pb-3">
+                            <TouchableOpacity
+                                onPress={findFromLocation}
+                                disabled={locating}
+                                accessibilityRole="button"
+                                accessibilityHint="Your location is used once to find your county and is not kept"
+                                className="flex-row items-center py-2"
+                            >
+                                <Ionicons name="navigate-outline" size={18} color={COLORS.brand} />
+                                <Text className="ml-2 text-base font-bold" style={{ color: COLORS.brand }}>
+                                    {locating ? 'Finding your county...' : 'Use my location'}
+                                </Text>
+                            </TouchableOpacity>
+                            <Text className="text-sm leading-5" style={{ color: COLORS.muted }}>
+                                {note || 'Used once to find your county. Your location is not kept.'}
+                            </Text>
+                        </View>
+                    )}
                     <View className="px-5 pb-2">
                         <TextInput
                             className="rounded-xl px-4 py-3 text-base"

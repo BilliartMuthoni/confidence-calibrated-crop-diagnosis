@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { LinearGradient } from 'expo-linear-gradient';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { AuthContext } from '../../context/AuthContext';
@@ -38,7 +39,7 @@ function StepTitle({ number, title }) {
 // a second screen) is hidden by default; the app link and the setup key come first.
 export default function MfaSetupScreen({ route, navigation }) {
     const scrollRef = useKeyboardScroll();
-    const { mfaToken, expiresInMinutes, setup } = route.params;
+    const { mfaToken, setup } = route.params;
     const { login } = useContext(AuthContext);
     const [code, setCode] = useState('');
     const [loading, setLoading] = useState(false);
@@ -87,9 +88,11 @@ export default function MfaSetupScreen({ route, navigation }) {
         <LinearGradient colors={['#0B1A13', '#1B3D2F', '#2D5A43']} style={{ flex: 1 }}>
             <StatusBar style="light" />
             <BusyOverlay visible={loading} message="Checking your code" />
+            {/* Content stops below the status bar (the app draws edge to edge); the gradient fills behind it. */}
+            <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1 }}>
             <KeyboardAvoidingView behavior="padding" className="flex-1">
                 <ScrollView ref={scrollRef} contentContainerClassName="flex-grow pb-10" keyboardShouldPersistTaps="handled">
-                    <View className="pt-12 px-5">
+                    <View className="pt-3 px-5">
                         <TouchableOpacity onPress={() => navigation.goBack()} className="p-2.5 self-start flex-row items-center">
                             <Ionicons name="arrow-back" size={20} color="#FFFFFF" />
                             <Text className="text-white text-base font-semibold ml-1">Back</Text>
@@ -99,8 +102,8 @@ export default function MfaSetupScreen({ route, navigation }) {
                     <View className="px-8 pt-4">
                         <Text className="text-2xl font-bold text-white mb-2">Protect your account</Text>
                         <Text className="text-base text-white/70 leading-6 mb-8">
-                            Each time you log in, Sproutly will ask for a code from an authenticator app as well as your
-                            password. Use Google Authenticator or Microsoft Authenticator from the Play Store.
+                            Each log in also asks for a code from an authenticator app, such as Google or Microsoft
+                            Authenticator.
                         </Text>
 
                         {/* Step 1: get the secret into the authenticator app */}
@@ -113,9 +116,7 @@ export default function MfaSetupScreen({ route, navigation }) {
                             <Ionicons name="open-outline" size={18} color="#0B1A13" style={{ marginRight: 8 }} />
                             <Text className="text-forestDeep text-base font-bold">Open authenticator app</Text>
                         </TouchableOpacity>
-                        <Text className="text-sm text-white/60 mt-2 text-center">
-                            Keep Sproutly open. Come back here for step 2.
-                        </Text>
+                        <Text className="text-sm text-white/60 mt-2">Then come back to Sproutly to enter the code.</Text>
 
                         {/* The manual routes, folded away: most farmers only need the button above. */}
                         <TouchableOpacity
@@ -125,18 +126,14 @@ export default function MfaSetupScreen({ route, navigation }) {
                             className="mt-5 flex-row items-center bg-white/10 border border-white/10 rounded-2xl px-4 py-3.5"
                         >
                             <Ionicons name="key-outline" size={20} color="#FFFFFF" />
-                            <View className="flex-1 ml-3">
-                                <Text className="text-white text-base font-semibold">Can't open your authenticator?</Text>
-                                <Text className="text-white/60 text-sm mt-0.5">Set up manually with a setup key</Text>
-                            </View>
+                            <Text className="flex-1 ml-3 text-white text-base font-semibold">Can't open your authenticator?</Text>
                             <Ionicons name={showManual ? 'chevron-down' : 'chevron-forward'} size={18} color="#FFFFFF" />
                         </TouchableOpacity>
 
                         {showManual && (
                             <View className="mt-3 px-1">
-                                <Text className="text-sm text-white/70 mb-2">
-                                    In the app, choose "Enter a setup key" and type this key. Keep it private: anyone with it
-                                    can make your codes.
+                                <Text className="text-base text-white/70 mb-2">
+                                    In the app, choose "Enter a setup key" and type this key. Keep it private.
                                 </Text>
                                 <View className="flex-row items-center bg-white/10 border border-white/20 rounded-2xl px-4 py-3">
                                     <Text selectable className="flex-1 text-base font-bold text-white" style={{ letterSpacing: 1 }}>
@@ -147,12 +144,12 @@ export default function MfaSetupScreen({ route, navigation }) {
                                         <Text className="text-white text-sm font-semibold ml-1">{copied ? 'Copied' : 'Copy'}</Text>
                                     </TouchableOpacity>
                                 </View>
-                                <Text className="text-xs text-white/50 mt-2">Choose "Time based" if the app asks for the type of key.</Text>
+                                <Text className="text-sm text-white/60 mt-2">If asked, choose "Time based".</Text>
 
                                 <TouchableOpacity onPress={() => setShowQr((v) => !v)} className="mt-3 py-2 flex-row items-center">
                                     <Ionicons name="qr-code-outline" size={18} color="#FFFFFF" />
                                     <Text className="text-white text-sm font-semibold ml-2 underline">
-                                        {showQr ? 'Hide QR code' : 'Authenticator on another phone? Show QR code'}
+                                        {showQr ? 'Hide QR code' : 'Show QR code for another phone'}
                                     </Text>
                                 </TouchableOpacity>
                                 {showQr && (
@@ -188,13 +185,10 @@ export default function MfaSetupScreen({ route, navigation }) {
                                 <Text className="text-forestDeep text-lg font-bold">Finish setup</Text>
                             )}
                         </TouchableOpacity>
-
-                        <Text className="text-xs text-white/50 text-center mt-4 leading-5">
-                            Finish within {expiresInMinutes} minutes. If time runs out, log in again to restart setup.
-                        </Text>
                     </View>
                 </ScrollView>
             </KeyboardAvoidingView>
+            </SafeAreaView>
         </LinearGradient>
     );
 }

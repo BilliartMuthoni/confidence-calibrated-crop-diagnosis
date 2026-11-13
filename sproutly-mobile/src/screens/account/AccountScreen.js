@@ -2,6 +2,7 @@ import React, { useState, useEffect, useContext, useCallback } from 'react';
 import { View, Text, ScrollView, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import { Ionicons } from '@expo/vector-icons';
 import { AuthContext } from '../../context/AuthContext';
 import { deleteSavedQuestions, fetchCurrentUser, setKeepQuestions, setMyCounty } from '../../api/AuthService';
 import { toFriendlyError } from '../../utils/errorMessages';
@@ -10,7 +11,8 @@ import ErrorBanner from '../../components/ErrorBanner';
 import ScreenHeader from '../../components/ScreenHeader';
 import CountyPicker from '../../components/CountyPicker';
 import BottomBar from '../../components/BottomBar';
-import { Group, InfoRow, NavRow, SwitchRow } from '../../components/SettingsRows';
+import { Group, NavRow, SwitchRow } from '../../components/SettingsRows';
+import { showPhone } from '../../utils/phone';
 import { COLORS } from '../../constants/theme';
 import { APP_VERSION } from '../../constants/accountText';
 import BusyOverlay from '../../components/BusyOverlay';
@@ -18,9 +20,10 @@ import { showDialog } from '../../components/Dialog';
 import { queuedCount } from '../../utils/offlineQueue';
 
 /**
- * The Account tab: the farmer's profile and every setting, grouped like the account pages of
- * other professional apps (profile, security, privacy, help, about). Phone and email open
- * EditContact, which asks for proof first (they are the account's sign-in name).
+ * The Account tab: the farmer's profile and settings, grouped like other apps' account pages
+ * (profile, county, security, privacy, help and about). Kept short: the sign-in settings are on
+ * their own screen (Password and sign-in), and Support is the bottom bar's tab. Phone and email
+ * open EditContact, which asks for proof first (they are the account's sign-in name).
  */
 export default function AccountScreen({ route, navigation }) {
     const { userToken, logout } = useContext(AuthContext);
@@ -122,17 +125,18 @@ export default function AccountScreen({ route, navigation }) {
 
     const go = (name, params) => () => navigation.navigate(name, params);
     const editContact = profile && {
-        phone: profile.user_phone_number,
+        phone: showPhone(profile.user_phone_number),
         email: profile.user_email,
         googleConnected: profile.google_connected,
         hasPassword: profile.has_password,
     };
-    const memberSince = profile?.created_at
+    const joined = profile?.created_at
         ? new Date(profile.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'long' })
         : '—';
-    const identifier = profile?.user_phone_number || profile?.user_email || '—';
-    const initial = (identifier || '?').replace(/^\+?/, '').charAt(0).toUpperCase();
-    const secured = profile?.has_password && profile?.mfa_enabled;
+    // The number as farmers write it (0712 345 678), not as stored (+254...).
+    const identifier = showPhone(profile?.user_phone_number) || profile?.user_email || '—';
+    // An email's first letter; a phone account gets a person icon (a digit means nothing).
+    const initial = !profile?.user_phone_number && profile?.user_email ? profile.user_email.charAt(0).toUpperCase() : null;
 
     return (
         <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }} edges={['top']}>
@@ -153,67 +157,42 @@ export default function AccountScreen({ route, navigation }) {
                         {/* Who is signed in */}
                         <View className="flex-row items-center px-5 mt-2">
                             <View className="w-14 h-14 rounded-full items-center justify-center" style={{ backgroundColor: COLORS.brand }}>
-                                <Text className="text-white text-2xl font-bold">{initial}</Text>
+                                {initial ? (
+                                    <Text className="text-white text-2xl font-bold">{initial}</Text>
+                                ) : (
+                                    <Ionicons name="person" size={28} color="#FFFFFF" />
+                                )}
                             </View>
                             <View className="flex-1 ml-4">
                                 <Text className="text-lg font-bold" style={{ color: COLORS.ink }}>
                                     {identifier}
                                 </Text>
                                 <Text className="text-sm mt-0.5" style={{ color: COLORS.muted }}>
-                                    Farmer · member since {memberSince}
+                                    Farmer · joined {joined}
                                 </Text>
                             </View>
                         </View>
 
-                        <Group title="Profile" note="You log in with these. To change one, you confirm it's you first.">
-                            <NavRow icon="call-outline" label="Phone" hint={profile.user_phone_number || 'Not set'}
-                                    onPress={go('EditContact', editContact)} />
-                            <NavRow icon="mail-outline" label="Email" hint={profile.user_email || 'Not set'}
+                        {/* The number is in the header; one row opens the change screen (proof first). */}
+                        <Group title="Profile">
+                            <NavRow icon="person-outline" label="Phone and email" hint="Change how you log in"
                                     onPress={go('EditContact', editContact)} last />
                         </Group>
 
                         {/* County: routes referrals to that county's officers and picks the support contacts */}
-                        <View className="px-5 mt-5">
-                            <Text className="text-base font-bold" style={{ color: COLORS.ink }}>
-                                Your county
-                            </Text>
-                            <Text className="text-sm mt-0.5 mb-3 leading-5" style={{ color: COLORS.muted }}>
-                                Cases you share go to extension officers here, and Support shows this county's contacts.
-                            </Text>
-                            <CountyPicker value={county} onChange={changeCounty} />
-                            {countyError && (
-                                <View className="mt-3">
-                                    <ErrorBanner error={countyError} onDismiss={() => setCountyError(null)} />
-                                </View>
-                            )}
-                        </View>
+                        <Group title="Your county" note="Shared cases and support contacts use this county.">
+                            <CountyPicker asRow value={county} onChange={changeCounty} />
+                        </Group>
+                        {countyError && (
+                            <View className="px-5 mt-3">
+                                <ErrorBanner error={countyError} onDismiss={() => setCountyError(null)} />
+                            </View>
+                        )}
 
-                        <Group
-                            title="Security"
-                            note="Lost your phone? Sign in on another phone: only your newest sign-in stays active, so the lost phone is signed out."
-                        >
-                            {profile.has_password && (
-                                <NavRow icon="key-outline" label="Change password" hint="Signs out your other phones"
-                                        onPress={go('ChangePassword')} />
-                            )}
-                            {secured && (
-                                <>
-                                    <NavRow icon="phone-portrait-outline" label="Authenticator on a new phone"
-                                            onPress={go('NewAuthenticator')} />
-                                    <NavRow icon="document-lock-outline" label="Make new backup codes"
-                                            hint="For signing in without your phone" onPress={go('BackupCodes')} />
-                                </>
-                            )}
-                            {!profile.google_connected ? (
-                                <NavRow icon="logo-google" label="Connect Google" hint="Log in with Google next time"
-                                        onPress={go('ConnectGoogle')} last />
-                            ) : profile.has_password ? (
-                                <NavRow icon="logo-google" label="Google: connected" hint="Tap to disconnect"
-                                        onPress={go('ConnectGoogle', { disconnect: true })} last />
-                            ) : (
-                                // Made with Google: it's the only way in, so it can't be disconnected.
-                                <InfoRow label="Google" value="Connected" last />
-                            )}
+                        {/* Change password, authenticator, backup codes and Google, on their own screen. */}
+                        <Group title="Security">
+                            <NavRow icon="lock-closed-outline" label="Password and sign-in"
+                                    hint="Password, authenticator, backup codes, Google" onPress={go('SignInSecurity')} last />
                         </Group>
 
                         <Group title="Privacy">
@@ -221,12 +200,7 @@ export default function AccountScreen({ route, navigation }) {
                                        hint="Read them again in Your checks. Only you see them."
                                        value={profile.keep_questions === true} onChange={changeKeep} disabled={savingKeep} />
                             <NavRow icon="trash-outline" label="Delete my saved questions" hint="Your checks stay"
-                                    onPress={confirmDeleteQuestions} />
-                            <NavRow icon="shield-checkmark-outline" label="Privacy policy" hint="What Sproutly keeps and who sees it"
-                                    onPress={go('Info', { page: 'privacy' })} />
-                            <NavRow icon="document-text-outline" label="Terms of use" onPress={go('Info', { page: 'terms' })} />
-                            <NavRow icon="trash-outline" label="Delete my account" hint="Your photos, checks and account"
-                                    color={COLORS.danger} onPress={go('DeleteAccount', { googleOnly: !profile.has_password })} last />
+                                    onPress={confirmDeleteQuestions} last />
                         </Group>
                         {privacyError && (
                             <View className="px-5 mt-3">
@@ -234,21 +208,21 @@ export default function AccountScreen({ route, navigation }) {
                             </View>
                         )}
 
-                        <Group title="Help">
-                            <NavRow icon="help-circle-outline" label="Help and common questions" onPress={go('Info', { page: 'help' })} />
-                            <NavRow icon="book-outline" label="Disease library" hint="Causes, spread and what to do" onPress={go('Library')} />
-                            <NavRow icon="call-outline" label="Contact support" hint="Your county's agricultural contacts"
-                                    onPress={() => navigation.reset({ index: 1, routes: [{ name: 'FarmerHome' }, { name: 'SupportContacts', params: { tab: true } }] })}
-                                    last />
-                        </Group>
-
-                        <Group title="About">
+                        {/* Support contacts are the bottom bar's Support tab, so they are not repeated here. */}
+                        <Group title="Help and about">
+                            <NavRow icon="help-circle-outline" label="Help" onPress={go('Info', { page: 'help' })} />
+                            <NavRow icon="book-outline" label="Disease library" onPress={go('Library')} />
+                            <NavRow icon="shield-checkmark-outline" label="Privacy policy" onPress={go('Info', { page: 'privacy' })} />
+                            <NavRow icon="document-text-outline" label="Terms of use" onPress={go('Info', { page: 'terms' })} />
                             <NavRow icon="information-circle-outline" label="About Sproutly" hint={`Version ${APP_VERSION}`}
                                     onPress={go('Info', { page: 'about' })} last />
                         </Group>
 
+                        {/* Log out, then the one action that can't be undone, apart from everything else. */}
                         <Group>
-                            <NavRow icon="log-out-outline" label="Log out" color={COLORS.danger} onPress={confirmLogout} last />
+                            <NavRow icon="log-out-outline" label="Log out" color={COLORS.danger} onPress={confirmLogout} />
+                            <NavRow icon="trash-outline" label="Delete my account" hint="Your photos, checks and account"
+                                    color={COLORS.danger} onPress={go('DeleteAccount', { googleOnly: !profile.has_password })} last />
                         </Group>
                     </>
                 )}

@@ -4,6 +4,7 @@ from typing import Literal, Optional
 from pydantic import BaseModel, EmailStr, Field, TypeAdapter, field_validator, model_validator
 
 from app.core.counties import check_county
+from app.core.phone import normalise_phone
 from app.models.user import UserRole
 
 # Staff passwords are longer than farmers' (NIST SP 800-63B recommends length over complexity).
@@ -24,6 +25,12 @@ def _six_digits(v: str) -> str:
 class _RequiresIdentifier(BaseModel):
     phone_number: Optional[str] = None
     email: Optional[EmailStr] = None
+
+    @field_validator("phone_number")
+    @classmethod
+    def phone_in_one_form(cls, v: Optional[str]) -> Optional[str]:
+        # 0712..., +254 712... and 254712... are the same number: one stored form (app/core/phone.py).
+        return normalise_phone(v) if v and v.strip() else None
 
     @model_validator(mode="after")
     def check_identifier_present(self):
@@ -54,6 +61,37 @@ class RegisterRequest(_RequiresIdentifier):
 
 class LoginRequest(_RequiresIdentifier):
     password: str
+
+
+class ForgotPasswordRequest(_RequiresIdentifier):
+    """"Forgot password?": the phone number or email the farmer logs in with."""
+
+
+class PasswordResetStart(BaseModel):
+    """Always the same answer, whether or not an account uses that phone or email, so the
+    screen can't be used to find out who has an account. The code goes only to a real one."""
+
+    reset_token: str
+    expires_in_minutes: int
+    resend_in_seconds: int
+
+
+class ResetPasswordRequest(BaseModel):
+    """The code sent by SMS or email, the authenticator code (or a backup code) and the new
+    password. Both codes are needed, so a stolen SIM card or email inbox alone is not enough."""
+
+    reset_token: str
+    code: str
+    mfa_code: Optional[str] = None
+    backup_code: Optional[str] = None
+    new_password: str
+
+    @field_validator("new_password")
+    @classmethod
+    def password_min_length(cls, v: str) -> str:
+        if len(v) < 8:
+            raise ValueError("Password must be at least 8 characters long")
+        return v
 
 
 class MfaCodeRequest(BaseModel):
@@ -255,12 +293,8 @@ class ContactChangeRequest(BaseModel):
     @field_validator("phone_number")
     @classmethod
     def phone_looks_right(cls, v: Optional[str]) -> Optional[str]:
-        v = (v or "").replace(" ", "").strip()
-        if not v:
-            return None
-        if not v.lstrip("+").isdigit() or not 9 <= len(v.lstrip("+")) <= 15:
-            raise ValueError("Enter the phone number like 0712345678")
-        return v
+        # The same one form as sign-up and log in (app/core/phone.py).
+        return normalise_phone(v) if v and v.strip() else None
 
     @field_validator("email")
     @classmethod

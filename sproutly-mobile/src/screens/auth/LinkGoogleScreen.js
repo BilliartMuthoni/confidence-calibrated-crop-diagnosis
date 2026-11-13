@@ -10,6 +10,7 @@ import {
     ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { AuthContext } from '../../context/AuthContext';
@@ -63,9 +64,11 @@ export default function LinkGoogleScreen({ route, navigation }) {
         <LinearGradient colors={['#0B1A13', '#1B3D2F', '#2D5A43']} style={{ flex: 1 }}>
             <StatusBar style="light" />
             <BusyOverlay visible={loading} message="Linking your Google account" />
+            {/* Content stops below the status bar (the app draws edge to edge); the gradient fills behind it. */}
+            <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1 }}>
             <KeyboardAvoidingView behavior="padding" className="flex-1">
                 <ScrollView ref={scrollRef} contentContainerClassName="flex-grow pb-10" keyboardShouldPersistTaps="handled">
-                    <View className="pt-12 px-5">
+                    <View className="pt-3 px-5">
                         <TouchableOpacity onPress={() => navigation.goBack()} className="p-2.5 self-start flex-row items-center">
                             <Ionicons name="arrow-back" size={20} color="#FFFFFF" />
                             <Text className="text-white text-base font-semibold ml-1">Back</Text>
@@ -131,6 +134,7 @@ export default function LinkGoogleScreen({ route, navigation }) {
                     </View>
                 </ScrollView>
             </KeyboardAvoidingView>
+            </SafeAreaView>
         </LinearGradient>
     );
 }

@@ -60,6 +60,9 @@ class Diagnosis(Base):
     # The app's own ID for a photo it queued with no signal (g07): if the same photo is sent
     # again (the reply was lost on a weak connection), the first check is returned, not a second.
     client_id = Column(String(64), nullable=True, unique=True, index=True)
+    # A new photo taken with Retake from a not-diagnosed result (n22): the check it replaces.
+    # Your checks then hides that older check, unless it went to an officer (a reply stays visible).
+    retake_of = Column(Integer, ForeignKey("diagnoses.diagnosis_id", ondelete="SET NULL"), nullable=True, index=True)
 
     # Filled in once an extension officer responds to a referred case.
     officer_response = Column(Text, nullable=True)

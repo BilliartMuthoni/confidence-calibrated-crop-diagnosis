@@ -14,8 +14,9 @@ class AdviceKind(str, enum.Enum):
     harvest = "harvest"  # harvest and storage
 
 
-# Shown on the result screen; the other kinds answer the farmer's questions only.
-RESULT_KINDS = (AdviceKind.treatment, AdviceKind.prevention)
+# Shown on the result screen (about in a fold-out "About this disease", n22); harvest answers the
+# farmer's questions only.
+RESULT_KINDS = (AdviceKind.treatment, AdviceKind.prevention, AdviceKind.about)
 
 
 class AdviceStatus(str, enum.Enum):

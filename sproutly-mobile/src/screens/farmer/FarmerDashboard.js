@@ -107,7 +107,7 @@ export default function FarmerDashboard({ navigation }) {
         setSendingQueue(true);
         try {
             const { sent } = await sendQueue(sendItem);
-            if (sent) load(); // the new results appear under Latest checks
+            if (sent) load(); // the new results appear under Recent checks
         } finally {
             setSendingQueue(false);
         }
@@ -183,7 +183,7 @@ export default function FarmerDashboard({ navigation }) {
                     <View className="flex-1 ml-4">
                         <Text className="text-white text-xl font-bold">Check a leaf</Text>
                         <Text className="text-sm mt-0.5" style={{ color: 'rgba(255,255,255,0.75)' }}>
-                            Maize, tomato or potato
+                            Take a photo to find the problem
                         </Text>
                     </View>
                     <Ionicons name="chevron-forward" size={22} color="rgba(255,255,255,0.75)" />
@@ -210,15 +210,16 @@ export default function FarmerDashboard({ navigation }) {
                 {/* Checks saved with no signal (g07) */}
                 <QueueCard items={queue} busy={sendingQueue} onTryNow={trySending} onRemove={removeFromQueue} />
 
-                {/* Latest checks */}
+                {/* Recent checks */}
                 <View className="flex-row items-center justify-between mt-10 mb-1">
                     <Text className="text-lg font-bold" style={{ color: COLORS.ink }}>
-                        Latest checks
+                        Recent checks
                     </Text>
+                    {/* No count: the list loads the newest 50 and hides retaken checks, so a number could be wrong. */}
                     {history.length > LATEST && (
                         <TouchableOpacity onPress={seeAll} hitSlop={8} accessibilityRole="button">
                             <Text className="text-base font-semibold" style={{ color: COLORS.brand }}>
-                                See all ({history.length})
+                                See all
                             </Text>
                         </TouchableOpacity>
                     )}

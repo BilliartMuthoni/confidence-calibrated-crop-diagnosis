@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 from app.core import audit, symptom_text
 from app.core.classifier import model_paths, model_version
 from app.core.leaf_check import load_leaf_check
+from app.core.phone import local_form
 from app.core.config import settings
 from app.core.deps import require_role
 from app.core.knowledge_base import KNOWLEDGE_BASE, display_name
@@ -353,7 +354,8 @@ def _contact(user: User) -> str:
     # Farmers' numbers and emails are personal data: admins see only enough to tell accounts
     # apart (first letter and the email's domain), and whether they sign in with Google.
     if user.user_phone_number:
-        return f"{user.user_phone_number[:2]}xx xxx {user.user_phone_number[-3:]}"
+        local = local_form(user.user_phone_number)  # stored as +254..., shown as 07...
+        return f"{local[:2]}xx xxx {local[-3:]}"
     if user.user_email and "@" in user.user_email:
         local, domain = user.user_email.split("@", 1)
         masked = f"{local[:1]}•••@{domain}"

@@ -19,6 +19,8 @@ import MfaSetupScreen from './src/screens/auth/MfaSetupScreen';
 import MfaCodeScreen from './src/screens/auth/MfaCodeScreen';
 import EmailCodeScreen from './src/screens/auth/EmailCodeScreen';
 import LinkGoogleScreen from './src/screens/auth/LinkGoogleScreen';
+import ForgotPasswordScreen from './src/screens/auth/ForgotPasswordScreen';
+import ResetPasswordScreen from './src/screens/auth/ResetPasswordScreen';
 
 // Splash Screen
 import SplashScreen from './src/screens/SplashScreen.js';
@@ -37,6 +39,7 @@ import DeleteAccountScreen from './src/screens/account/DeleteAccountScreen';
 import InfoScreen from './src/screens/account/InfoScreen';
 import EditContactScreen from './src/screens/account/EditContactScreen';
 import ConnectGoogleScreen from './src/screens/account/ConnectGoogleScreen';
+import SignInSecurityScreen from './src/screens/account/SignInSecurityScreen';
 import SupportContactsScreen from './src/screens/farmer/SupportContactsScreen';
 import HistoryScreen from './src/screens/farmer/HistoryScreen';
 import DoubtScreen from './src/screens/farmer/DoubtScreen';
@@ -66,6 +69,9 @@ const RootNavigator = () => {
                         {/* Terms of use and Privacy policy, readable before signing up. */}
                         <Stack.Screen name="Info" component={InfoScreen} />
                         <Stack.Screen name="LinkGoogle" component={LinkGoogleScreen} />
+                        {/* Forgot password: a code by SMS or email, plus the authenticator code. */}
+                        <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+                        <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
                     </>
                 ) : (
                     <>
@@ -81,6 +87,7 @@ const RootNavigator = () => {
                         <Stack.Screen name="LibraryDisease" component={LibraryDiseaseScreen} />
                         <Stack.Screen name="Notifications" component={NotificationsScreen} />
                         <Stack.Screen name="Account" component={AccountScreen} options={{ animation: 'none' }} />
+                        <Stack.Screen name="SignInSecurity" component={SignInSecurityScreen} />
                         <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} />
                         <Stack.Screen name="EditContact" component={EditContactScreen} />
                         <Stack.Screen name="NewAuthenticator" component={NewAuthenticatorScreen} />

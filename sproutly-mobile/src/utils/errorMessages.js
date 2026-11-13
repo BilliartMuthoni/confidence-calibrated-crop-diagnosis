@@ -15,6 +15,44 @@ const PATTERNS = [
         retryable: false,
     },
     {
+        match: /officer is already looking at this photo/i,
+        title: 'An officer has this photo',
+        message: "It can't be removed now. The officer's reply will appear under Your checks.",
+        retryable: false,
+    },
+    {
+        match: /kenyan mobile numbers/i,
+        title: 'Check the phone number',
+        message: 'Enter a Kenyan number like 0712345678. For a number from another country, use Email.',
+        retryable: false,
+    },
+    {
+        // The emailed or SMS code (sign-up, log in, forgot password): keep the server's words,
+        // which say how many tries are left or to send a new code.
+        match: /code is not right|code has expired|too many wrong codes/i,
+        title: 'That code did not work',
+        keepMessage: true,
+        retryable: false,
+    },
+    {
+        match: /can't send sms codes right now/i,
+        title: 'SMS is not available',
+        message: 'Use Email if your account has one, or email sproutly.ke.support@gmail.com for help.',
+        retryable: false,
+    },
+    {
+        match: /password reset has expired/i,
+        title: 'This took too long',
+        message: 'Go back and tap Forgot password? again.',
+        retryable: false,
+    },
+    {
+        match: /authenticator app, or a backup code/i,
+        title: 'Authenticator code needed',
+        message: 'Enter the 6-digit code from your authenticator app, or tap Use a backup code.',
+        retryable: false,
+    },
+    {
         // Password login on an account made with Google: there is no Sproutly password yet.
         match: /signs in with google/i,
         title: 'This account uses Google',
@@ -214,7 +252,7 @@ export function toFriendlyError(error) {
 
     for (const entry of PATTERNS) {
         if (entry.match.test(raw)) {
-            return { title: entry.title, message: entry.message, retryable: entry.retryable };
+            return { title: entry.title, message: entry.keepMessage ? raw : entry.message, retryable: entry.retryable };
         }
     }
 

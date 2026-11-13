@@ -64,11 +64,17 @@ def send_sms_code(phone: str, code: str) -> None:
     try:
         response = httpx.post(url, data=data, timeout=15,
                               headers={"apiKey": settings.at_api_key, "Accept": "application/json"})
-        body = response.json() if response.content else {}
-    except (httpx.HTTPError, ValueError) as exc:
+    except httpx.HTTPError as exc:
+        log.warning("SMS not sent: request failed (%s)", type(exc).__name__)
         raise SmsNotSent(f"request failed: {type(exc).__name__}") from exc
+    try:
+        body = response.json() if response.content else {}
+    except ValueError:
+        # Africa's Talking answers some errors (e.g. a wrong username or key) in plain text.
+        body = {"SMSMessageData": {"Message": response.text[:120]}}
     recipients = (body.get("SMSMessageData") or {}).get("Recipients") or []
     if response.status_code >= 300 or not recipients or recipients[0].get("status") != "Success":
-        # Status words only (never the number or the code) go to the log.
+        # Status words only (never the number or the code) go to the log, so a refusal can be fixed.
         status = recipients[0].get("status") if recipients else (body.get("SMSMessageData") or {}).get("Message")
+        log.warning("SMS not sent: Africa's Talking answered HTTP %s: %s", response.status_code, status)
         raise SmsNotSent(f"HTTP {response.status_code}: {status}")

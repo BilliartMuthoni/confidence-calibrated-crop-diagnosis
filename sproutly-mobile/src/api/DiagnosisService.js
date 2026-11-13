@@ -42,10 +42,12 @@ function appendSharing(formData, sharing) {
 }
 
 /** allowBlurry: only after two retakes failed the blur check; the server still refers an unsure photo. */
-export async function submitDiagnosis({ token, crop, imageUri, symptoms, sharing, allowBlurry = false, clientId }) {
+export async function submitDiagnosis({ token, crop, imageUri, symptoms, sharing, allowBlurry = false, clientId, retakeOf }) {
     try {
         const formData = new FormData();
         formData.append('crop', crop);
+        // Retake from a not-diagnosed result (n22): the new check replaces that one in Your checks.
+        if (retakeOf) formData.append('retake_of', String(retakeOf));
         if (symptoms?.trim()) formData.append('symptoms_text', symptoms.trim());
         appendSharing(formData, sharing);
         if (allowBlurry) formData.append('allow_blurry', 'true');
@@ -99,6 +101,15 @@ export async function submitBatch({ token, crop, imageUris, sharing, clientIds }
 }
 
 /** The farmer corrects a detected crop: the same photo is checked again with their crop. */
+/** "None of these crops" (n02): the check and its photo are removed. 409 if an officer has it. */
+export async function markOtherCrop({ token, diagnosisId }) {
+    try {
+        await client.post(`/diagnose/${diagnosisId}/other-crop`, {}, { headers: { Authorization: `Bearer ${token}` } });
+    } catch (error) {
+        throw fail(error);
+    }
+}
+
 export async function correctCrop({ token, diagnosisId, crop }) {
     try {
         const { data } = await client.post(

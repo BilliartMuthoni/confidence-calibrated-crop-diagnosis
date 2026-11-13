@@ -10,6 +10,8 @@ class Guidance(BaseModel):
     summary: str
     treatment: List[str]
     prevention: List[str]
+    # What causes it, how it spreads, the weather it likes (n22): a fold-out on the result.
+    about: List[str] = []
     # Where the advice comes from, when it is from the reviewed advice library.
     sources: List[str] = []
     # A fixed warning shown above the advice for a disease that can spread very fast

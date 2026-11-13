@@ -3,21 +3,23 @@ import { View, Text, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, CROP_LABELS } from '../constants/theme';
 import { whenLabel } from '../utils/time';
+import { shortDiseaseLabel } from '../utils/diseaseName';
 
-/** What happened to a check, in a few words and its colour. */
+/** What happened to a check, in a few words and its colour. A status only: the result screen
+ *  says what to do next. */
 export function outcome(item) {
     if (item.officer_response) return { text: 'Officer replied', color: COLORS.referral, kind: 'officer' };
     if (item.referral_status === 'new' || item.referral_status === 'in_review') {
         return { text: 'Waiting for a county officer', color: COLORS.referral, kind: 'officer' };
     }
     if (item.referral_status === 'expired') {
-        return { text: 'No reply. Use support contacts', color: COLORS.referral, kind: 'referred' };
+        return { text: 'No officer reply', color: COLORS.referral, kind: 'referred' };
     }
-    if (item.is_referred) return { text: 'Referred to support', color: COLORS.referral, kind: 'referred' };
+    // Not diagnosed and not sent to an officer: the same words as the result screen.
+    if (item.is_referred) return { text: 'Not diagnosed', color: COLORS.referral, kind: 'referred' };
     if (item.predicted_disease?.startsWith('Healthy')) return { text: 'Healthy', color: COLORS.healthy, kind: 'healthy' };
-    // "Tomato Late Blight" -> "Late Blight": the crop is already shown above it.
-    const disease = (item.predicted_disease || '').replace(/^(Maize|Tomato|Potato)\s+/, '');
-    return { text: disease, color: COLORS.disease, kind: 'disease' };
+    // "Tomato Late Blight" -> "Late blight": the crop is already shown above it.
+    return { text: shortDiseaseLabel(item.predicted_disease), color: COLORS.disease, kind: 'disease' };
 }
 
 /** One check in a list; tapping it opens the full result. An officer's reply gets a badge. */
