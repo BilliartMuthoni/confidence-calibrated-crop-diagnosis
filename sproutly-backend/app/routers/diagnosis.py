@@ -14,7 +14,7 @@ from app.core.classifier import Prediction, model_version, predict
 from app.core.counties import COUNTIES
 from app.core.deps import get_current_user
 from app.core.image_intake import save_clean_image
-from app.core.knowledge_base import display_name, get_guidance
+from app.core.knowledge_base import KNOWLEDGE_BASE, display_name, get_guidance
 from app.core.leaf_check import NOT_A_LEAF, is_leaf
 from app.core.limiter import limiter
 from app.core.referrals import expire_overdue, open_referral
@@ -22,7 +22,7 @@ from app.core.retention import inside_uploads
 from app.core.timeutil import utcnow
 from app.db.session import get_db
 from app.models.diagnosis import CropType, Diagnosis
-from app.models.referral import Referral
+from app.models.referral import Referral, ReferralStatus
 from app.models.saved_turn import SavedTurn
 from app.models.user import User, UserRole
 from app.schemas.diagnosis import (
@@ -405,10 +405,15 @@ def ask_assistant(
     The question and reply are kept with the check only if the farmer agreed (keep_questions)."""
     record = _own_diagnosis(db, diagnosis_id, current_user)
     history = [t.model_dump() for t in payload.history]
-    if record.is_referred:
+    referral = db.query(Referral).filter(Referral.diagnosis_id == record.diagnosis_id).first()
+    officer_disease = _officer_disease(referral)
+    if record.is_referred and officer_disease:
+        # An officer replied with a disease (found in testing): answer from the sourced advice for
+        # the officer's diagnosis. Looked up when asked; nothing is learned or retrained from it.
+        reply = answer(db, officer_disease, payload.question, history)
+    elif record.is_referred:
         # t47: no diagnosis, so only fixed replies; the stored low-confidence guess is never passed on.
-        sent = db.query(Referral).filter(Referral.diagnosis_id == record.diagnosis_id).first() is not None
-        reply = answer_referred(record.crop.value, payload.question, history, sent)
+        reply = answer_referred(record.crop.value, payload.question, history, referral is not None)
     elif record.top_class:
         reply = answer(db, record.top_class, payload.question, history)
     else:
@@ -452,6 +457,14 @@ def list_diagnoses(
     ]
 
 
+def _officer_disease(referral: Optional[Referral]) -> Optional[str]:
+    """The disease an officer answered with, when it is one the library knows; None for "another
+    disease", "can't tell", "needs a farm visit", or no reply yet."""
+    if referral and referral.status == ReferralStatus.answered and referral.judgement in KNOWLEDGE_BASE:
+        return referral.judgement
+    return None
+
+
 def _officer_reply(db: Session, referral: Optional[Referral], record: Diagnosis) -> Optional[OfficerReply]:
     """The officer's message and attached advice, as sent; older replies only kept the text."""
     if referral and referral.replied_at:
@@ -462,7 +475,8 @@ def _officer_reply(db: Session, referral: Optional[Referral], record: Diagnosis)
             for a in referral.reply_advice or []
         ]
         return OfficerReply(text=referral.reply_text or "", officer=audit.label(officer) if officer else "",
-                            replied_at=referral.replied_at, advice=advice, rating=referral.farmer_rating)
+                            replied_at=referral.replied_at, advice=advice, rating=referral.farmer_rating,
+                            disease=_officer_disease(referral))
     if record.officer_response:
         return OfficerReply(text=record.officer_response, officer="", replied_at=record.responded_at)
     return None

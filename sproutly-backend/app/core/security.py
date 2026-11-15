@@ -174,6 +174,17 @@ def normalise_backup_code(code: str) -> str:
     return f"{digits[:4]}-{digits[4:]}" if len(digits) == 8 else ""
 
 
+def totp_already_used(secret: str, code: str, last_used_step: Optional[int]) -> bool:
+    """True when the code is right but its time step was already used (the same code again, e.g.
+    signing in and then making backup codes within 30 seconds). Not a wrong guess (found in testing)."""
+    if last_used_step is None:
+        return False
+    totp = pyotp.TOTP(secret)
+    current_step = int(time.time()) // totp.interval
+    return any(step <= last_used_step and hmac.compare_digest(totp.generate_otp(step), code)
+               for step in range(current_step - TOTP_VALID_WINDOW, current_step + TOTP_VALID_WINDOW + 1))
+
+
 def verify_totp(secret: str, code: str, last_used_step: Optional[int]) -> Optional[int]:
     """Return the time step the code belongs to, or None if it is wrong or already used.
 

@@ -50,9 +50,6 @@ function ReferredConfidence({ bins }) {
           <span key={low} className="flex-1 text-center text-xs tabular-nums text-muted">{percent(low)}</span>
         ))}
       </div>
-      <p className="mt-3 text-xs text-muted">
-        How sure the model was on each case sent to an officer.
-      </p>
     </div>
   )
 }

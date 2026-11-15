@@ -60,7 +60,11 @@ const RootNavigator = () => {
 
     return (
         <NavigationContainer>
+            {/* The key remounts the navigator when signing in or out: React Navigation reads
+                initialRouteName only on mount, so without it a sign-out still opened Get Started
+                (found in round two). */}
             <Stack.Navigator
+                key={userToken == null ? 'signed-out' : 'signed-in'}
                 screenOptions={{ headerShown: false }}
                 initialRouteName={userToken == null && signedInBefore.current ? 'Login' : undefined}
             >

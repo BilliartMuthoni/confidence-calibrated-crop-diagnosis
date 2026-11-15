@@ -13,7 +13,7 @@ function dateLabel(value) {
  * straight in: like Instagram and Facebook, the farmer chooses to keep it or let the deletion go
  * ahead. Returns false when no session was started.
  */
-export async function finishSignIn(tokens, login, roles) {
+export async function finishSignIn(tokens, login, roles, onDecline) {
     if (!tokens?.delete_after) {
         await login(tokens.access_token, roles || [tokens.role], tokens.refresh_token);
         return true;
@@ -33,7 +33,7 @@ export async function finishSignIn(tokens, login, roles) {
         `It will be deleted for good on ${dateLabel(tokens.delete_after)}. Do you want to keep it?`,
         [
             { text: 'Keep my account', onPress: keep },
-            { text: 'Continue deletion', style: 'cancel' },
+            { text: 'Continue deletion', style: 'cancel', onPress: onDecline },
         ]
     );
     return false;

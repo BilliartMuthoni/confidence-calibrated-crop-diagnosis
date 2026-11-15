@@ -48,11 +48,26 @@ function Reply({ reply, onChoice, onSupport, onRetake, onSend, busy }) {
                 </View>
             ))}
             {sources.length > 0 && (
-                <Text className="text-xs leading-4 mt-3" style={{ color: COLORS.muted }}>
-                    {/* Credit as plain text, so the farmer stays in the app; the library keeps the links. */}
-                    {' Source: '}
-                    {sources.map((source) => source.label).join('; ')}
-                </Text>
+                // The advice is shown above; "Sources" on its own line, then one link per line (round two).
+                <View className="mt-3">
+                    <Text className="text-xs font-bold mb-1" style={{ color: COLORS.muted }}>
+                        Sources
+                    </Text>
+                    {sources.map((source) => (
+                        <Text
+                            key={source.label}
+                            className="text-xs leading-5 mb-1"
+                            style={{
+                                color: source.url ? COLORS.brand : COLORS.muted,
+                                textDecorationLine: source.url ? 'underline' : 'none',
+                            }}
+                            onPress={source.url ? () => Linking.openURL(source.url) : undefined}
+                            accessibilityRole={source.url ? 'link' : undefined}
+                        >
+                            {source.label}
+                        </Text>
+                    ))}
+                </View>
             )}
             {reply.choices.length > 0 && (
                 <View className="flex-row flex-wrap mt-3">
@@ -174,7 +189,7 @@ function KeepCard({ onChoose, busy }) {
 /** "Ask about this result" (D9): the farmer's questions and the assistant's replies, starting
  *  with the ones kept earlier (saved, on a past result). onFocus and onReply let the screen
  *  scroll the box into view above the keyboard. */
-export default function AssistantBox({ diagnosisId, saved, onSupport, onFocus, onReply, notDiagnosed = false, onRetake, onSend }) {
+export default function AssistantBox({ diagnosisId, saved, onSupport, onFocus, onReply, notDiagnosed = false, officerDisease = null, onRetake, onSend }) {
     const { userToken } = useContext(AuthContext);
     const [turns, setTurns] = useState(() => (saved || []).map(({ question, reply }) => ({ question, reply })));
     const [question, setQuestion] = useState('');
@@ -245,7 +260,9 @@ export default function AssistantBox({ diagnosisId, saved, onSupport, onFocus, o
             <Text className="text-sm leading-5 mt-2 mb-3" style={{ color: COLORS.muted }}>
                 {notDiagnosed
                     ? 'There is no diagnosis, so no treatment is suggested: answers are fixed guidance about what to do next. '
-                    : 'Answers come only from the sourced advice for this result. For sprays and doses, ask your agrovet or extension officer. '}
+                    : officerDisease
+                      ? `Answers come only from the sourced advice for the officer's diagnosis (${officerDisease}). For sprays and doses, ask your agrovet or extension officer. `
+                      : 'Answers come only from the sourced advice for this result. For sprays and doses, ask your agrovet or extension officer. '}
                 Your question is sent to an AI service (Groq) to choose the answer; Groq does not keep it. Sproutly keeps
                 it only if you agree.
             </Text>
