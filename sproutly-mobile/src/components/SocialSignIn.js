@@ -64,7 +64,8 @@ export default function SocialSignIn({ navigation, onSignedIn, disabled = false,
                 // If it fails, Home simply asks once.
                 await AuthService.acceptTerms({ token: tokens.access_token }).catch(() => {});
             }
-            await finishSignIn(tokens, login);
+            // Continue deletion: Get Started, as after deleting.
+            await finishSignIn(tokens, login, null, () => navigation?.reset({ index: 0, routes: [{ name: 'Landing' }] }));
         } catch (e) {
             setError(toFriendlyError(e));
         } finally {

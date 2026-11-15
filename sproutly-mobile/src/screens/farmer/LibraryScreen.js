@@ -1,5 +1,6 @@
 import React, { useCallback, useContext, useEffect, useState } from 'react';
-import { View, Text, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, ActivityIndicator, TextInput } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { AuthContext } from '../../context/AuthContext';
@@ -39,6 +40,14 @@ export default function LibraryScreen({ navigation }) {
     const { userToken } = useContext(AuthContext);
     const [items, setItems] = useState(null);
     const [error, setError] = useState(null);
+    // Usability test: a tester looking for "leaf blight" could not tell which crop it was for.
+    const [search, setSearch] = useState('');
+    const words = search.trim().toLowerCase();
+    const matches = (d) => {
+        const cropName = (CROP_LABELS[d.crop] || d.crop).toLowerCase();
+        const text = `${d.name} ${cropName} ${LOOKS_LIKE[d.class_name] || ''} ${d.healthy ? 'healthy prevent' : ''}`;
+        return !words || text.toLowerCase().includes(words);
+    };
 
     const load = useCallback(async () => {
         setError(null);
@@ -75,14 +84,39 @@ export default function LibraryScreen({ navigation }) {
                         <ActivityIndicator color={COLORS.brand} />
                     </View>
                 ) : (
-                    CROP_ORDER.map((crop) => {
-                        const rows = items.filter((d) => d.crop === crop);
+                    <>
+                    <View
+                        className="flex-row items-center mx-5 mt-4 px-4 rounded-xl"
+                        style={{ backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.divider }}
+                    >
+                        <Ionicons name="search" size={18} color={COLORS.faint} />
+                        <TextInput
+                            className="flex-1 py-3 ml-2 text-base"
+                            style={{ color: COLORS.text }}
+                            placeholder="Search a disease or crop, e.g. blight"
+                            placeholderTextColor={COLORS.faint}
+                            value={search}
+                            onChangeText={setSearch}
+                            returnKeyType="search"
+                            accessibilityLabel="Search the disease library"
+                        />
+                    </View>
+                    {words && !items.some(matches) && (
+                        <Text className="text-base px-5 mt-6" style={{ color: COLORS.muted }}>
+                            {`Nothing matches "${search.trim()}". Sproutly knows diseases of maize, tomato and potato.`}
+                        </Text>
+                    )}
+                    {CROP_ORDER.map((crop) => {
+                        const cropName = (CROP_LABELS[crop] || crop).toLowerCase();
+                        const rows = items.filter((d) => d.crop === crop && matches(d));
+                        if (rows.length === 0) return null;
                         return (
                             <Group key={crop} title={CROP_LABELS[crop] || crop}>
                                 {rows.map((d, index) => (
                                     <NavRow
                                         key={d.class_name}
-                                        label={d.healthy ? `Keeping ${CROP_LABELS[crop]?.toLowerCase() || crop} healthy` : shortName(d.name)}
+                                        // The crop in every name, e.g. "Late blight (tomato)": the heading alone was missed.
+                                        label={d.healthy ? `Keeping ${cropName} healthy` : `${shortName(d.name)} (${cropName})`}
                                         hint={d.healthy ? 'How to prevent these diseases' : LOOKS_LIKE[d.class_name]}
                                         onPress={() => navigation.navigate('LibraryDisease', { disease: d })}
                                         last={index === rows.length - 1}
@@ -90,7 +124,8 @@ export default function LibraryScreen({ navigation }) {
                                 ))}
                             </Group>
                         );
-                    })
+                    })}
+                    </>
                 )}
             </ScrollView>
         </SafeAreaView>

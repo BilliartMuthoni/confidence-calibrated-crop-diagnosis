@@ -126,6 +126,13 @@ export default function EmailCodeScreen({ route, navigation }) {
                     {!byPhone && (
                         <Text className="text-sm text-white/60 text-center mt-4">Not there? Check Spam or Promotions.</Text>
                     )}
+                    {/* Usability test: a tester's Safaricom line never got the SMS (it blocks bulk messages). */}
+                    {byPhone && (
+                        <Text className="text-sm text-white/60 text-center mt-4">
+                            No SMS? Some lines block bulk messages. Allow promotional messages on your line, or sign up
+                            with your email instead.
+                        </Text>
+                    )}
                 </View>
             </KeyboardAvoidingView>
             </SafeAreaView>

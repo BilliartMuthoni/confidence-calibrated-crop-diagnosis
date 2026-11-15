@@ -34,7 +34,7 @@ export default function MfaCodeScreen({ route, navigation }) {
         setError(null);
         try {
             const data = await AuthService.verifyBackupCode({ mfaToken, code: backup.trim() });
-            await finishSignIn(data, login, null, () => navigation.popToTop()); // Continue deletion: back to the start
+            await finishSignIn(data, login, null, () => navigation.reset({ index: 0, routes: [{ name: 'Landing' }] })); // Continue deletion: Get Started
         } catch (e) {
             setError(toFriendlyError(e));
         } finally {
@@ -49,7 +49,7 @@ export default function MfaCodeScreen({ route, navigation }) {
         try {
             const data = await AuthService.verifyMfa({ mfaToken, code: value });
             // RootNavigator switches to the farmer screens once the token is stored.
-            await finishSignIn(data, login, null, () => navigation.popToTop()); // Continue deletion: back to the start
+            await finishSignIn(data, login, null, () => navigation.reset({ index: 0, routes: [{ name: 'Landing' }] })); // Continue deletion: Get Started
         } catch (e) {
             setError(toFriendlyError(e));
             setCode('');

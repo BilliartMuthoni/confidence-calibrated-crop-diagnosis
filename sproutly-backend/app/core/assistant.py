@@ -62,6 +62,10 @@ OFFICER = {
     # A question about this result that no checked source answers (8 Nov): say so, then hand over.
     "food_safety": ("I can't tell from a leaf photo whether your harvest is safe to eat. Ask your extension "
                     "officer before eating fruit or tubers that look diseased or rotten."),
+    # Usability test (15 Nov): "how long until it stops?" had no answer. No checked source gives a
+    # time, so say so plainly instead of guessing.
+    "how_long": ("The sources don't give a time for this. It depends on the weather and how early you act. "
+                 "Your extension officer can tell you what to expect on your farm."),
 }
 
 UNAVAILABLE = ("The assistant isn't available right now. The advice on this page is for this result; for "
@@ -132,7 +136,8 @@ def _tools(entries: list) -> list:
         tool("refer_to_officer", "Hand over to an extension officer: product_or_dose for any pesticide, product, "
              "dose, rate or mixing question; result_doubted when the farmer thinks the result is wrong; "
              "needs_a_visit when the problem needs someone to see the crop; food_safety when the farmer asks "
-             "whether the crop is safe to eat.",
+             "whether the crop is safe to eat; how_long when the farmer asks how long it takes to stop, clear "
+             "up or recover.",
              {"reason": {"type": "string", "enum": list(OFFICER)}}, ["reason"]),
         tool("small_talk", "A greeting (hi, hello, habari) or thanks / goodbye, with no question in it.",
              {"kind": {"type": "string", "enum": list(SMALL_TALK)}}, ["kind"]),
@@ -169,6 +174,8 @@ def _system_prompt(class_name: str, entries: list) -> str:
         "the crop, or whether affected fruit or tubers can be sold, use only harvest entries. Use more than one kind "
         f"only if the farmer asks for more than one. Pick at most {MAX_ADVICE}.\n"
         "- Whether the crop is safe to eat: no entry answers this, so refer_to_officer with food_safety.\n"
+        "- How long it takes to stop, clear up or recover: no entry gives a time, so refer_to_officer with "
+        "how_long.\n"
         "- Any question about a pesticide, product, dose, rate or mixing: refer_to_officer with product_or_dose, "
         "even if an entry mentions spraying.\n"
         "- A problem that sounds urgent (plants collapsing, or a large part of the field affected within a few "
@@ -307,6 +314,8 @@ REFERRED = {
                          "contacts"),
     "dont_treat_yet": ("Without a diagnosis, don't spray anything yet: treating the wrong problem costs money and "
                        "can harm the crop. Send the photo to an officer, or retake it.", "send"),
+    "how_long": ("Without a diagnosis no time can be given. Send the photo to an officer, who can tell you what "
+                 "to expect.", "send"),
 }
 ALREADY_SENT = "Your photo has already been sent to an extension officer. Their reply will appear in Your checks."
 REFERRED_SMALL_TALK = {
@@ -327,7 +336,7 @@ def _referred_tools() -> list:
     return [
         tool("referred_reply", "why_not_sure: why there is no result, or how to get one; send_to_officer: the farmer "
              "wants a person or expert to look at it; support_contacts: who to call or visit; dont_treat_yet: what "
-             "to spray or do to the crop, or what disease it is.",
+             "to spray or do to the crop, or what disease it is; how_long: how long it takes to stop or recover.",
              {"reason": {"type": "string", "enum": list(REFERRED)}}, ["reason"]),
         tool("ask_farmer", "The message is too short, vague or meaningless to know what is asked.",
              {"question": {"type": "string", "enum": ["what_to_know"]}}, ["question"]),
@@ -352,6 +361,7 @@ def _referred_prompt(crop: str) -> str:
         "- Who to call, visit or contact for help: referred_reply with support_contacts.\n"
         "- What to spray, how to treat it, what to do to the crop, or what disease it is: referred_reply with "
         "dont_treat_yet.\n"
+        "- How long it takes to stop, clear up or recover: referred_reply with how_long.\n"
         "- A person who may have been poisoned or hurt: safety with someone_hurt, before anything else.\n"
         "- A request to harm people, animals or someone else's crop: safety with harmful_request.\n"
         "- Only a greeting, or only thanks or goodbye: small_talk. If the message also asks something, answer "

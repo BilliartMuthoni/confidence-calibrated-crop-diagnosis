@@ -5,6 +5,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { onSessionExpired } from '../api/session';
 import { clearSavedCopies } from '../utils/savedCopies';
 import { clearQueue } from '../utils/offlineQueue';
+import { clearBackupCodesReminder } from '../utils/backupCodesReminder';
 import {
     clearTokens,
     endSessionOnServer,
@@ -76,6 +77,8 @@ export const AuthProvider = ({ children }) => {
             // Offline copies and queued photos (g07) belong to this farmer: never to the next person.
             await clearSavedCopies();
             await clearQueue();
+            // The reminder belongs to this account, not the phone (found in usability testing).
+            await clearBackupCodesReminder();
             setUserToken(null);
             setUserRoles([]);
         } catch (e) {

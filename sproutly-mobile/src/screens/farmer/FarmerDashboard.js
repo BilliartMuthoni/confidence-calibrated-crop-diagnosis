@@ -37,7 +37,10 @@ export default function FarmerDashboard({ navigation }) {
     // Backup codes (found in testing): after authenticator set-up, offer them once per app start
     // until they are made, so a lost phone does not lock the farmer out. Never on top of the terms.
     const offeredCodes = useRef(false);
-    const offerBackupCodes = useCallback(async () => {
+    // Only accounts with a password and authenticator have backup codes; a Google account signs
+    // in and recovers through Google (found in usability testing: Google sign-ins were offered codes).
+    const offerBackupCodes = useCallback(async (me) => {
+        if (!me?.has_password || !me?.mfa_enabled) return;
         if (offeredCodes.current || !(await needsBackupCodes())) return;
         offeredCodes.current = true;
         showDialog(
@@ -56,7 +59,7 @@ export default function FarmerDashboard({ navigation }) {
             const me = await fetchCurrentUser({ token: userToken });
             if (askingTerms.current) return;
             if (me.terms_current !== false) {
-                offerBackupCodes();
+                offerBackupCodes(me);
                 return;
             }
             askingTerms.current = true;
