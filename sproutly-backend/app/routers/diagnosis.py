@@ -32,6 +32,7 @@ from app.schemas.diagnosis import (
     BatchItem,
     BatchResponse,
     CropCorrection,
+    SymptomsAdded,
     DiagnosisDetail,
     DiagnosisListItem,
     DiagnosisResponse,
@@ -238,6 +239,8 @@ def create_batch(
     affected: Optional[str] = Form(None),
     # One app ID per photo, in the same order, for photos queued with no signal (g07).
     client_ids: Optional[List[str]] = Form(None),
+    # One description per photo, in the same order ('' for none); found in testing.
+    symptoms_texts: Optional[List[str]] = Form(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -257,6 +260,8 @@ def create_batch(
     results = []
     for index, image in enumerate(images):
         client_id = client_ids[index] if client_ids and index < len(client_ids) else None
+        text = (symptoms_texts[index] or "").strip()[:500] if symptoms_texts and index < len(symptoms_texts) else ""
+        text = text or None
         existing = _already_sent(db, current_user, client_id)
         if existing:
             results.append(BatchItem(index=index, result=get_diagnosis(existing.diagnosis_id, db, current_user)))
@@ -268,8 +273,8 @@ def create_batch(
             results.append(BatchItem(index=index, error=exc.detail))
             continue
         results.append(BatchItem(index=index, result=_diagnose(
-            db, current_user, crop, image_path, share=share_with_officer, contact=allow_contact, affected=affected,
-            client_id=client_id)))
+            db, current_user, crop, image_path, text, share=share_with_officer, contact=allow_contact,
+            affected=affected, client_id=client_id)))
     return BatchResponse(results=results)
 
 
@@ -312,6 +317,41 @@ def correct_crop(
     return _response(db, record, prediction)
 
 
+@router.post("/{diagnosis_id}/symptoms", response_model=DiagnosisResponse)
+@limiter.limit("30/minute")
+def add_symptoms(
+    request: Request,
+    diagnosis_id: int,
+    payload: SymptomsAdded,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """A description added after the check (found in testing: a batch has no description box).
+    Only on a photo that was not diagnosed, where the text reorders the crop's diseases for the
+    officer (notebook 20b); it never turns a referral into a diagnosis. Not once an officer has
+    picked the case up, so the suggestion they judge against does not change under them."""
+    record = _own_diagnosis(db, diagnosis_id, current_user)
+    if not record.is_referred:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="A description can only be added to a check that was not diagnosed")
+    referral = db.query(Referral).filter(Referral.diagnosis_id == record.diagnosis_id).first()
+    if referral and referral.status.value != "new":
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT,
+                            detail="An officer is already looking at this photo, so the description can't change.")
+    if not os.path.exists(record.image_path):
+        raise HTTPException(status_code=status.HTTP_410_GONE,
+                            detail="The photo is no longer stored. Please check it again with a new photo.")
+    prediction = predict(record.crop, record.image_path, payload.text)
+    if not prediction.is_referred:
+        # Held only because the crop was guessed: the farmer must confirm the crop first.
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Confirm the crop first.")
+    record.symptoms_text = payload.text
+    _apply(record, prediction)
+    db.commit()
+    db.refresh(record)
+    return _response(db, record, prediction)
+
+
 OFFICER_HAS_IT = "An officer is already looking at this photo, so it can't be removed."
 
 
@@ -330,18 +370,24 @@ def other_crop(
     referral = db.query(Referral).filter(Referral.diagnosis_id == record.diagnosis_id).first()
     if referral and referral.status.value != "new":
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=OFFICER_HAS_IT)
-    if record.image_path and inside_uploads(record.image_path):
-        try:
-            os.remove(record.image_path)
-        except OSError:
-            pass
+    # Found in testing (500, then "photo no longer stored"): the referral and the check were
+    # deleted in one flush, which PostgreSQL may run check-first (a foreign-key error), and the
+    # photo file was removed before that failed. Now the rows go in order and the file only
+    # after the commit succeeds.
+    image_path = record.image_path
     db.query(SavedTurn).filter(SavedTurn.diagnosis_id == record.diagnosis_id).delete(synchronize_session=False)
     if referral:
         db.delete(referral)
+        db.flush()
     db.query(Diagnosis).filter(Diagnosis.retake_of == record.diagnosis_id).update(
         {Diagnosis.retake_of: None}, synchronize_session=False)
     db.delete(record)
     db.commit()
+    if image_path and inside_uploads(image_path):
+        try:
+            os.remove(image_path)
+        except OSError:
+            pass
 
 
 @router.post("/{diagnosis_id}/ask", response_model=AssistantReply)

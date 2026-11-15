@@ -1,5 +1,6 @@
 import React, { useState, useContext } from 'react';
-import { View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
+import { finishSignIn } from '../../utils/accountRestored';
+import { View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -33,7 +34,7 @@ export default function MfaCodeScreen({ route, navigation }) {
         setError(null);
         try {
             const data = await AuthService.verifyBackupCode({ mfaToken, code: backup.trim() });
-            await login(data.access_token, [data.role], data.refresh_token);
+            await finishSignIn(data, login);
         } catch (e) {
             setError(toFriendlyError(e));
         } finally {
@@ -48,7 +49,7 @@ export default function MfaCodeScreen({ route, navigation }) {
         try {
             const data = await AuthService.verifyMfa({ mfaToken, code: value });
             // RootNavigator switches to the farmer screens once the token is stored.
-            await login(data.access_token, [data.role], data.refresh_token);
+            await finishSignIn(data, login);
         } catch (e) {
             setError(toFriendlyError(e));
             setCode('');
@@ -110,11 +111,7 @@ export default function MfaCodeScreen({ route, navigation }) {
                         onPress={() => (useBackup ? submitBackup() : submit())}
                         disabled={loading || (useBackup ? !backup.trim() : code.length !== 6)}
                     >
-                        {loading ? (
-                            <ActivityIndicator color="#0B1A13" />
-                        ) : (
-                            <Text className="text-forestDeep text-lg font-bold">Log in</Text>
-                        )}
+                        <Text className="text-forestDeep text-lg font-bold">Log in</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity onPress={switchMode} className="py-4 mt-2">

@@ -8,7 +8,6 @@ import {
     Platform,
     ScrollView,
     Alert,
-    ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -99,7 +98,7 @@ export default function LoginScreen({ navigation, route }) {
             >
                 <ScrollView ref={scrollRef} contentContainerClassName="flex-grow pb-6" keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
                     <View className="pt-3 px-5">
-                        <TouchableOpacity onPress={() => navigation.goBack()} className="p-2.5 self-start flex-row items-center">
+                        <TouchableOpacity onPress={() => (navigation.canGoBack() ? navigation.goBack() : navigation.navigate('Landing'))} className="p-2.5 self-start flex-row items-center">
                             <Ionicons name="arrow-back" size={20} color="#FFFFFF" />
                             <Text className="text-white text-base font-semibold ml-1">Back</Text>
                         </TouchableOpacity>
@@ -201,11 +200,7 @@ export default function LoginScreen({ navigation, route }) {
                             onPress={handleLoginSubmit}
                             disabled={loading}
                         >
-                            {loading ? (
-                                <ActivityIndicator color="#1B4332" />
-                            ) : (
-                                <Text className="text-primary text-lg font-bold">Continue</Text>
-                            )}
+                            <Text className="text-primary text-lg font-bold">Continue</Text>
                         </TouchableOpacity>
 
                         <SocialSignIn navigation={navigation} />

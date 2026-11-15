@@ -33,8 +33,8 @@ export async function submitBackupCode(mfaToken, code) {
 }
 
 // A staff member chooses a password from a one-time invite or reset link.
-export function setStaffPassword(linkToken, password) {
-  return apiFetch('/auth/staff/password', post({ token: linkToken, password }))
+export function setStaffPassword(linkToken, code, password) {
+  return apiFetch('/auth/staff/password', post({ token: linkToken, code, password }))
 }
 
 // ---------------------------------------------------------------------- my account

@@ -28,3 +28,7 @@ class StaffLink(Base):
     created_at = Column(DateTime, nullable=False, default=utcnow)
     expires_at = Column(DateTime, nullable=False)
     used_at = Column(DateTime, nullable=True)
+    # The 6-digit code the admin passes on by phone or in person (keyed hash); the emailed link
+    # works only with it. None for links made before codes were added.
+    code_hash = Column(String, nullable=True)
+    wrong_tries = Column(Integer, nullable=False, default=0, server_default="0")

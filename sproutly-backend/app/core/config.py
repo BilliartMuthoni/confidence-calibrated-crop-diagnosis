@@ -112,8 +112,12 @@ class Settings(BaseSettings):
     # Admin portal and staff accounts.
     # Where the portal runs: one-time links for new officers and password resets point here.
     admin_portal_url: str = "http://localhost:5173"
-    # How long an invite or reset link works.
-    staff_link_expire_hours: int = 48
+    # How long an invite or reset link works (shortened from 48 in testing: a link in an inbox
+    # is a risk for as long as it works).
+    staff_link_expire_hours: int = 24
+    # Days between a farmer asking to delete their account and everything being deleted; signing
+    # in before then keeps the account.
+    account_deletion_grace_days: int = 14
     # Staff sign-ins last a working day at most; the portal also signs out after 30 idle minutes.
     staff_session_minutes: int = 480
     # Wrong passwords or codes in a row before the account is locked, and for how long.

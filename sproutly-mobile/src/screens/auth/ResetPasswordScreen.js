@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView, ScrollView } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -214,11 +214,7 @@ export default function ResetPasswordScreen({ route, navigation }) {
                             onPress={submit}
                             disabled={loading}
                         >
-                            {loading ? (
-                                <ActivityIndicator color="#1B4332" />
-                            ) : (
-                                <Text className="text-primary text-lg font-bold">Change password</Text>
-                            )}
+                            <Text className="text-primary text-lg font-bold">Change password</Text>
                         </TouchableOpacity>
 
                         <Text className="text-sm text-white/60 text-center mt-6 leading-5">

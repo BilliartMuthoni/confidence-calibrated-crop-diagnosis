@@ -8,7 +8,6 @@ import {
     Platform,
     ScrollView,
     Alert,
-    ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -266,18 +265,15 @@ export default function SignUpScreen({ navigation, route }) {
                                 onPress={handleSignUpSubmit}
                                 disabled={loading}
                             >
-                                {loading ? (
-                                    <ActivityIndicator color="#1B4332" />
-                                ) : (
-                                    <Text className="text-primary text-lg font-bold">Create account</Text>
-                                )}
+                                <Text className="text-primary text-lg font-bold">Create account</Text>
                             </TouchableOpacity>
                         </View>
 
                         <SocialSignIn
                             navigation={navigation}
                             onSignedIn={confirmWithGoogle ? addPasswordAfterGoogle : undefined}
-                            disabled={!agreed}
+                            // Google works without the tick-box (found in testing): if it was ticked it is saved
+                            // straight away; if not, Home asks once for the terms (FarmerDashboard checkTerms).
                             agreedToTerms={agreed}
                         />
 

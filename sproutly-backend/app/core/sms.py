@@ -19,12 +19,20 @@ from app.core.config import settings
 
 log = logging.getLogger("sproutly")
 
-LIVE_URL = "https://api.africastalking.com/version1/messaging"
-SANDBOX_URL = "https://api.sandbox.africastalking.com/version1/messaging"
+# Africa's Talking's JSON "bulk" endpoint. During testing on 13 Nov the older form endpoint
+# (/version1/messaging) answered 401 while this one accepted the same username and key; both
+# worked once a new key was in place, and this one is kept as the current endpoint.
+LIVE_URL = "https://api.africastalking.com/version1/messaging/bulk"
+SANDBOX_URL = "https://api.sandbox.africastalking.com/version1/messaging/bulk"
 
 
 class SmsNotSent(Exception):
-    """The SMS could not be handed to Africa's Talking."""
+    """The SMS could not be handed to Africa's Talking. `blocked` is True when the network
+    refused the number itself (it has opted out of bulk messages), so trying again will not help."""
+
+    def __init__(self, message: str, blocked: bool = False):
+        super().__init__(message)
+        self.blocked = blocked
 
 
 def sms_ready() -> bool:
@@ -58,12 +66,13 @@ def send_sms_code(phone: str, code: str) -> None:
         log.warning("SMS code for %s: %s (no AT_USERNAME set, so not sent)", phone, code)
         return
     url = SANDBOX_URL if settings.at_username == "sandbox" else LIVE_URL
-    data = {"username": settings.at_username, "to": to_e164(phone), "message": message}
+    data = {"username": settings.at_username, "phoneNumbers": [to_e164(phone)], "message": message}
     if settings.at_sender_id:
-        data["from"] = settings.at_sender_id
+        data["senderId"] = settings.at_sender_id
     try:
-        response = httpx.post(url, data=data, timeout=15,
-                              headers={"apiKey": settings.at_api_key, "Accept": "application/json"})
+        response = httpx.post(url, json=data, timeout=15,
+                              headers={"apiKey": settings.at_api_key, "Accept": "application/json",
+                                       "Content-Type": "application/json"})
     except httpx.HTTPError as exc:
         log.warning("SMS not sent: request failed (%s)", type(exc).__name__)
         raise SmsNotSent(f"request failed: {type(exc).__name__}") from exc
@@ -77,4 +86,4 @@ def send_sms_code(phone: str, code: str) -> None:
         # Status words only (never the number or the code) go to the log, so a refusal can be fixed.
         status = recipients[0].get("status") if recipients else (body.get("SMSMessageData") or {}).get("Message")
         log.warning("SMS not sent: Africa's Talking answered HTTP %s: %s", response.status_code, status)
-        raise SmsNotSent(f"HTTP {response.status_code}: {status}")
+        raise SmsNotSent(f"HTTP {response.status_code}: {status}", blocked=status == "UserInBlacklist")

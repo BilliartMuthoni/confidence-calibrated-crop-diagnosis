@@ -248,6 +248,11 @@ export function deleteAccount({ token, password, code }) {
     return authorizedPost('/auth/me/delete', token, body);
 }
 
+/** "Keep my account" after logging in during the deletion grace period. Answers a normal sign-in. */
+export function restoreAccount({ token }) {
+    return authorizedPost('/auth/me/restore', token, {});
+}
+
 /** Change the phone number and email the farmer logs in with (empty removes one). Proof: password
  *  and code, or nothing right after continuing with Google. Answers a fresh sign-in. */
 export function changeContact({ token, phoneNumber, email, password, code }) {

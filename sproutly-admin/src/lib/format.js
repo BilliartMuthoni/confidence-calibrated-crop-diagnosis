@@ -55,6 +55,7 @@ export const AUDIT_ACTIONS = {
   password_change: 'Changed own password',
   contact_change: 'Changed own phone or email',
   password_set: 'Chose a password from a link',
+  staff_link_wrong_code: 'Wrong set-up code on a link',
   mfa_reenrol: 'Set up authenticator again',
   backup_codes: 'Made new backup codes',
   referral_claim: 'Claimed a referral',

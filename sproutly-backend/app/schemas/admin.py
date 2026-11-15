@@ -178,9 +178,12 @@ class ActiveIn(BaseModel):
 
 
 class LinkOut(BaseModel):
-    """A one-time link for the staff member to choose a password (shown to the admin to pass on)."""
+    """A one-time set-up link for a staff member. The link is emailed to them; the admin gets the
+    code to give by phone or in person. The link itself comes back only if the email failed."""
 
-    link: str
+    link: Optional[str] = None
+    emailed_to: Optional[str] = None
+    code: str
     expires_in_hours: int
 
 

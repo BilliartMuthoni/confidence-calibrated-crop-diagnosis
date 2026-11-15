@@ -1,5 +1,5 @@
 import React, { useContext, useState } from 'react';
-import { View, Text, ScrollView, Image, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, Image, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
@@ -49,31 +49,36 @@ function AnswerButton({ label, onPress, filled, disabled }) {
     );
 }
 
-/** The crops to choose from, and "None of these crops" for a leaf Sproutly can't check (n02). */
+/** The crops to choose from as equal buttons, and "None of these crops" underneath (n02). */
 function CropChoices({ crops, onPick, onNone, disabled, prefix = '' }) {
     return (
-        <View className="flex-row flex-wrap mt-2">
-            {crops.map((c) => (
-                <TouchableOpacity
-                    key={c}
-                    onPress={() => onPick(c)}
-                    disabled={disabled}
-                    accessibilityRole="button"
-                    className="mr-2 mb-2 px-4 py-2 rounded-full"
-                    style={{ backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.brand }}
-                >
-                    <Text className="text-sm font-semibold" style={{ color: COLORS.brand }}>
-                        {prefix ? `${prefix} ${CROP_LABELS[c].toLowerCase()}` : CROP_LABELS[c]}
-                    </Text>
-                </TouchableOpacity>
-            ))}
+        <View className="mt-2">
+            <View className="flex-row" style={{ gap: 8 }}>
+                {crops.map((c) => (
+                    <TouchableOpacity
+                        key={c}
+                        onPress={() => onPick(c)}
+                        disabled={disabled}
+                        activeOpacity={0.8}
+                        accessibilityRole="button"
+                        className="flex-1 items-center justify-center py-3 px-1 rounded-xl"
+                        style={{ backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.brand }}
+                    >
+                        <Text className="text-sm font-semibold text-center" maxFontSizeMultiplier={1.3} style={{ color: COLORS.brand }}>
+                            {prefix ? `${prefix} ${CROP_LABELS[c].toLowerCase()}` : CROP_LABELS[c]}
+                        </Text>
+                    </TouchableOpacity>
+                ))}
+            </View>
             <TouchableOpacity
                 onPress={onNone}
                 disabled={disabled}
+                activeOpacity={0.8}
                 accessibilityRole="button"
-                className="mr-2 mb-2 px-4 py-2 rounded-full"
-                style={{ backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.divider }}
+                className="flex-row items-center justify-center mt-2 py-2.5 rounded-xl"
+                style={{ borderWidth: 1, borderColor: COLORS.divider, borderStyle: 'dashed' }}
             >
+                <Ionicons name="close-circle-outline" size={16} color={COLORS.muted} style={{ marginRight: 6 }} />
                 <Text className="text-sm font-semibold" style={{ color: COLORS.muted }}>
                     None of these crops
                 </Text>
@@ -123,11 +128,7 @@ function PhotoRow({ item, imageUri, onOpen, onCorrect, onOtherCrop, busy, error 
                               : 'View diagnosis and advice'}
                     </Text>
                 </View>
-                {busy ? (
-                    <ActivityIndicator color={COLORS.brand} />
-                ) : (
-                    !waiting && <Ionicons name="chevron-forward" size={18} color={COLORS.faint} />
-                )}
+                {!waiting && <Ionicons name="chevron-forward" size={18} color={COLORS.faint} />}
             </TouchableOpacity>
 
             {/* Chosen crop, but the photo does not look like it: ask which crop it is. */}
@@ -186,6 +187,7 @@ export default function BatchResultScreen({ route, navigation }) {
     const [imageUris, setImageUris] = useState(route.params.imageUris);
     const [items, setItems] = useState(route.params.results);
     const [busyIndex, setBusyIndex] = useState(null);
+    const [busyMessage, setBusyMessage] = useState('Checking the photo');
     const [rowErrors, setRowErrors] = useState({});
     // Photos removed with "None of these crops" (n02).
     const [removed, setRemoved] = useState(0);
@@ -196,6 +198,7 @@ export default function BatchResultScreen({ route, navigation }) {
     const referredCount = checked.filter((i) => i.result.is_referred).length - waitingCount;
 
     const correct = async (item, crop) => {
+        setBusyMessage('Checking the photo');
         setBusyIndex(item.index);
         setRowErrors((e) => ({ ...e, [item.index]: null }));
         try {
@@ -215,6 +218,7 @@ export default function BatchResultScreen({ route, navigation }) {
             {
                 text: 'Remove',
                 onPress: async () => {
+                    setBusyMessage('Removing the photo');
                     setBusyIndex(item.index);
                     setRowErrors((e) => ({ ...e, [item.index]: null }));
                     try {
@@ -235,6 +239,7 @@ export default function BatchResultScreen({ route, navigation }) {
     const retake = async (item) => {
         const asset = await chooseOnePhoto();
         if (!asset) return;
+        setBusyMessage('Checking the photo');
         setBusyIndex(item.index);
         try {
             const { results } = await submitBatch({
@@ -257,7 +262,7 @@ export default function BatchResultScreen({ route, navigation }) {
     return (
         <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }}>
             <StatusBar style="dark" />
-            <BusyOverlay visible={busyIndex !== null} message="Checking the photo" />
+            <BusyOverlay visible={busyIndex !== null} message={busyMessage} />
             <ScreenHeader title="Results" icon="close" onBack={home} />
             <ScrollView contentContainerClassName="px-5 pb-10">
                 <Text className="text-sm" style={{ color: COLORS.muted }}>
@@ -298,7 +303,7 @@ export default function BatchResultScreen({ route, navigation }) {
                                     imageUri={imageUris[item.index]}
                                     busy={busyIndex === item.index}
                                     error={rowErrors[item.index]}
-                                    onOpen={() => navigation.navigate('Result', { result: item.result, imageUri: imageUris[item.index] })}
+                                    onOpen={() => navigation.navigate('Result', { result: item.result, imageUri: imageUris[item.index], fromBatch: true })}
                                     onCorrect={(crop) => correct(item, crop)}
                                     onOtherCrop={() => removeOtherCrop(item)}
                                 />

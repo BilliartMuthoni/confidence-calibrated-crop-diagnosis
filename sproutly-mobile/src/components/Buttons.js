@@ -1,5 +1,5 @@
 import React from 'react';
-import { Text, TouchableOpacity, ActivityIndicator, View } from 'react-native';
+import { Text, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../constants/theme';
 
@@ -14,11 +14,10 @@ export function PrimaryButton({ label, onPress, color = COLORS.brand, icon, disa
             className="rounded-xl py-4 items-center flex-row justify-center"
             style={{ backgroundColor: disabled ? '#C9D1CC' : color }}
         >
+            {/* No spinner here: screens show the BusyOverlay pop-up while busy, and two spinners
+                for one action looked broken (found in testing). The button fades and says what it is doing. */}
             {loading ? (
-                <View className="flex-row items-center">
-                    <ActivityIndicator color="#FFFFFF" />
-                    <Text className="text-white text-base font-bold ml-3">{loadingLabel || label}</Text>
-                </View>
+                <Text className="text-white text-base font-bold" style={{ opacity: 0.7 }}>{loadingLabel || label}</Text>
             ) : (
                 <>
                     {icon && <Ionicons name={icon} size={18} color="#FFFFFF" style={{ marginRight: 8 }} />}

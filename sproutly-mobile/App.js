@@ -1,6 +1,6 @@
 import 'react-native-gesture-handler';
 import './global.css';
-import React, { useContext } from 'react';
+import React, { useContext, useRef } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
@@ -50,13 +50,20 @@ const Stack = createStackNavigator();
 
 const RootNavigator = () => {
     const { userToken, isLoading } = useContext(AuthContext);
+    // After signing out, the farmer already has an account: open Log in, not the Get Started
+    // page (found in testing). A first visit still starts at Get Started.
+    const signedInBefore = useRef(false);
+    if (userToken != null) signedInBefore.current = true;
 
     // While checking for a token in storage, show nothing (or a Splash Screen)
     if (isLoading) return <SplashScreen />;
 
     return (
         <NavigationContainer>
-            <Stack.Navigator screenOptions={{ headerShown: false }}>
+            <Stack.Navigator
+                screenOptions={{ headerShown: false }}
+                initialRouteName={userToken == null && signedInBefore.current ? 'Login' : undefined}
+            >
                 {userToken == null ? (
                     <>
                         {/*Authentication*/}

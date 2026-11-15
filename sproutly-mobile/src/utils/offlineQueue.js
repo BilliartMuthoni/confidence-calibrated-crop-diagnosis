@@ -57,8 +57,8 @@ export async function addToQueue({ photos, symptoms, sharing }) {
             id,
             uri: kept.uri,
             crop: photo.crop || null,
-            // A description belongs to one photo: it is kept only for a single queued photo.
-            symptoms: photos.length === 1 ? symptoms || null : null,
+            // A description belongs to one photo: its own, or the single photo's main box.
+            symptoms: photo.symptoms || (photos.length === 1 ? symptoms || null : null),
             sharing: sharing || null,
             savedAt: new Date().toISOString(),
             error: null,
@@ -95,11 +95,13 @@ export async function sendQueue(send) {
     sending = true;
     let sent = 0;
     let failed = 0;
+    const results = []; // what each sent check came back as, so Home can say so
     try {
         for (const item of await loadQueue()) {
             if (item.error) continue;
             try {
-                await send(item);
+                const result = await send(item);
+                if (result) results.push(result);
                 await removeFromQueue(item.id);
                 sent += 1;
             } catch (error) {
@@ -112,7 +114,7 @@ export async function sendQueue(send) {
     } finally {
         sending = false;
     }
-    return { sent, failed };
+    return { sent, failed, results };
 }
 
 /** How many photos are waiting (for the sign-out warning). */

@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Literal, Optional, List
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from app.models.diagnosis import CropType
 
@@ -63,6 +63,19 @@ class BatchResponse(BaseModel):
 
 class CropCorrection(BaseModel):
     crop: CropType
+
+
+class SymptomsAdded(BaseModel):
+    """A description added to a not-diagnosed photo after the check (batches have no box)."""
+    text: str = Field(min_length=3, max_length=500)
+
+    @field_validator("text")
+    @classmethod
+    def _strip(cls, value: str) -> str:
+        value = value.strip()
+        if len(value) < 3:
+            raise ValueError("Describe what you see in a few words")
+        return value
 
 
 class AssistantTurn(BaseModel):

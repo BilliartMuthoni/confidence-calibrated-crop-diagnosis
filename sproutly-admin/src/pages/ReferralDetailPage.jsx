@@ -40,6 +40,7 @@ function PhotoPlaceholder({ children }) {
 function Photo({ referral }) {
   const { token } = useAuth()
   const [state, setState] = useState({ url: null, failed: false })
+  const [big, setBig] = useState(false)
   const live = referral.has_photo
 
   useEffect(() => {
@@ -57,10 +58,25 @@ function Photo({ referral }) {
 
   if (!live || state.failed) return <PhotoPlaceholder>The photo is no longer stored (deleted after 30 days)</PhotoPlaceholder>
   if (!state.url) return <PhotoPlaceholder>Loading the photo</PhotoPlaceholder>
+  // Enlarged on the same page, not in a new tab (found in testing).
   return (
-    <a href={state.url} target="_blank" rel="noreferrer" title="Open full size" className="block">
-      <img src={state.url} alt={`The farmer's ${referral.crop} photo`} className="max-h-[32rem] w-full rounded-lg bg-[#dfe7e0] object-contain" />
-    </a>
+    <>
+      <button type="button" onClick={() => setBig(true)} title="Show larger" className="block w-full cursor-zoom-in">
+        <img src={state.url} alt={`The farmer's ${referral.crop} photo`} className="max-h-[32rem] w-full rounded-lg bg-[#dfe7e0] object-contain" />
+      </button>
+      {big && (
+        <div role="dialog" aria-modal="true" aria-label="The farmer's photo, larger" tabIndex={-1}
+             ref={(el) => el?.focus()} onKeyDown={(e) => e.key === 'Escape' && setBig(false)}
+             onClick={() => setBig(false)}
+             className="fixed inset-0 z-50 flex cursor-zoom-out items-center justify-center bg-black/80 p-4">
+          <img src={state.url} alt={`The farmer's ${referral.crop} photo`} className="max-h-full max-w-full object-contain" />
+          <button type="button" onClick={() => setBig(false)}
+                  className="absolute right-4 top-4 rounded-md bg-white px-3 py-1.5 text-sm font-semibold text-ink">
+            Close
+          </button>
+        </div>
+      )}
+    </>
   )
 }
 
@@ -69,7 +85,7 @@ function ModelGuess({ guess }) {
     <>
       {diseaseName(guess.disease)}, <span className="tabular-nums">{percent(guess.confidence)}</span> sure. Below the
       threshold, so the farmer was not shown it.
-      {guess.model_version && <span className="mt-1 block text-xs text-muted">Model: {guess.model_version}</span>}
+      {/* The model version stays stored with each check for tracing; the officer does not need it here. */}
     </>
   )
 }

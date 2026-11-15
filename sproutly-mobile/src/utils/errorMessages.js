@@ -11,7 +11,7 @@ const PATTERNS = [
     {
         match: /invalid credentials/i,
         title: 'That did not match',
-        message: 'The phone number or password is wrong. Check them and try again.',
+        message: 'The phone number, email or password is wrong. Check them and try again.',
         retryable: false,
     },
     {
@@ -157,7 +157,7 @@ const PATTERNS = [
         // The account lockout, not the per-minute limit.
         match: /too many wrong attempts/i,
         title: 'Account paused',
-        message: 'There were too many wrong tries, so this account is paused for a few minutes. Try again later.',
+        message: 'There were too many wrong tries, so this account is paused for 15 minutes. Try again after that.',
         retryable: false,
     },
     {

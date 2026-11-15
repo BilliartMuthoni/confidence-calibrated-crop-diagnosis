@@ -1,6 +1,7 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, Linking } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import { AuthContext } from '../context/AuthContext';
 import { askAssistant } from '../api/DiagnosisService';
 import { fetchCurrentUser, setKeepQuestions } from '../api/AuthService';
@@ -48,21 +49,9 @@ function Reply({ reply, onChoice, onSupport, onRetake, onSend, busy }) {
             ))}
             {sources.length > 0 && (
                 <Text className="text-xs leading-4 mt-3" style={{ color: COLORS.muted }}>
-                    {' Source (tap to open): '}
-                    {sources.map((source, index) => (
-                        <Text
-                            key={source.label}
-                            style={{
-                                color: source.url ? COLORS.brand : COLORS.muted,
-                                textDecorationLine: source.url ? 'underline' : 'none',
-                            }}
-                            onPress={source.url ? () => Linking.openURL(source.url) : undefined}
-                            accessibilityRole={source.url ? 'link' : undefined}
-                        >
-                            {index > 0 ? '; ' : ''}
-                            {source.label}
-                        </Text>
-                    ))}
+                    {/* Credit as plain text, so the farmer stays in the app; the library keeps the links. */}
+                    {' Source: '}
+                    {sources.map((source) => source.label).join('; ')}
                 </Text>
             )}
             {reply.choices.length > 0 && (
@@ -104,7 +93,13 @@ function Reply({ reply, onChoice, onSupport, onRetake, onSend, busy }) {
                 </Text>
             )}
             {toOfficer && (
-                <Text className="text-sm font-bold mt-3" style={{ color: COLORS.brand }} onPress={onSupport} accessibilityRole="button">
+                // Underlined so it reads as a link, not part of the reply (found in testing).
+                <Text
+                    className="text-sm font-bold mt-3 self-start"
+                    style={{ color: COLORS.brand, textDecorationLine: 'underline' }}
+                    onPress={onSupport}
+                    accessibilityRole="link"
+                >
                     Support contacts
                 </Text>
             )}
@@ -123,6 +118,20 @@ function Reply({ reply, onChoice, onSupport, onRetake, onSend, busy }) {
     );
 }
 
+/** "Account, Privacy" as a link that opens it, with a back arrow to return here (found in testing). */
+function PrivacyLink() {
+    const navigation = useNavigation();
+    return (
+        <Text
+            onPress={() => navigation.push('Account', { privacy: true })}
+            accessibilityRole="link"
+            style={{ color: COLORS.brand, fontWeight: '700', textDecorationLine: 'underline' }}
+        >
+            Account, Privacy
+        </Text>
+    );
+}
+
 /** Asked once per account, before the first question is kept: keep questions with the check? */
 function KeepCard({ onChoose, busy }) {
     return (
@@ -132,7 +141,7 @@ function KeepCard({ onChoose, busy }) {
             </Text>
             <Text className="text-sm leading-5 mt-1" style={{ color: COLORS.text }}>
                 Then you can read them again later in Your checks. Only you can see them. You can change this or
-                delete them in Account, Privacy.
+                delete them in <PrivacyLink />.
             </Text>
             <View className="flex-row mt-3">
                 <TouchableOpacity
@@ -300,9 +309,8 @@ export default function AssistantBox({ diagnosisId, saved, onSupport, onFocus, o
             </View>
             {(keep === true || keep === false) && (
                 <Text className="text-xs leading-4 mt-2" style={{ color: COLORS.faint }}>
-                    {keep
-                        ? 'Your questions are kept with this check. Change this in Account, Privacy.'
-                        : 'Your questions are not kept. Change this in Account, Privacy.'}
+                    {keep ? 'Your questions are kept with this check.' : 'Your questions are not kept.'} Change this in{' '}
+                    <PrivacyLink />.
                 </Text>
             )}
         </View>

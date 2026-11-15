@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext, useCallback } from 'react';
+import React, { useState, useEffect, useContext, useCallback, useRef } from 'react';
 import { View, Text, ScrollView, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -32,6 +32,8 @@ export default function AccountScreen({ route, navigation }) {
     const [error, setError] = useState(null);
     const [county, setCounty] = useState(null);
     const [countyError, setCountyError] = useState(null);
+    const fromLink = Boolean(route.params?.privacy);
+    const scrollRef = useRef(null);
 
     const load = useCallback(async () => {
         // At logout userToken becomes null while this screen is still mounted; don't ask the backend.
@@ -142,8 +144,9 @@ export default function AccountScreen({ route, navigation }) {
         <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }} edges={['top']}>
             <StatusBar style="dark" />
             <BusyOverlay visible={savingKeep} message="Saving your choice" />
-            <ScreenHeader title="Account" />
-            <ScrollView contentContainerClassName="pb-10">
+            {/* Opened from a "Change this in Account, Privacy" link: a back arrow returns to where the farmer was. */}
+            <ScreenHeader title="Account" onBack={fromLink ? () => navigation.goBack() : undefined} />
+            <ScrollView ref={scrollRef} contentContainerClassName="pb-10">
                 {loading ? (
                     <View className="items-center py-16">
                         <ActivityIndicator color={COLORS.brand} />
@@ -195,6 +198,7 @@ export default function AccountScreen({ route, navigation }) {
                                     hint="Password, authenticator, backup codes, Google" onPress={go('SignInSecurity')} last />
                         </Group>
 
+                        <View onLayout={(e) => fromLink && scrollRef.current?.scrollTo({ y: e.nativeEvent.layout.y, animated: true })} />
                         <Group title="Privacy">
                             <SwitchRow icon="chatbubbles-outline" label="Keep my assistant questions"
                                        hint="Read them again in Your checks. Only you see them."

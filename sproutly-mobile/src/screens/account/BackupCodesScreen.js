@@ -11,6 +11,7 @@ import CodeInput from '../../components/CodeInput';
 import { PrimaryButton, SecondaryButton } from '../../components/Buttons';
 import { COLORS } from '../../constants/theme';
 import BusyOverlay from '../../components/BusyOverlay';
+import { clearBackupCodesReminder } from '../../utils/backupCodesReminder';
 
 /**
  * Ten single-use codes for signing in without the authenticator (a lost or broken phone).
@@ -29,6 +30,7 @@ export default function BackupCodesScreen({ navigation }) {
         try {
             const data = await makeBackupCodes({ token: userToken, code });
             setCodes(data.codes);
+            clearBackupCodesReminder();
         } catch (e) {
             setError(toFriendlyError(e));
             setCode('');

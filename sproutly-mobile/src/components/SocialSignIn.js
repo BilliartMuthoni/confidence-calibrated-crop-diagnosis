@@ -1,5 +1,6 @@
 import React, { useContext, useState } from 'react';
-import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { finishSignIn } from '../utils/accountRestored';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { AuthContext } from '../context/AuthContext';
 import { signInWith } from '../api/oauth';
@@ -63,7 +64,7 @@ export default function SocialSignIn({ navigation, onSignedIn, disabled = false,
                 // If it fails, Home simply asks once.
                 await AuthService.acceptTerms({ token: tokens.access_token }).catch(() => {});
             }
-            await login(tokens.access_token, [tokens.role], tokens.refresh_token);
+            await finishSignIn(tokens, login);
         } catch (e) {
             setError(toFriendlyError(e));
         } finally {
@@ -89,14 +90,10 @@ export default function SocialSignIn({ navigation, onSignedIn, disabled = false,
                     accessibilityState={{ disabled: busy !== null || disabled }}
                     className={`border border-white/20 py-4 rounded-2xl items-center flex-row justify-center mb-3 ${(busy && busy !== provider) || disabled ? 'opacity-50' : ''}`}
                 >
-                    {busy === provider ? (
-                        <ActivityIndicator color="#FFFFFF" />
-                    ) : (
-                        <>
+                    <>
                             <Ionicons name={PROVIDERS[provider].icon} size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
                             <Text className="text-white text-base font-semibold">{PROVIDERS[provider].label}</Text>
                         </>
-                    )}
                 </TouchableOpacity>
             ))}
 

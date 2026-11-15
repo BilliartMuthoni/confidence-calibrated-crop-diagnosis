@@ -68,6 +68,9 @@ class User(Base):
     keep_questions = Column(Boolean, nullable=True)
 
     is_active = Column(Boolean, default=True)
+    # Deletion requested: everything is deleted after this time (grace period); signing in
+    # before then keeps the account. None when the account is not being deleted.
+    delete_after = Column(DateTime, nullable=True)
     # Plain UTC (see Diagnosis.created_at).
     created_at = Column(DateTime, default=utcnow)
 
