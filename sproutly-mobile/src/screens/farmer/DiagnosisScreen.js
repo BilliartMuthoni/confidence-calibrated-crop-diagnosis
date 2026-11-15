@@ -469,10 +469,7 @@ export default function DiagnosisScreen({ navigation, route }) {
                     <View className="mt-6">
                         <View className="flex-row items-start">
                             <View className="flex-1">
-                                <Label
-                                    title={photos.length > 1 ? `Photos (${photos.length} of ${MAX_PHOTOS})` : 'Leaf photo'}
-                                    hint="One leaf filling the photo, in daylight."
-                                />
+                                <Label title={photos.length > 1 ? `Photos (${photos.length} of ${MAX_PHOTOS})` : 'Leaf photo'} />
                             </View>
                             {/* The full tips are on the Help page; most farmers only need the line above. */}
                             <TouchableOpacity
@@ -482,10 +479,30 @@ export default function DiagnosisScreen({ navigation, route }) {
                                 className="ml-3 pt-0.5"
                             >
                                 <Text className="text-sm font-semibold" style={{ color: COLORS.brand }}>
-                                    Photo tips
+                                    More tips
                                 </Text>
                             </TouchableOpacity>
                         </View>
+                        {/* Usability test: a tester did not notice the one-line hint, so the tips are a box
+                            of their own, shown until the first photo is added. */}
+                        {photos.length === 0 && (
+                            <View
+                                className="flex-row rounded-xl px-4 py-3 mt-3 mb-3"
+                                style={{ backgroundColor: '#EAF2EC', borderWidth: 1, borderColor: '#CFE0D4' }}
+                            >
+                                <Ionicons name="bulb-outline" size={20} color={COLORS.brand} style={{ marginTop: 1 }} />
+                                <View className="flex-1 ml-3">
+                                    <Text className="text-sm font-bold" style={{ color: COLORS.ink }}>
+                                        For a good result
+                                    </Text>
+                                    {['One leaf filling the photo', 'In daylight, not in shade', 'Hold still so it is sharp'].map((tip) => (
+                                        <Text key={tip} className="text-sm leading-5 mt-1" style={{ color: COLORS.text }}>
+                                            {`•  ${tip}`}
+                                        </Text>
+                                    ))}
+                                </View>
+                            </View>
+                        )}
                         {photos.length === 0 ? (
                             <TouchableOpacity
                                 onPress={choosePhoto}

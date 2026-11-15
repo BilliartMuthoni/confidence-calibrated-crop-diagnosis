@@ -13,6 +13,7 @@ initMonitoring();
 
 // Auth Screens
 import LandingScreen from './src/screens/auth/LandingScreen';
+import { resetStartScreen, startsAtGetStarted } from './src/utils/startScreen';
 import LoginScreen from './src/screens/auth/LoginScreen';
 import SignUpScreen from './src/screens/auth/SignUpScreen';
 import MfaSetupScreen from './src/screens/auth/MfaSetupScreen';
@@ -53,7 +54,10 @@ const RootNavigator = () => {
     // After signing out, the farmer already has an account: open Log in, not the Get Started
     // page (found in testing). A first visit still starts at Get Started.
     const signedInBefore = useRef(false);
-    if (userToken != null) signedInBefore.current = true;
+    if (userToken != null) {
+        signedInBefore.current = true;
+        resetStartScreen();
+    }
 
     // While checking for a token in storage, show nothing (or a Splash Screen)
     if (isLoading) return <SplashScreen />;
@@ -66,7 +70,7 @@ const RootNavigator = () => {
             <Stack.Navigator
                 key={userToken == null ? 'signed-out' : 'signed-in'}
                 screenOptions={{ headerShown: false }}
-                initialRouteName={userToken == null && signedInBefore.current ? 'Login' : undefined}
+                initialRouteName={userToken == null && signedInBefore.current && !startsAtGetStarted() ? 'Login' : undefined}
             >
                 {userToken == null ? (
                     <>

@@ -476,7 +476,8 @@ def _officer_reply(db: Session, referral: Optional[Referral], record: Diagnosis)
         ]
         return OfficerReply(text=referral.reply_text or "", officer=audit.label(officer) if officer else "",
                             replied_at=referral.replied_at, advice=advice, rating=referral.farmer_rating,
-                            disease=_officer_disease(referral))
+                            disease=_officer_disease(referral),
+                            disease_name=display_name(_officer_disease(referral)) if _officer_disease(referral) else None)
     if record.officer_response:
         return OfficerReply(text=record.officer_response, officer="", replied_at=record.responded_at)
     return None

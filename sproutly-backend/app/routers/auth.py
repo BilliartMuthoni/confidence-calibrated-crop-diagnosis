@@ -321,7 +321,9 @@ def _send_code(db: Session, user: User, by_sms: bool = False) -> None:
         except SmsNotSent as exc:
             if exc.blocked:
                 # The line has opted out of bulk messages: retrying cannot help, so say what can.
-                raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                # 400, not 503: it is the line's setting, not a server fault, so it is not reported to
+                # Sentry as an error (found in usability testing: each blocked line raised an alert).
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                                     detail="Your phone line is blocking messages like ours. Allow promotional "
                                            "messages on your line, or sign up with your email instead.")
             raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE,

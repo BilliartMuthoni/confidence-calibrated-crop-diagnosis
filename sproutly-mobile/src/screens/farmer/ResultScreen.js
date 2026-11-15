@@ -609,7 +609,7 @@ export default function ResultScreen({ route, navigation }) {
                                     diagnosisId={result.diagnosis_id}
                                     saved={result.questions}
                                     notDiagnosed={!result.officer_reply?.disease}
-                                    officerDisease={result.officer_reply?.disease ? diseaseLabel(result.officer_reply.disease) : null}
+                                    officerDisease={result.officer_reply?.disease_name ? diseaseLabel(result.officer_reply.disease_name) : null}
                                     onSupport={openSupport}
                                     onRetake={retake}
                                     onSend={canSend ? openSend : undefined}

@@ -15,6 +15,7 @@ import { Field } from './ChangePasswordScreen';
 import { COLORS } from '../../constants/theme';
 import BusyOverlay from '../../components/BusyOverlay';
 import { showDialog } from '../../components/Dialog';
+import { startAtGetStarted } from '../../utils/startScreen';
 import useKeyboardScroll from '../../utils/useKeyboardScroll';
 
 const WHAT_GOES = [
@@ -53,6 +54,7 @@ export default function DeleteAccountScreen({ route, navigation }) {
             'Your account will be deleted',
             `Everything will be deleted${when ? ` on ${when}` : ' in 14 days'}. Changed your mind? Log in before then to keep your account.`
         );
+        startAtGetStarted(); // the account is going: open Get Started, not Log in
         await logout();
     };
 
