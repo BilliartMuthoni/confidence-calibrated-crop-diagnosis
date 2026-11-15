@@ -13,7 +13,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import FileResponse
-from sqlalchemy import or_
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from app.core import audit, symptom_text
@@ -141,6 +141,11 @@ def _visible(query, user: User):
     """Officers see their own county only; an officer without a county sees nothing. Answered cases
     only when they answered them themselves: an officer needs the open queue to claim from, not
     colleagues' finished cases (data minimisation, found in testing)."""
+    # Cases of a farmer whose account is waiting to be deleted are hidden from everyone, not
+    # changed: keeping the account shows them again as they were (found in round two).
+    waiting = select(Diagnosis.diagnosis_id).join(User, User.user_id == Diagnosis.user_id).where(
+        User.delete_after.isnot(None))
+    query = query.filter(Referral.diagnosis_id.not_in(waiting))
     if user.role == UserRole.admin:
         return query
     if not user.county:

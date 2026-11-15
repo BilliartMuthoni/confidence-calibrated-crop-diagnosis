@@ -1,7 +1,7 @@
 """Deleting a farmer's account after the grace period (found in testing, tracker t71).
 
-A farmer who asks to delete their account is signed out everywhere and their open referrals are
-withdrawn at once; everything else is deleted when the grace period ends (users.delete_after).
+A farmer who asks to delete their account is signed out everywhere and their cases are hidden
+from officers at once; everything is deleted when the grace period ends (users.delete_after).
 Signing in before then keeps the account. The hourly clean-up job in main.py calls purge_due.
 Kenya Data Protection Act 2019, s.40 (right to erasure): the deletion happens on a fixed,
 stated date, and the farmer is told that date.

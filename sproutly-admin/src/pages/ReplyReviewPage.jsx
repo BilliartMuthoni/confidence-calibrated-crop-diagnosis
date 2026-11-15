@@ -81,10 +81,11 @@ export default function ReplyReviewPage() {
           Disagreements only
         </label>
         <select className={filterClass} value={rating} onChange={(e) => setRating(e.target.value)} aria-label="Farmer's rating">
-          <option value="">Any rating</option>
-          <option value="helpful">Helpful</option>
-          <option value="not_helpful">Not helpful</option>
-          <option value="none">Not rated</option>
+          {/* Filters by what the farmer said about the officer's reply (round two: "Any rating" was unclear). */}
+          <option value="">All replies</option>
+          <option value="helpful">Farmer said helpful</option>
+          <option value="not_helpful">Farmer said not helpful</option>
+          <option value="none">Farmer has not rated</option>
         </select>
       </div>
 
