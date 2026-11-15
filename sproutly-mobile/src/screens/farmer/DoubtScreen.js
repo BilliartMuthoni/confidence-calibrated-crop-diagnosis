@@ -47,7 +47,7 @@ function Tick({ checked, onPress, title, hint }) {
  * notDiagnosed (t47: a check Sproutly could not diagnose, sent later), resultParams.
  */
 export default function DoubtScreen({ route, navigation }) {
-    const { diagnosisId, disease, notDiagnosed = false } = route.params;
+    const { diagnosisId, disease, notDiagnosed = false, described = null } = route.params;
     const { userToken } = useContext(AuthContext);
     const [consent, setConsent] = useState(false);
     const [contact, setContact] = useState(false);
@@ -151,6 +151,18 @@ export default function DoubtScreen({ route, navigation }) {
                         <CountyPicker value={county} onChange={chooseCounty} />
                     </View>
 
+                    {/* Already described on the result (found in round two): show it, don't ask again. */}
+                    {described ? (
+                        <View className="mt-4 rounded-xl px-4 py-3" style={{ backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.divider }}>
+                            <Text className="text-sm font-semibold" style={{ color: COLORS.muted }}>
+                                Your description is sent with the photo
+                            </Text>
+                            <Text className="text-base mt-1" style={{ color: COLORS.text }}>
+                                {described}
+                            </Text>
+                        </View>
+                    ) : (
+                    <>
                     <Text className="text-base font-semibold mt-4" style={{ color: COLORS.ink }}>
                         What do you see? <Text className="font-normal" style={{ color: COLORS.muted }}>(optional)</Text>
                     </Text>
@@ -165,6 +177,8 @@ export default function DoubtScreen({ route, navigation }) {
                         value={note}
                         onChangeText={setNote}
                     />
+                    </>
+                    )}
                 </ScrollView>
 
                 <View className="px-5 pt-3 pb-4" style={{ backgroundColor: COLORS.background, borderTopWidth: 1, borderTopColor: COLORS.divider }}>

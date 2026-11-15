@@ -69,7 +69,8 @@ function Photo({ referral }) {
              ref={(el) => el?.focus()} onKeyDown={(e) => e.key === 'Escape' && setBig(false)}
              onClick={() => setBig(false)}
              className="fixed inset-0 z-50 flex cursor-zoom-out items-center justify-center bg-black/80 p-4">
-          <img src={state.url} alt={`The farmer's ${referral.crop} photo`} className="max-h-full max-w-full object-contain" />
+          {/* Fills the screen: the stored photo is small, so its own size looked smaller than the page (round two). */}
+          <img src={state.url} alt={`The farmer's ${referral.crop} photo`} className="h-full w-full object-contain" />
           <button type="button" onClick={() => setBig(false)}
                   className="absolute right-4 top-4 rounded-md bg-white px-3 py-1.5 text-sm font-semibold text-ink">
             Close
@@ -243,11 +244,13 @@ function ReplyForm({ referral, onChange }) {
       </Step>
 
       <Step number="3" title="Reply to the farmer">
+        {/* Found in testing: the guidance was only a placeholder, gone once typing started. */}
         <label htmlFor="reply" className="block text-sm text-muted">
-          They see it on this check as advice from a county officer, with your name.
+          Say what it is and what the farmer should do now: a treatment step, a prevention step, or that you need to see
+          the crop. The advice in step 4 adds sourced detail to your reply. The farmer sees it on this check, with your name.
         </label>
         <textarea id="reply" className={`${inputClass} min-h-32`} value={text} onChange={(e) => setText(e.target.value)}
-                  disabled={!revealed} placeholder="What it is and what they should do next. If you need to see the crop, say so." />
+                  disabled={!revealed} placeholder="e.g. This is common rust. Remove the worst leaves now and follow the steps below." />
       </Step>
 
       {DISEASES[judgement] && !judgement.endsWith('healthy') && (

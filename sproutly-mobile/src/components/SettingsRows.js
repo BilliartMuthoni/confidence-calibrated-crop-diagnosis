@@ -60,7 +60,10 @@ export function SwitchRow({ icon, label, hint, value, onChange, disabled, last }
                 value={value}
                 onValueChange={onChange}
                 disabled={disabled}
-                trackColor={{ true: COLORS.brand }}
+                // Found in testing: the default "off" look was a faint grey dot that did not read as a switch.
+                trackColor={{ false: COLORS.faint, true: COLORS.brand }}
+                thumbColor="#FFFFFF"
+                ios_backgroundColor={COLORS.faint}
                 accessibilityLabel={label}
             />
         </View>

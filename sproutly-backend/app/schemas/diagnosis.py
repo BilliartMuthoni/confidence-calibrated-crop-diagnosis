@@ -159,6 +159,9 @@ class OfficerReply(BaseModel):
     advice: List[AdviceItem] = []
     # The farmer's own rating of this reply (PR C): "helpful", "not_helpful" or None.
     rating: Optional[str] = None
+    # The officer's diagnosis when it is a disease the library knows: the assistant then answers
+    # from that disease's sourced advice. None for other judgements.
+    disease: Optional[str] = None
 
 
 class DiagnosisDetail(DiagnosisResponse):

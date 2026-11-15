@@ -32,6 +32,7 @@ from app.core.security import (
     new_email_code,
     provisioning_uri,
     qr_code_data_uri,
+    totp_already_used,
     verify_totp,
 )
 from app.core.staff_links import MAX_WRONG_CODES, code_matches, find_link
@@ -141,10 +142,17 @@ def _user_from_mfa_token(db: Session, token: str, expected_type: str) -> User:
     return user
 
 
+CODE_ALREADY_USED = "That code was already used. Wait for the next code in your authenticator app (it changes every 30 seconds)."
+
+
 def _check_code(db: Session, user: User, code: str, request: Optional[Request] = None) -> None:
     """Accept a current authenticator code once; a wrong one counts towards the lockout."""
     ensure_not_locked(user)
-    step = verify_totp(decrypt_secret(user.totp_secret_encrypted), code, user.totp_last_used_step)
+    secret = decrypt_secret(user.totp_secret_encrypted)
+    step = verify_totp(secret, code, user.totp_last_used_step)
+    if step is None and totp_already_used(secret, code, user.totp_last_used_step):
+        # The right code, used a moment ago: refused (no replay), but not counted as a wrong try.
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=CODE_ALREADY_USED)
     if step is None:
         if _is_staff(user):
             audit.record(db, user, "sign_in_failed", user.user_email or "", "Wrong authenticator code", request)

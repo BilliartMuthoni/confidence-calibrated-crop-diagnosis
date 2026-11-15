@@ -167,6 +167,13 @@ const PATTERNS = [
         retryable: false,
     },
     {
+        // The same code twice within 30 seconds, e.g. signing in and then making backup codes (found in testing).
+        match: /code was already used/i,
+        title: 'That code was just used',
+        message: 'Each code works once. Wait for the next code in your authenticator app: it changes every 30 seconds.',
+        retryable: false,
+    },
+    {
         match: /wrong or expired code/i,
         title: 'That code did not work',
         message: 'The code changes every 30 seconds. Enter the one showing now in your authenticator app.',

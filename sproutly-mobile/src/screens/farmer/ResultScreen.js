@@ -1,5 +1,5 @@
 import React, { useCallback, useContext, useEffect, useRef, useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, Image, KeyboardAvoidingView, Keyboard, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, Image, Linking, KeyboardAvoidingView, Keyboard, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
@@ -72,12 +72,18 @@ function splitSource(source) {
     return at > 0 ? { label: source.slice(0, at), url: source.slice(at + 2) } : { label: source, url: null };
 }
 
-/** One source's title and licence: the credit the licences ask for. Plain text here, so the farmer
- *  is not sent out of the app (found in testing); the disease library keeps the links. */
+/** One source's title and licence (the credit the licences ask for), tappable to open it. The
+ *  advice itself is shown in the app; the link is there for anyone who wants to check (round two). */
 function SourceLink({ source }) {
+    const { label, url } = splitSource(source);
     return (
-        <Text className="text-sm leading-5 mb-2" style={{ color: COLORS.muted }}>
-            {splitSource(source).label}
+        <Text
+            className="text-sm leading-5 mb-2"
+            style={{ color: url ? COLORS.brand : COLORS.muted, textDecorationLine: url ? 'underline' : 'none' }}
+            onPress={url ? () => Linking.openURL(url) : undefined}
+            accessibilityRole={url ? 'link' : undefined}
+        >
+            {label}
         </Text>
     );
 }
@@ -88,7 +94,7 @@ function Sources({ items }) {
     return (
         <View className="mt-6 pt-5" style={{ borderTopWidth: 1, borderTopColor: COLORS.divider }}>
             <Text className="text-sm font-bold mb-2" style={{ color: COLORS.muted }}>
-                Where this advice comes from
+                Sources
             </Text>
             {items.map((source) => (
                 <SourceLink key={source} source={source} />
@@ -249,7 +255,8 @@ function ReplyFeedbackBox({ diagnosisId, rating, onRated }) {
                     <Text className="text-sm font-semibold mt-1 mb-2" style={{ color: COLORS.ink }}>
                         What went wrong?
                     </Text>
-                    <View className="flex-row flex-wrap">
+                    {/* One reason per line: side by side, "The advice didn't work" lost its last word (found in testing). */}
+                    <View className="items-start">
                         {FEEDBACK_REASONS.map(([value, label]) => (
                             <Pill
                                 key={value}
@@ -320,9 +327,12 @@ function OfficerReply({ reply, diagnosisId, onRated }) {
                             </Text>
                         </View>
                     ))}
-                    <Text className="text-xs leading-4 mt-3" style={{ color: COLORS.muted }}>
-                        Source: {[...new Set(reply.advice.map((item) => splitSource(item.source).label))].join('; ')}
+                    <Text className="text-xs font-bold mt-3 mb-1" style={{ color: COLORS.muted }}>
+                        Sources
                     </Text>
+                    {[...new Set(reply.advice.map((item) => item.source))].map((source) => (
+                        <SourceLink key={source} source={source} />
+                    ))}
                 </View>
             )}
             {signed ? (
@@ -446,6 +456,7 @@ export default function ResultScreen({ route, navigation }) {
             diagnosisId: result.diagnosis_id,
             disease: diseaseLabel(result.predicted_disease),
             notDiagnosed: Boolean(result.is_referred),
+            described: result.symptoms_text || null,
             resultParams: route.params,
         });
     // The farmer rated the officer's reply (PR C): show the check as the server now has it.
@@ -597,7 +608,8 @@ export default function ResultScreen({ route, navigation }) {
                                 <AssistantBox
                                     diagnosisId={result.diagnosis_id}
                                     saved={result.questions}
-                                    notDiagnosed
+                                    notDiagnosed={!result.officer_reply?.disease}
+                                    officerDisease={result.officer_reply?.disease ? diseaseLabel(result.officer_reply.disease) : null}
                                     onSupport={openSupport}
                                     onRetake={retake}
                                     onSend={canSend ? openSend : undefined}

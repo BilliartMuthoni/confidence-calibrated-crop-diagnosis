@@ -9,6 +9,7 @@ import {
     KeyboardAvoidingView,
     Modal,
     Platform,
+    Keyboard,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -75,10 +76,18 @@ function CropSegments({ value, onChange }) {
     );
 }
 
-/** A photo's own crop: the photo stays in view while the crop is chosen (it used to be covered). */
+/** A photo's own crop: the photo stays in view while the crop is chosen (it used to be covered).
+ *  Typing a description lifts the sheet above the keyboard and hides the photo, so the text and
+ *  Done stay in view; the keyboard's own button is Done, not a new line (found in testing). */
 function PhotoCropSheet({ photo, value, onChange, note, onNote, onClose }) {
+    const [typing, setTyping] = useState(false);
+    useEffect(() => {
+        const hide = Keyboard.addListener('keyboardDidHide', () => setTyping(false));
+        return () => hide.remove();
+    }, []);
     return (
         <Modal visible={Boolean(photo)} transparent animationType="slide" onRequestClose={onClose}>
+            <KeyboardAvoidingView behavior="padding" className="flex-1">
             <TouchableOpacity activeOpacity={1} onPress={onClose} className="flex-1" style={{ backgroundColor: 'rgba(0,0,0,0.35)' }} />
             {photo && (
                 <SafeAreaView edges={['bottom']} style={{ backgroundColor: COLORS.background, borderTopLeftRadius: 20, borderTopRightRadius: 20 }}>
@@ -86,7 +95,9 @@ function PhotoCropSheet({ photo, value, onChange, note, onNote, onClose }) {
                         <Text className="text-lg font-bold mb-3" style={{ color: COLORS.ink }}>
                             This photo
                         </Text>
-                        <Image source={{ uri: photo.uri }} className="w-full h-40 rounded-xl mb-4" resizeMode="cover" />
+                        {!typing && (
+                            <Image source={{ uri: photo.uri }} className="w-full h-40 rounded-xl mb-4" resizeMode="cover" />
+                        )}
                         <Text className="text-base font-bold mb-2" style={{ color: COLORS.ink }}>
                             Crop
                         </Text>
@@ -106,6 +117,10 @@ function PhotoCropSheet({ photo, value, onChange, note, onNote, onClose }) {
                             maxLength={500}
                             value={note || ''}
                             onChangeText={onNote}
+                            onFocus={() => setTyping(true)}
+                            returnKeyType="done"
+                            submitBehavior="blurAndSubmit"
+                            onSubmitEditing={() => Keyboard.dismiss()}
                         />
                         <View className="mt-4">
                             <PrimaryButton label="Done" onPress={onClose} />
@@ -113,6 +128,7 @@ function PhotoCropSheet({ photo, value, onChange, note, onNote, onClose }) {
                     </View>
                 </SafeAreaView>
             )}
+            </KeyboardAvoidingView>
         </Modal>
     );
 }
