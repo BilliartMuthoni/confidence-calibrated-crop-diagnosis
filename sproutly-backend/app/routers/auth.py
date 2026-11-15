@@ -40,7 +40,6 @@ from app.core.timeutil import utcnow
 from app.db.session import get_db
 from app.models.audit import AuditEntry
 from app.models.diagnosis import Diagnosis
-from app.models.referral import Referral, ReferralStatus
 from app.models.saved_turn import SavedTurn
 from app.models.staff_auth import BackupCode
 from app.models.user import User, UserRole
@@ -908,8 +907,8 @@ def delete_my_account(request: Request, payload: DeleteAccountRequest, db: Sessi
     """A farmer deletes their account and its data (Kenya Data Protection Act 2019, s.40, right to
     erasure). It asks for proof first: the password and authenticator code, or for an account made
     with Google, a Google sign-in in the last 5 minutes (a renewed session doesn't count).
-    Grace period (found in testing, t71): the account is signed out everywhere and its open
-    referrals are withdrawn now; everything is deleted on the date returned (14 days), by the
+    Grace period (found in testing, t71): the account is signed out everywhere and its cases are
+    hidden from officers now; everything is deleted on the date returned (14 days), by the
     hourly job (app/core/account_deletion.py). Signing in before then keeps the account."""
     user = current_user
     if user.role != UserRole.farmer:
@@ -923,12 +922,8 @@ def delete_my_account(request: Request, payload: DeleteAccountRequest, db: Sessi
 
     user.delete_after = utcnow() + timedelta(days=settings.account_deletion_grace_days)
     user.refresh_token_id = None  # every phone signed out now
-    # Officers stop seeing the farmer's open cases now, not in 14 days.
-    ids = [d for (d,) in db.query(Diagnosis.diagnosis_id).filter(Diagnosis.user_id == user.user_id)]
-    if ids:
-        db.query(Referral).filter(Referral.diagnosis_id.in_(ids),
-                                  Referral.status.in_([ReferralStatus.new, ReferralStatus.in_review])).update(
-            {Referral.status: ReferralStatus.expired}, synchronize_session=False)
+    # Officers stop seeing the farmer's cases now: they are hidden while the account waits
+    # (admin._visible), not changed, so keeping the account shows them again as they were.
     db.commit()
     return DeletionScheduled(delete_after=user.delete_after, grace_days=settings.account_deletion_grace_days)
 
@@ -944,7 +939,7 @@ def restore_my_account(request: Request, db: Session = Depends(get_db),
     # Whole seconds, as auth_time is stored.
     if int(claims.get("auth_time") or 0) < int(asked_at.replace(tzinfo=timezone.utc).timestamp()):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Log in again to keep your account")
-    user.delete_after = None
+    user.delete_after = None  # the hidden cases show again to officers, as they were
     tokens = issue_tokens(user)
     db.commit()
     return tokens
