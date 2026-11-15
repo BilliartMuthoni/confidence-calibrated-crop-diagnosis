@@ -36,3 +36,6 @@ Thumbs.db
 sproutly-backend/models/
 # Assistant evaluation output (python -m app.scripts.evaluate_assistant); results go in the report.
 sproutly-backend/assistant_evaluation_*.csv
+
+# System test photos copied from the datasets (13 Nov test round): never committed
+system_test_photos/

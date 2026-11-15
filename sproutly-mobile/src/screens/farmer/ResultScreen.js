@@ -1,5 +1,5 @@
 import React, { useCallback, useContext, useEffect, useRef, useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, Image, Linking, KeyboardAvoidingView, Keyboard, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, Image, KeyboardAvoidingView, Keyboard, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,7 +9,7 @@ import ScreenHeader from '../../components/ScreenHeader';
 import ErrorBanner from '../../components/ErrorBanner';
 import { PrimaryButton, SecondaryButton, TextButton } from '../../components/Buttons';
 import { AuthContext } from '../../context/AuthContext';
-import { fetchDiagnosis, fetchDiagnosisPhoto, rateReply } from '../../api/DiagnosisService';
+import { addSymptoms, fetchDiagnosis, fetchDiagnosisPhoto, rateReply } from '../../api/DiagnosisService';
 import { toFriendlyError } from '../../utils/errorMessages';
 import { markReplySeen } from '../../utils/seenReplies';
 import { fullDateLabel, whenLabel } from '../../utils/time';
@@ -72,17 +72,12 @@ function splitSource(source) {
     return at > 0 ? { label: source.slice(0, at), url: source.slice(at + 2) } : { label: source, url: null };
 }
 
-/** One source's title and licence, opening the factsheet; showing it is the credit the licences ask for. */
+/** One source's title and licence: the credit the licences ask for. Plain text here, so the farmer
+ *  is not sent out of the app (found in testing); the disease library keeps the links. */
 function SourceLink({ source }) {
-    const { label, url } = splitSource(source);
     return (
-        <Text
-            className="text-sm leading-5 mb-2"
-            style={{ color: url ? COLORS.brand : COLORS.muted, textDecorationLine: url ? 'underline' : 'none' }}
-            onPress={url ? () => Linking.openURL(url) : undefined}
-            accessibilityRole={url ? 'link' : undefined}
-        >
-            {label}
+        <Text className="text-sm leading-5 mb-2" style={{ color: COLORS.muted }}>
+            {splitSource(source).label}
         </Text>
     );
 }
@@ -93,11 +88,75 @@ function Sources({ items }) {
     return (
         <View className="mt-6 pt-5" style={{ borderTopWidth: 1, borderTopColor: COLORS.divider }}>
             <Text className="text-sm font-bold mb-2" style={{ color: COLORS.muted }}>
-                Where this advice comes from (tap a source to open it)
+                Where this advice comes from
             </Text>
             {items.map((source) => (
                 <SourceLink key={source} source={source} />
             ))}
+        </View>
+    );
+}
+
+/** On a not-diagnosed photo: describe what you see, so the officer gets a better first suggestion. */
+function AddSymptomsBox({ diagnosisId, onSaved }) {
+    const { userToken } = useContext(AuthContext);
+    const [open, setOpen] = useState(false);
+    const [text, setText] = useState('');
+    const [busy, setBusy] = useState(false);
+    const [error, setError] = useState(null);
+
+    const save = async () => {
+        if (text.trim().length < 3) {
+            setError('Describe what you see in a few words.');
+            return;
+        }
+        setBusy(true);
+        setError(null);
+        try {
+            const updated = await addSymptoms({ token: userToken, diagnosisId, text: text.trim() });
+            onSaved({ ...updated, symptoms_text: text.trim() });
+        } catch (e) {
+            setError(toFriendlyError(e).message);
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    if (!open) {
+        return (
+            <View className="mt-4">
+                <SecondaryButton label="Describe the symptoms" onPress={() => setOpen(true)} />
+            </View>
+        );
+    }
+    return (
+        <View className="mt-4 rounded-xl px-4 py-3" style={{ backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.divider }}>
+            <Text className="text-sm font-bold mb-1" style={{ color: COLORS.ink }}>
+                What do you see on this leaf?
+            </Text>
+            <Text className="text-sm mb-2 leading-5" style={{ color: COLORS.muted }}>
+                It helps the officer. It does not change whether this photo is diagnosed.
+            </Text>
+            <TextInput
+                className="rounded-xl px-4 py-3 text-base"
+                style={{ backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: COLORS.divider, color: COLORS.text, minHeight: 72 }}
+                placeholder="For example: brown spots with yellow edges, spreading fast"
+                placeholderTextColor={COLORS.faint}
+                multiline
+                textAlignVertical="top"
+                maxLength={500}
+                value={text}
+                onChangeText={setText}
+                editable={!busy}
+            />
+            {error && (
+                <Text className="text-sm mt-2" style={{ color: COLORS.disease }}>
+                    {error}
+                </Text>
+            )}
+            <View className="mt-3">
+                <PrimaryButton label="Save description" loadingLabel="Saving…" onPress={save} loading={busy} />
+            </View>
         </View>
     );
 }
@@ -119,15 +178,20 @@ const FEEDBACK_REASONS = [
 ];
 
 /** A small outlined pill, the same as the topic pills elsewhere; filled when chosen. */
-function Pill({ label, chosen, onPress, disabled }) {
+function Pill({ label, chosen, onPress, disabled, faded = false }) {
     return (
         <TouchableOpacity
             onPress={onPress}
             disabled={disabled}
             accessibilityRole="button"
-            accessibilityState={{ selected: chosen }}
+            accessibilityState={{ selected: chosen, disabled: disabled || faded }}
             className="mr-2 mb-2 px-4 py-2 rounded-full"
-            style={{ borderWidth: 1, borderColor: COLORS.referral, backgroundColor: chosen ? COLORS.referral : 'transparent' }}
+            style={{
+                borderWidth: 1,
+                borderColor: COLORS.referral,
+                backgroundColor: chosen ? COLORS.referral : 'transparent',
+                opacity: faded ? 0.45 : 1,
+            }}
         >
             <Text className="text-sm font-semibold" style={{ color: chosen ? '#FFFFFF' : COLORS.referral }}>
                 {label}
@@ -187,7 +251,16 @@ function ReplyFeedbackBox({ diagnosisId, rating, onRated }) {
                     </Text>
                     <View className="flex-row flex-wrap">
                         {FEEDBACK_REASONS.map(([value, label]) => (
-                            <Pill key={value} label={label} chosen={reason === value} onPress={() => setReason(value)} disabled={busy} />
+                            <Pill
+                                key={value}
+                                label={label}
+                                chosen={reason === value}
+                                onPress={() => {
+                                    setReason(value);
+                                    setError(null);
+                                }}
+                                disabled={busy}
+                            />
                         ))}
                     </View>
                     <TextInput
@@ -202,7 +275,14 @@ function ReplyFeedbackBox({ diagnosisId, rating, onRated }) {
                         onChangeText={setNote}
                     />
                     <View className="flex-row mt-2">
-                        <Pill label={busy ? 'Sending…' : 'Send'} chosen onPress={() => send(false)} disabled={busy || !reason} />
+                        {/* Always answers a tap: without a reason it says what is missing, rather than doing nothing. */}
+                        <Pill
+                            label={busy ? 'Sending…' : 'Send'}
+                            chosen
+                            faded={!reason}
+                            onPress={() => (reason ? send(false) : setError('Choose what went wrong first.'))}
+                            disabled={busy}
+                        />
                     </View>
                 </>
             )}
@@ -226,14 +306,25 @@ function OfficerReply({ reply, diagnosisId, onRated }) {
             <Text className="text-base mt-2 leading-6" style={{ color: COLORS.text }}>
                 {reply.text}
             </Text>
-            {reply.advice?.map((item, index) => (
-                <View key={index} className="mt-3">
-                    <Text className="text-base leading-6" style={{ color: COLORS.text }}>
-                        {item.text}
+            {/* The attached advice as one list, with each source named once underneath (found in testing:
+                the same source line under every sentence was cluttered). */}
+            {reply.advice?.length > 0 && (
+                <View className="mt-3">
+                    {reply.advice.map((item, index) => (
+                        <View key={index} className="flex-row mt-2">
+                            <Text className="text-base leading-6 mr-2" style={{ color: COLORS.referral }}>
+                                {'•'}
+                            </Text>
+                            <Text className="flex-1 text-base leading-6" style={{ color: COLORS.text }}>
+                                {item.text}
+                            </Text>
+                        </View>
+                    ))}
+                    <Text className="text-xs leading-4 mt-3" style={{ color: COLORS.muted }}>
+                        Source: {[...new Set(reply.advice.map((item) => splitSource(item.source).label))].join('; ')}
                     </Text>
-                    <SourceLink source={item.source} />
                 </View>
-            ))}
+            )}
             {signed ? (
                 <Text className="text-xs mt-2" style={{ color: COLORS.faint }}>
                     {signed}
@@ -343,7 +434,9 @@ export default function ResultScreen({ route, navigation }) {
     }, [wantsPhoto, loadPhoto]);
 
     // A new result goes back to the start; a past one back to the list it was opened from.
-    const close = past ? () => navigation.goBack() : () => navigation.popToTop();
+    // Opened from a batch's results list: back returns to that list, not to Home (found in testing).
+    const fromBatch = Boolean(route.params.fromBatch);
+    const close = past || fromBatch ? () => navigation.goBack() : () => navigation.popToTop();
     const openSupport = () => navigation.navigate('SupportContacts');
     // Send to an officer later (t31 for a diagnosed result, t47 for a not-diagnosed one): only while
     // the photo is kept, since the officer must see it, and only once.
@@ -357,6 +450,11 @@ export default function ResultScreen({ route, navigation }) {
         });
     // The farmer rated the officer's reply (PR C): show the check as the server now has it.
     const rated = (updated) => setResult((current) => ({ ...current, ...updated }));
+    // A description added after the check: batch photos never had the box, and a past check
+    // without one can still get it, until an officer picks the case up.
+    const canDescribe = Boolean(result) && result.is_referred && !result.awaiting_crop && !result.officer_reply
+        && !result.symptoms_text && (route.params.fromBatch || past)
+        && (!result.referral_status || result.referral_status === 'new') && (!past || result.photo_available);
     // A new photo for a not-diagnosed check: the check screen (t47), with the same crop. The new
     // check replaces this one in Your checks (n22).
     const retake = () => navigation.navigate('Diagnosis', { retakeOf: result.diagnosis_id, crop: result.crop });
@@ -400,14 +498,20 @@ export default function ResultScreen({ route, navigation }) {
     const healthy = !referred && result.predicted_disease?.startsWith('Healthy');
 
     const accent = referred ? COLORS.referral : healthy ? COLORS.healthy : COLORS.disease;
-    const status = referred ? 'Not diagnosed' : healthy ? 'No disease found' : 'Diagnosis';
-    const title = referred ? "We couldn't diagnose this reliably" : diseaseLabel(result.predicted_disease);
+    // Once an officer has replied, the heading says so instead of "couldn't diagnose" (found in testing).
+    const answered = referred && Boolean(result.officer_reply);
+    const status = answered ? 'Answered by an officer' : referred ? 'Not diagnosed' : healthy ? 'No disease found' : 'Diagnosis';
+    const title = answered
+        ? 'A county officer replied'
+        : referred
+          ? "We couldn't diagnose this reliably"
+          : diseaseLabel(result.predicted_disease);
     const photoUri = imageUri || (photo.state === 'ready' ? photo.uri : null);
 
     return (
         <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.background }}>
             <StatusBar style="dark" />
-            <ScreenHeader title="Result" icon={past ? 'arrow-back' : 'close'} onBack={close} />
+            <ScreenHeader title="Result" icon={past || fromBatch ? 'arrow-back' : 'close'} onBack={close} />
             <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
             <ScrollView ref={scrollRef} contentContainerClassName="pb-10" keyboardShouldPersistTaps="handled">
                 {photoUri ? (
@@ -415,7 +519,8 @@ export default function ResultScreen({ route, navigation }) {
                 ) : wantsPhoto && photo.state === 'failed' ? (
                     <View className="w-full h-56 items-center justify-center" style={{ backgroundColor: COLORS.surface }}>
                         <Text className="text-sm" style={{ color: COLORS.muted }}>
-                            Couldn't load the photo.
+                            {/* Photos are not kept on the phone (size, privacy); found in testing offline. */}
+                            {result.savedCopy ? 'The photo shows when you have signal.' : "Couldn't load the photo."}
                         </Text>
                         <Text className="text-sm font-bold mt-2" style={{ color: COLORS.brand }} onPress={loadPhoto} accessibilityRole="button">
                             Try again
@@ -458,6 +563,8 @@ export default function ResultScreen({ route, navigation }) {
                                 {result.symptoms_text}
                             </Text>
                         </View>
+                    ) : canDescribe ? (
+                        <AddSymptomsBox diagnosisId={result.diagnosis_id} onSaved={rated} />
                     ) : null}
 
                     {referred ? (
@@ -584,7 +691,7 @@ export default function ResultScreen({ route, navigation }) {
                                 // The diagnose screen still holds the photo, so going back is all a retry needs.
                                 <SecondaryButton label="Choose a different crop" onPress={() => navigation.goBack()} />
                             )}
-                            <TextButton label={past ? 'Back' : 'Back to home'} onPress={close} />
+                            <TextButton label={past ? 'Back' : fromBatch ? 'Back to all photos' : 'Back to home'} onPress={close} />
                         </>
                     ) : (
                         <>

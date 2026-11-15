@@ -79,8 +79,37 @@ def send_email_code(to: str, code: str) -> None:
         logger.warning("Email not configured; code for %s is %s", to, code)
         print(f"[email] code for {to}: {code}", flush=True)
         return
+    _send(_message(to, code))
 
-    msg = _message(to, code)
+
+def send_staff_link(to: str, name: str, link: str, purpose: str, hours: int) -> bool:
+    """Email a staff set-up link. The code that goes with it is NOT in the email: the admin gives
+    it by phone or in person. Returns False when the email could not be sent (the portal then
+    shows the link to the admin instead); never raises."""
+    if not settings.smtp_host:
+        return False
+    sender = settings.mail_from or settings.smtp_username
+    what = "set up your Sproutly staff account" if purpose == "invite" else "choose a new Sproutly password"
+    msg = EmailMessage()
+    msg["Subject"] = "Your Sproutly staff link"
+    msg["From"] = f"Sproutly <{sender}>"
+    msg["To"] = to
+    msg.set_content(
+        f"Hello {name},\n\n"
+        f"Use this link to {what}:\n{link}\n\n"
+        f"It works once, for {hours} hours, and only with the 6-digit code your administrator gives you "
+        "by phone or in person. The code is never sent by email.\n\n"
+        f"If you were not expecting this, do not open the link and tell your administrator ({sender}).\n\n"
+        f"Privacy policy: {PRIVACY_URL}\n"
+    )
+    try:
+        _send(msg)
+        return True
+    except MailNotSent:
+        return False
+
+
+def _send(msg: EmailMessage) -> None:
     context = ssl.create_default_context()
     try:
         if settings.smtp_port == 465:
@@ -96,5 +125,5 @@ def send_email_code(to: str, code: str) -> None:
                 smtp.send_message(msg)
     except (smtplib.SMTPException, OSError) as exc:
         # The reason is logged for the developer; the person only hears "try again later".
-        logger.error("Email code not sent: %s", type(exc).__name__)
+        logger.error("Email not sent: %s", type(exc).__name__)
         raise MailNotSent() from exc

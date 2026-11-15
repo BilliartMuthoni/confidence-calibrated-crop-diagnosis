@@ -163,6 +163,15 @@ class TokenResponse(BaseModel):
     refresh_token: str
     token_type: str = "bearer"
     role: UserRole
+    # Set when the account is waiting to be deleted (grace period, t71): the app then asks
+    # "keep my account?" and only a keep (/auth/me/restore) starts a session.
+    delete_after: Optional[datetime] = None
+
+
+class DeletionScheduled(BaseModel):
+    """When the account and its data will be deleted; signing in before then keeps it."""
+    delete_after: datetime
+    grace_days: int
 
 
 class RefreshRequest(BaseModel):
@@ -363,9 +372,11 @@ class PasswordChangeRequest(BaseModel):
 
 
 class StaffPasswordRequest(BaseModel):
-    """Choosing a password from a one-time invite or reset link."""
+    """Choosing a password from a one-time invite or reset link, with the code the administrator
+    gave by phone or in person."""
 
     token: str
+    code: Optional[str] = None
     password: str
 
     @field_validator("password")

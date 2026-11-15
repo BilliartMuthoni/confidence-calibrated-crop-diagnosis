@@ -76,7 +76,7 @@ function CropSegments({ value, onChange }) {
 }
 
 /** A photo's own crop: the photo stays in view while the crop is chosen (it used to be covered). */
-function PhotoCropSheet({ photo, value, onChange, onClose }) {
+function PhotoCropSheet({ photo, value, onChange, note, onNote, onClose }) {
     return (
         <Modal visible={Boolean(photo)} transparent animationType="slide" onRequestClose={onClose}>
             <TouchableOpacity activeOpacity={1} onPress={onClose} className="flex-1" style={{ backgroundColor: 'rgba(0,0,0,0.35)' }} />
@@ -84,15 +84,32 @@ function PhotoCropSheet({ photo, value, onChange, onClose }) {
                 <SafeAreaView edges={['bottom']} style={{ backgroundColor: COLORS.background, borderTopLeftRadius: 20, borderTopRightRadius: 20 }}>
                     <View className="px-5 pt-5 pb-4">
                         <Text className="text-lg font-bold mb-3" style={{ color: COLORS.ink }}>
-                            Crop of this photo
+                            This photo
                         </Text>
-                        <Image source={{ uri: photo.uri }} className="w-full h-48 rounded-xl mb-4" resizeMode="cover" />
+                        <Image source={{ uri: photo.uri }} className="w-full h-40 rounded-xl mb-4" resizeMode="cover" />
+                        <Text className="text-base font-bold mb-2" style={{ color: COLORS.ink }}>
+                            Crop
+                        </Text>
                         <CropSegments value={value} onChange={onChange} />
-                        <TouchableOpacity onPress={onClose} accessibilityRole="button" className="items-center py-3 mt-2">
-                            <Text className="text-base font-semibold" style={{ color: COLORS.muted }}>
-                                Cancel
-                            </Text>
-                        </TouchableOpacity>
+                        {/* Each photo can have its own description (found in testing: batches had none). */}
+                        <Text className="text-base font-bold mt-4" style={{ color: COLORS.ink }}>
+                            What do you see on this leaf?{' '}
+                            <Text className="font-normal" style={{ color: COLORS.faint }}>(optional)</Text>
+                        </Text>
+                        <TextInput
+                            className="rounded-xl px-4 py-3 text-base mt-2"
+                            style={{ backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.divider, color: COLORS.text, minHeight: 72 }}
+                            placeholder="e.g. Brown spots with yellow edges, spreading fast"
+                            placeholderTextColor={COLORS.faint}
+                            multiline
+                            textAlignVertical="top"
+                            maxLength={500}
+                            value={note || ''}
+                            onChangeText={onNote}
+                        />
+                        <View className="mt-4">
+                            <PrimaryButton label="Done" onPress={onClose} />
+                        </View>
                     </View>
                 </SafeAreaView>
             )}
@@ -264,6 +281,9 @@ export default function DiagnosisScreen({ navigation, route }) {
     const cropOf = (photo) => photo.crop || crop;
     const setPhotoCrop = (index, value) =>
         setPhotos((current) => current.map((photo, i) => (i === index ? { ...photo, crop: value } : photo)));
+    const setPhotoNote = (index, value) =>
+        setPhotos((current) => current.map((photo, i) => (i === index ? { ...photo, symptoms: value } : photo)));
+    const noteOf = (photo) => (photo.symptoms || '').trim() || null;
     // Tapping the crop under a photo opens a panel with that photo and the choices (PhotoCropSheet).
     const [cropSheet, setCropSheet] = useState(null); // index of the photo, or null
     const choosePhotoCrop = (index) => setCropSheet(index);
@@ -288,6 +308,7 @@ export default function DiagnosisScreen({ navigation, route }) {
                     token: userToken,
                     crop: key === 'mixed' ? null : key,
                     imageUris: indexes.map((i) => imageUris[i]),
+                    symptoms: indexes.map((i) => noteOf(photos[i])),
                     sharing,
                 });
                 results.forEach((item) => merged.push({ ...item, index: indexes[item.index] }));
@@ -312,7 +333,7 @@ export default function DiagnosisScreen({ navigation, route }) {
     const saveForLater = async () => {
         try {
             const saved = await addToQueue({
-                photos: photos.map((p) => ({ uri: p.uri, crop: cropOf(p) === 'mixed' ? null : cropOf(p) })),
+                photos: photos.map((p) => ({ uri: p.uri, crop: cropOf(p) === 'mixed' ? null : cropOf(p), symptoms: noteOf(p) })),
                 symptoms,
                 sharing,
             });
@@ -344,7 +365,7 @@ export default function DiagnosisScreen({ navigation, route }) {
                     token: userToken,
                     crop: cropOf(photo),
                     imageUri: photo.uri,
-                    symptoms,
+                    symptoms: symptoms.trim() ? symptoms : noteOf(photo),
                     sharing,
                     allowBlurry: options?.allowBlurry === true,
                     retakeOf,
@@ -498,6 +519,18 @@ export default function DiagnosisScreen({ navigation, route }) {
                                                 <Ionicons name="chevron-down" size={14} color={COLORS.brand} style={{ marginLeft: 4 }} />
                                             </TouchableOpacity>
                                         )}
+                                        {photos.length > 1 && crop && (
+                                            <TouchableOpacity
+                                                onPress={() => choosePhotoCrop(index)}
+                                                accessibilityRole="button"
+                                                accessibilityLabel={noteOf(photo) ? `Photo ${index + 1} has a description. Tap to change.` : `Add a description to photo ${index + 1}`}
+                                                className="items-center py-1"
+                                            >
+                                                <Text className="text-xs font-semibold" numberOfLines={1} style={{ color: noteOf(photo) ? COLORS.brand : COLORS.muted }}>
+                                                    {noteOf(photo) ? 'Description added' : '+ Describe'}
+                                                </Text>
+                                            </TouchableOpacity>
+                                        )}
                                         <TouchableOpacity
                                             onPress={() => removePhoto(index)}
                                             accessibilityRole="button"
@@ -641,10 +674,9 @@ export default function DiagnosisScreen({ navigation, route }) {
             <PhotoCropSheet
                 photo={cropSheet !== null ? photos[cropSheet] : null}
                 value={cropSheet !== null && photos[cropSheet] ? cropOf(photos[cropSheet]) : null}
-                onChange={(value) => {
-                    setPhotoCrop(cropSheet, value);
-                    setCropSheet(null);
-                }}
+                onChange={(value) => setPhotoCrop(cropSheet, value)}
+                note={cropSheet !== null && photos[cropSheet] ? photos[cropSheet].symptoms : ''}
+                onNote={(value) => setPhotoNote(cropSheet, value)}
                 onClose={() => setCropSheet(null)}
             />
         </SafeAreaView>

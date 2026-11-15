@@ -13,6 +13,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import FileResponse
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.core import audit, symptom_text
@@ -23,6 +24,7 @@ from app.core.config import settings
 from app.core.deps import require_role
 from app.core.knowledge_base import KNOWLEDGE_BASE, display_name
 from app.core.referrals import OTHER_JUDGEMENTS, agreement, expire_overdue
+from app.core.mailer import send_staff_link
 from app.core.staff_links import issue_link
 from app.core.timeutil import utcnow
 from app.db.session import get_db
@@ -124,11 +126,27 @@ def _referral_out(db: Session, referral: Referral, viewer: User) -> ReferralOut:
     )
 
 
+def _send_link(db: Session, target: User, purpose: str) -> LinkOut:
+    """Make a set-up link and its code; email the link, and give the admin the code to pass on by
+    phone or in person. If the email cannot be sent, the admin gets the link too (as before)."""
+    link, code = issue_link(db, target, purpose)
+    hours = settings.staff_link_expire_hours
+    emailed = bool(target.user_email) and send_staff_link(
+        target.user_email, target.full_name or "", link, purpose, hours)
+    return LinkOut(link=None if emailed else link, emailed_to=target.user_email if emailed else None,
+                   code=code, expires_in_hours=hours)
+
+
 def _visible(query, user: User):
-    """Officers see their own county only; an officer without a county sees nothing."""
+    """Officers see their own county only; an officer without a county sees nothing. Answered cases
+    only when they answered them themselves: an officer needs the open queue to claim from, not
+    colleagues' finished cases (data minimisation, found in testing)."""
     if user.role == UserRole.admin:
         return query
-    return query.filter(Referral.county == user.county) if user.county else query.filter(False)
+    if not user.county:
+        return query.filter(False)
+    return query.filter(Referral.county == user.county,
+                        or_(Referral.status != ReferralStatus.answered, Referral.replied_by_id == user.user_id))
 
 
 def _get_referral(db: Session, referral_id: int, user: User) -> Referral:
@@ -406,10 +424,12 @@ def create_officer(payload: OfficerIn, request: Request, db: Session = Depends(g
                    is_verified=True)
     db.add(officer)
     db.flush()
-    link = issue_link(db, officer, "invite")
-    audit.record(db, user, "user_create", email, f"Extension officer, {payload.county}", request)
+    sent = _send_link(db, officer, "invite")
+    audit.record(db, user, "user_create", email,
+                 f"Extension officer, {payload.county}; link {'emailed' if sent.emailed_to else 'shown to the admin'}",
+                 request)
     db.commit()
-    return OfficerCreated(user=_user_out(officer), link=link, expires_in_hours=settings.staff_link_expire_hours)
+    return OfficerCreated(user=_user_out(officer), **sent.model_dump())
 
 
 @router.post("/users/{user_id}/active", status_code=status.HTTP_204_NO_CONTENT)
@@ -427,10 +447,10 @@ def reset_password(user_id: int, request: Request, db: Session = Depends(get_db)
     """The old password stops working now; the officer chooses a new one from the link."""
     target = _managed(db, user_id, user)
     target.hashed_password = None
-    link = issue_link(db, target, "reset")
+    sent = _send_link(db, target, "reset")
     audit.record(db, user, "user_reset_password", target.user_email, request=request)
     db.commit()
-    return LinkOut(link=link, expires_in_hours=settings.staff_link_expire_hours)
+    return sent
 
 
 @router.post("/users/{user_id}/reset-mfa", response_model=LinkOut)
@@ -444,10 +464,10 @@ def reset_authenticator(user_id: int, request: Request, db: Session = Depends(ge
     target.mfa_enabled = False
     target.hashed_password = None
     db.query(BackupCode).filter(BackupCode.user_id == target.user_id).delete()
-    link = issue_link(db, target, "reset")
+    sent = _send_link(db, target, "reset")
     audit.record(db, user, "user_reset_mfa", target.user_email, request=request)
     db.commit()
-    return LinkOut(link=link, expires_in_hours=settings.staff_link_expire_hours)
+    return sent
 
 
 @router.post("/users/{user_id}/county", status_code=status.HTTP_204_NO_CONTENT)

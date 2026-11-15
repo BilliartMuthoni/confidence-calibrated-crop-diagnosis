@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, KeyboardAvoidingView, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, KeyboardAvoidingView } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -22,6 +22,9 @@ export default function EmailCodeScreen({ route, navigation }) {
     const [sending, setSending] = useState(false);
     const [error, setError] = useState(null);
     const [notice, setNotice] = useState(null);
+    // After five wrong codes (or an expired one) the server refuses every code, even the right one,
+    // until a new code is sent; the screen says so instead of letting the farmer keep typing.
+    const [needNewCode, setNeedNewCode] = useState(false);
     // Seconds until "Send a new code" works (the backend allows one a minute).
     const [wait, setWait] = useState(route.params.resendInSeconds ?? 60);
 
@@ -32,7 +35,7 @@ export default function EmailCodeScreen({ route, navigation }) {
     }, [wait]);
 
     const submit = async (value = code) => {
-        if (value.length !== 6 || loading) return;
+        if (value.length !== 6 || loading || needNewCode) return;
         setLoading(true);
         setError(null);
         setNotice(null);
@@ -41,7 +44,9 @@ export default function EmailCodeScreen({ route, navigation }) {
             // Confirmed: on to the authenticator (set up, or its code).
             navigation.replace(...AuthService.challengeScreen(data));
         } catch (e) {
-            setError(toFriendlyError(e));
+            const friendly = toFriendlyError(e);
+            setError(friendly);
+            setNeedNewCode(/send a new code/i.test(`${e?.message ?? ''} ${friendly?.message ?? ''}`));
             setCode('');
         } finally {
             setLoading(false);
@@ -58,6 +63,7 @@ export default function EmailCodeScreen({ route, navigation }) {
             setMfaToken(data.mfa_token);
             setWait(data.resend_in_seconds ?? 60);
             setCode('');
+            setNeedNewCode(false);
             setNotice('A new code has been sent. Earlier codes no longer work.');
         } catch (e) {
             setError(toFriendlyError(e));
@@ -103,15 +109,11 @@ export default function EmailCodeScreen({ route, navigation }) {
                     )}
 
                     <TouchableOpacity
-                        className={`bg-white py-[18px] rounded-2xl items-center w-full mt-6 shadow-lg ${loading || code.length !== 6 ? 'opacity-50' : ''}`}
+                        className={`bg-white py-[18px] rounded-2xl items-center w-full mt-6 shadow-lg ${loading || code.length !== 6 || needNewCode ? 'opacity-50' : ''}`}
                         onPress={() => submit()}
-                        disabled={loading || code.length !== 6}
+                        disabled={loading || code.length !== 6 || needNewCode}
                     >
-                        {loading ? (
-                            <ActivityIndicator color="#0B1A13" />
-                        ) : (
-                            <Text className="text-forestDeep text-lg font-bold">Confirm</Text>
-                        )}
+                        <Text className="text-forestDeep text-lg font-bold">Confirm</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity onPress={resend} disabled={wait > 0 || sending} className="py-4 mt-2">

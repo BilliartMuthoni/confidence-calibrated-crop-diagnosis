@@ -1,11 +1,9 @@
 import hmac
-import os
 import time
-from datetime import timedelta
+from datetime import timedelta, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.core import audit
@@ -36,18 +34,16 @@ from app.core.security import (
     qr_code_data_uri,
     verify_totp,
 )
-from app.core.staff_links import find_link
+from app.core.staff_links import MAX_WRONG_CODES, code_matches, find_link
 from app.core.timeutil import utcnow
 from app.db.session import get_db
-from app.core.retention import inside_uploads
 from app.models.audit import AuditEntry
 from app.models.diagnosis import Diagnosis
-from app.models.oauth_flow import OAuthFlow
-from app.models.referral import Referral
+from app.models.referral import Referral, ReferralStatus
 from app.models.saved_turn import SavedTurn
 from app.models.staff_auth import BackupCode
 from app.models.user import User, UserRole
-from app.core.deps import get_current_user, get_token_claims
+from app.core.deps import get_current_user, get_token_claims, get_user_being_deleted
 from app.schemas.auth import (
     STAFF_PASSWORD_MIN,
     AccountResponse,
@@ -58,6 +54,7 @@ from app.schemas.auth import (
     ContactChangeRequest,
     CountyUpdate,
     DeleteAccountRequest,
+    DeletionScheduled,
     EmailCodeRequest,
     EmailResendRequest,
     ForgotPasswordRequest,
@@ -179,6 +176,18 @@ def issue_tokens(user: User, login: Optional[str] = None, auth_time: Optional[in
     kept across refreshes. The caller commits."""
     # Staff sessions end after a working day at most; farmers keep the app's usual tokens.
     minutes = settings.staff_session_minutes if _is_staff(user) else None
+    if user.delete_after is not None:
+        # Signed in during the deletion grace period (t71): no session yet, only a short key for
+        # the choice, as Instagram and Facebook do: keep the account (/auth/me/restore) or log
+        # out and let the deletion go ahead.
+        user.refresh_token_id = None
+        return TokenResponse(
+            access_token=create_access_token(subject=str(user.user_id), role=user.role.value, minutes=10,
+                                             auth_time=auth_time),
+            refresh_token="",
+            role=user.role,
+            delete_after=user.delete_after,
+        )
     user.refresh_token_id = f"{login or new_url_token()}.{new_url_token()}"
     return TokenResponse(
         access_token=create_access_token(subject=str(user.user_id), role=user.role.value, minutes=minutes,
@@ -302,7 +311,12 @@ def _send_code(db: Session, user: User, by_sms: bool = False) -> None:
     if by_sms:
         try:
             send_sms_code(user.user_phone_number, code)
-        except SmsNotSent:
+        except SmsNotSent as exc:
+            if exc.blocked:
+                # The line has opted out of bulk messages: retrying cannot help, so say what can.
+                raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                                    detail="Your phone line is blocking messages like ours. Allow promotional "
+                                           "messages on your line, or sign up with your email instead.")
             raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                                 detail="We couldn't send the SMS just now. Please try again in a few minutes.")
         return
@@ -429,6 +443,9 @@ def register(request: Request, payload: RegisterRequest, db: Session = Depends(g
         # Typing an email proves nothing, so the password is only added after a Google
         # sign-in proves the account is theirs (/auth/password/add).
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=GOOGLE_CONFIRM)
+    if existing and existing.delete_after:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="This account is being deleted. Log in before the deletion date to keep it.")
     if existing and not ((payload.email or _needs_phone_check(existing)) and _unused_sign_up(db, existing)):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -814,6 +831,18 @@ def set_staff_password(request: Request, payload: StaffPasswordRequest, db: Sess
     if not user or not user.is_active:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                             detail="This link has expired or was already used. Ask your administrator for a new one.")
+    # The code the administrator gave by phone or in person: the emailed link alone is not enough.
+    if not code_matches(link, payload.code):
+        link.wrong_tries = (link.wrong_tries or 0) + 1
+        left = MAX_WRONG_CODES - link.wrong_tries
+        if left <= 0:
+            link.used_at = utcnow()
+        audit.record(db, user, "staff_link_wrong_code", user.user_email or "",
+                     "Link cancelled after too many wrong codes" if left <= 0 else f"{left} tries left", request)
+        db.commit()
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="Too many wrong codes. Ask your administrator for a new link." if left <= 0
+                            else f"That set-up code is not right. {left} {'try' if left == 1 else 'tries'} left.")
     link.used_at = utcnow()
     user.hashed_password = hash_password(payload.password)
     register_success(user)
@@ -864,16 +893,16 @@ def change_password(request: Request, payload: PasswordChangeRequest, db: Sessio
 RECENT_SIGN_IN_SECONDS = 300
 
 
-@router.post("/me/delete", status_code=status.HTTP_204_NO_CONTENT)
+@router.post("/me/delete", response_model=DeletionScheduled)
 @limiter.limit("5/minute")
 def delete_my_account(request: Request, payload: DeleteAccountRequest, db: Session = Depends(get_db),
                       current_user: User = Depends(get_current_user), claims: dict = Depends(get_token_claims)):
-    """A farmer deletes their account and its data: photos (the files too), checks, referrals,
-    kept assistant questions, backup codes and sign-in attempts, then the account (Kenya Data Protection Act 2019, s.40,
-    right to erasure; Google Play requires deletion inside the app). It asks for proof first:
-    the password and authenticator code, or for an account made with Google, a Google sign-in
-    in the last 5 minutes (a renewed session doesn't count). One audit entry records that an
-    account was deleted and when, without anything that identifies the person."""
+    """A farmer deletes their account and its data (Kenya Data Protection Act 2019, s.40, right to
+    erasure). It asks for proof first: the password and authenticator code, or for an account made
+    with Google, a Google sign-in in the last 5 minutes (a renewed session doesn't count).
+    Grace period (found in testing, t71): the account is signed out everywhere and its open
+    referrals are withdrawn now; everything is deleted on the date returned (14 days), by the
+    hourly job (app/core/account_deletion.py). Signing in before then keeps the account."""
     user = current_user
     if user.role != UserRole.farmer:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
@@ -884,25 +913,33 @@ def delete_my_account(request: Request, payload: DeleteAccountRequest, db: Sessi
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                             detail="For your safety, continue with Google again, then delete your account.")
 
-    user_id = user.user_id
-    diagnoses = db.query(Diagnosis).filter(Diagnosis.user_id == user_id).all()
-    for diagnosis in diagnoses:
-        if diagnosis.image_path and os.path.isfile(diagnosis.image_path) and inside_uploads(diagnosis.image_path):
-            os.remove(diagnosis.image_path)
-    ids = [d.diagnosis_id for d in diagnoses]
-    db.query(SavedTurn).filter(SavedTurn.user_id == user_id).delete(synchronize_session=False)
+    user.delete_after = utcnow() + timedelta(days=settings.account_deletion_grace_days)
+    user.refresh_token_id = None  # every phone signed out now
+    # Officers stop seeing the farmer's open cases now, not in 14 days.
+    ids = [d for (d,) in db.query(Diagnosis.diagnosis_id).filter(Diagnosis.user_id == user.user_id)]
     if ids:
-        db.query(Referral).filter(Referral.diagnosis_id.in_(ids)).delete(synchronize_session=False)
-        db.query(Diagnosis).filter(Diagnosis.diagnosis_id.in_(ids)).delete(synchronize_session=False)
-    db.query(BackupCode).filter(BackupCode.user_id == user_id).delete(synchronize_session=False)
-    db.query(OAuthFlow).filter(or_(OAuthFlow.user_id == user_id, OAuthFlow.connect_user_id == user_id)).delete(
-        synchronize_session=False)
-    db.query(AuditEntry).filter(AuditEntry.actor_id == user_id).update(
-        {AuditEntry.actor_id: None, AuditEntry.actor_label: "(deleted account)"}, synchronize_session=False)
-    audit.record(db, None, "account_deleted", f"farmer account #{user_id}",
-                 f"Deleted by the account holder with {len(ids)} checks", actor_label="(deleted account)")
-    db.delete(user)
+        db.query(Referral).filter(Referral.diagnosis_id.in_(ids),
+                                  Referral.status.in_([ReferralStatus.new, ReferralStatus.in_review])).update(
+            {Referral.status: ReferralStatus.expired}, synchronize_session=False)
     db.commit()
+    return DeletionScheduled(delete_after=user.delete_after, grace_days=settings.account_deletion_grace_days)
+
+
+@router.post("/me/restore", response_model=TokenResponse)
+@limiter.limit("5/minute")
+def restore_my_account(request: Request, db: Session = Depends(get_db),
+                       user: User = Depends(get_user_being_deleted), claims: dict = Depends(get_token_claims)):
+    """"Keep my account" after signing in during the grace period: the deletion is cancelled and a
+    normal session starts. Only with a key from a sign-in made after the deletion was asked for,
+    so a key left over from before cannot undo it."""
+    asked_at = user.delete_after - timedelta(days=settings.account_deletion_grace_days)
+    # Whole seconds, as auth_time is stored.
+    if int(claims.get("auth_time") or 0) < int(asked_at.replace(tzinfo=timezone.utc).timestamp()):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Log in again to keep your account")
+    user.delete_after = None
+    tokens = issue_tokens(user)
+    db.commit()
+    return tokens
 
 
 @router.post("/password/add", response_model=MfaChallengeResponse)

@@ -51,7 +51,7 @@ export const PAGES = {
                 'Photos are deleted 30 days after the check. The result and any officer\'s reply stay in "Your checks".',
                 'Questions you chose to keep stay with their check until you delete them: Account, then Delete my saved questions. Turning "Keep my assistant questions" off stops new ones being kept.',
                 'Everything else is kept while you have an account.',
-                'When you delete your account, your photos, checks, cases, saved questions and account are deleted at once. Only a record that "an account was deleted" and when stays, with nothing that identifies you.',
+                'When you delete your account, you are logged out at once and officers stop seeing your cases. Your photos, checks, cases, saved questions and account are deleted for good 14 days later; you can log in before then and choose to keep it. Only a record that "an account was deleted" and when stays, with nothing that identifies you.',
             ]],
             ['Your rights', [
                 "Under Kenya's Data Protection Act (2019) you can see, correct and delete your data.",

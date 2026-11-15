@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import time
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException
@@ -17,6 +18,7 @@ from app.core.config import settings
 from app.core.limiter import limiter
 from app.core.monitoring import init_monitoring
 from app.core.retention import delete_old_photos
+from app.core.account_deletion import purge_due
 from app.db.session import SessionLocal
 from app.routers.admin import router as admin_router
 from app.routers.admin_content import public_router as contacts_router
@@ -34,8 +36,10 @@ def _delete_old_photos_once() -> None:
     db = SessionLocal()
     try:
         delete_old_photos(db)
+        # Accounts whose deletion grace period has ended (t71).
+        purge_due(db)
     except Exception as err:  # a failed clean-up must never stop the API; it runs again next hour
-        logging.getLogger("sproutly").warning("Photo clean-up failed: %s", err)
+        logging.getLogger("sproutly").warning("Clean-up failed: %s", err)
     finally:
         db.close()
 
@@ -73,6 +77,18 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["Authorization", "Content-Type"],
 )
+
+@app.middleware("http")
+async def time_checks(request, call_next):
+    """Response time of photo checks (T47), written to the server log as one line with no personal
+    data, e.g. "timing POST /diagnose/batch 200 4.81 s", read from Azure's log stream."""
+    if request.method != "POST" or request.url.path not in ("/diagnose", "/diagnose/", "/diagnose/batch"):
+        return await call_next(request)
+    started = time.perf_counter()
+    response = await call_next(request)
+    print(f"timing POST {request.url.path} {response.status_code} {time.perf_counter() - started:.2f} s", flush=True)
+    return response
+
 
 app.include_router(auth_router)
 app.include_router(diagnosis_router)

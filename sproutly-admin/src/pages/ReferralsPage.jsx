@@ -8,8 +8,9 @@ import { COUNTIES, CROPS, judgementName, parseUtc, timeAgo, timeLeft } from '../
 import { useLoad } from '../lib/useLoad.js'
 import { usePaged } from '../lib/usePaged.js'
 
-// "Mine" = cases I have claimed or answered.
-const OFFICER_TABS = [['new', 'Open'], ['in_review', 'In review'], ['mine', 'Mine'], ['answered', 'Answered'], ['expired', 'Expired'], ['', 'All']]
+// "My cases" = cases I have claimed or answered.
+// Officers see only the answered cases they answered themselves, so "My cases" covers them (no Answered tab).
+const OFFICER_TABS = [['new', 'Open'], ['in_review', 'In review'], ['mine', 'My cases'], ['expired', 'Expired'], ['', 'All']]
 const ADMIN_TABS = [['new', 'Waiting'], ['in_review', 'In review'], ['answered', 'Answered'], ['expired', 'Expired'], ['', 'All']]
 const OPEN = ['new', 'in_review']
 

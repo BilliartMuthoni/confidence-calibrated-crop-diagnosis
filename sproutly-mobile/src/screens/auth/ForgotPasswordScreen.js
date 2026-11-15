@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView, ScrollView } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -113,11 +113,7 @@ export default function ForgotPasswordScreen({ route, navigation }) {
                             onPress={send}
                             disabled={loading}
                         >
-                            {loading ? (
-                                <ActivityIndicator color="#1B4332" />
-                            ) : (
-                                <Text className="text-primary text-lg font-bold">Send code</Text>
-                            )}
+                            <Text className="text-primary text-lg font-bold">Send code</Text>
                         </TouchableOpacity>
                     </View>
                 </ScrollView>

@@ -9,8 +9,29 @@ import { usePaged } from '../lib/usePaged.js'
 
 const ROLE_LABEL = { admin: 'Administrator', officer: 'Extension officer', farmer: 'Farmer' }
 
-/** A one-time link for the staff member, shown once for the admin to pass on (no email service yet). */
+/** The set-up code to give by phone or in person, shown once. The link is emailed to the staff member;
+ *  only if the email could not be sent is the link shown here to pass on as well. */
 function OneTimeLink({ result, who }) {
+  return (
+    <div className="rounded-md border border-healthy-ink/25 bg-healthy-tint p-4">
+      {result.emailed_to ? (
+        <p className="text-sm text-ink">A set-up link was emailed to <span className="font-semibold">{result.emailed_to}</span>.</p>
+      ) : (
+        <ManualLink result={result} who={who} />
+      )}
+      <p className="mt-3 text-sm font-semibold text-ink">Give {who} this code by phone or in person, not by email:</p>
+      <p className="mt-1 font-mono text-3xl font-semibold tracking-[0.3em] text-ink select-all">{result.code}</p>
+      <p className="mt-2 text-xs text-muted">
+        The link works once, for {result.expires_in_hours} hours, and only with this code. It is shown only now.
+        When they have set up, the audit log shows "Chose a password from a link": call them to check it was them,
+        and deactivate the account if it was not.
+      </p>
+    </div>
+  )
+}
+
+/** Email could not be sent: the admin passes the link on by hand, to an address or number known to be theirs. */
+function ManualLink({ result, who }) {
   const [copied, setCopied] = useState(false)
   const copy = async () => {
     try {
@@ -21,15 +42,15 @@ function OneTimeLink({ result, who }) {
     }
   }
   return (
-    <div className="rounded-md border border-healthy-ink/25 bg-healthy-tint p-4">
-      <p className="text-sm font-semibold text-ink">Send this link to {who}. It works once, for {result.expires_in_hours} hours.</p>
+    <>
+      <p className="text-sm font-semibold text-ink">The email could not be sent. Send this link to {who} yourself.</p>
       <p className="mt-2 break-all rounded-lg bg-white px-3 py-2 font-mono text-xs text-body select-all">{result.link}</p>
       <div className="mt-2 flex items-center gap-3">
         <Button variant="secondary" onClick={copy}>Copy link</Button>
         {copied && <span className="text-sm text-healthy-ink">Copied</span>}
       </div>
-      <p className="mt-2 text-xs text-faint">Send it to a number or address you know is theirs, never one given in the same request.</p>
-    </div>
+      <p className="mt-2 text-xs text-faint">Send it to a number or address you know is theirs, never one given in the same request, and not in the same message as the code.</p>
+    </>
   )
 }
 
@@ -51,7 +72,7 @@ function Manage({ user, onDone }) {
     try {
       const result = await action()
       setDone(message)
-      if (result?.link) setLink(result)
+      if (result?.code) setLink(result)
       onDone()
     } catch (e) {
       setError(e)
@@ -130,8 +151,8 @@ function NewOfficer({ onDone, onCancel }) {
     <Card className="mb-6">
       <h2 className="text-base font-semibold text-ink">Create an officer account</h2>
       <p className="mt-1 text-sm text-muted">
-        You get a one-time link to pass on. With it they choose a password, then set up an authenticator app. They see
-        only their county's referrals.
+        A one-time link is emailed to their work address, and you get a code to give them by phone or in person. With
+        both they choose a password, then set up an authenticator app. They see only their county's referrals.
       </p>
       <div className="mt-4 grid gap-4 sm:grid-cols-3">
         <Field label="Full name"><input className={inputClass} value={form.name} onChange={set('name')} /></Field>

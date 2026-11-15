@@ -43,6 +43,13 @@ export default function LoginPage() {
     try {
       await action()
     } catch (e) {
+      if (/step has expired/i.test(e.message || '')) {
+        // Found in testing: the code page said "log in again" with no way back. Return to the
+        // password step (email and password still filled in) and say why.
+        back()
+        setError('That took too long, so the sign-in timed out. Press Continue to start again.')
+        return
+      }
       setError(e.status === 401 ? 'That email and password do not match an account.' : e.message)
     } finally {
       setBusy(false)

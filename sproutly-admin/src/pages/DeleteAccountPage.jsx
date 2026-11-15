@@ -15,7 +15,7 @@ export default function DeleteAccountPage() {
           <li>Tap <strong>Delete my account</strong>.</li>
           <li>Confirm with your password and authenticator code, or continue with Google if you signed up with Google.</li>
         </ol>
-        <p className="mt-3 text-base leading-7 text-body">Everything is deleted at once.</p>
+        <p className="mt-3 text-base leading-7 text-body">You are logged out at once, and everything is deleted for good 14 days later. You can log in before then and choose to keep it.</p>
       </Section>
 
       <Section title="Without the app">

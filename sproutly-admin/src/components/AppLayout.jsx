@@ -69,7 +69,7 @@ function NavItem({ page, compact }) {
       title={compact ? page.label : undefined}
       className={({ isActive }) =>
         `flex items-center rounded-md text-sm font-semibold transition-colors ${
-          compact ? 'flex-col gap-1 px-1 py-2' : 'h-9 gap-3 px-3'
+          compact ? 'flex-col gap-0.5 px-1 py-1.5' : 'h-9 gap-3 px-3'
         } ${isActive ? 'bg-white text-primary' : 'text-white/80 hover:bg-white/10 hover:text-white'}`
       }
     >
@@ -151,7 +151,14 @@ export default function AppLayout() {
           )}
         </div>
 
-        <nav aria-label="Main" className={`flex flex-1 flex-col gap-5 overflow-y-auto py-3 ${compact ? 'px-2' : 'px-3'}`}>
+        {/* On a short laptop screen the folded menu still fits: tighter spacing, and if it must
+            scroll it does so without the browser's wide white scrollbar. */}
+        <nav
+          aria-label="Main"
+          className={`flex flex-1 flex-col overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${
+            compact ? 'gap-2 px-2 py-2' : 'gap-5 px-3 py-3'
+          }`}
+        >
           {GROUPS[user.role].map(([title, keys]) => (
             <div key={title}>
               {compact
@@ -164,7 +171,7 @@ export default function AppLayout() {
           ))}
         </nav>
 
-        <div className={`border-t border-white/10 py-3 ${compact ? 'px-2' : 'px-3'}`}>
+        <div className={`border-t border-white/10 ${compact ? 'px-2 py-2' : 'px-3 py-3'}`}>
           <NavItem page={PAGES.account} compact={compact} />
         </div>
       </aside>

@@ -51,8 +51,7 @@ function ReferredConfidence({ bins }) {
         ))}
       </div>
       <p className="mt-3 text-xs text-muted">
-        Model confidence on each referred case, by 10% band. Cases near the threshold are the ones a better model would most
-        likely have answered.
+        How sure the model was on each case sent to an officer.
       </p>
     </div>
   )

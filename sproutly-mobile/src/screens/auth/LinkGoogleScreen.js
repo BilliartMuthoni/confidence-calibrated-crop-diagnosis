@@ -7,7 +7,6 @@ import {
     KeyboardAvoidingView,
     Platform,
     ScrollView,
-    ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -125,11 +124,7 @@ export default function LinkGoogleScreen({ route, navigation }) {
                             onPress={submit}
                             disabled={loading || !ready}
                         >
-                            {loading ? (
-                                <ActivityIndicator color="#0B1A13" />
-                            ) : (
-                                <Text className="text-forestDeep text-lg font-bold">Connect and log in</Text>
-                            )}
+                            <Text className="text-forestDeep text-lg font-bold">Connect and log in</Text>
                         </TouchableOpacity>
                     </View>
                 </ScrollView>

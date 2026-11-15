@@ -6,7 +6,6 @@ import {
     KeyboardAvoidingView,
     Platform,
     ScrollView,
-    ActivityIndicator,
     Image,
     Linking,
 } from 'react-native';
@@ -22,6 +21,7 @@ import ErrorBanner from '../../components/ErrorBanner';
 import CodeInput from '../../components/CodeInput';
 import BusyOverlay from '../../components/BusyOverlay';
 import useKeyboardScroll from '../../utils/useKeyboardScroll';
+import { markNeedsBackupCodes } from '../../utils/backupCodesReminder';
 
 function StepTitle({ number, title }) {
     return (
@@ -75,6 +75,7 @@ export default function MfaSetupScreen({ route, navigation }) {
         setError(null);
         try {
             const data = await AuthService.confirmMfaSetup({ mfaToken, code: value });
+            await markNeedsBackupCodes(); // Home then offers to make them
             await login(data.access_token, [data.role], data.refresh_token);
         } catch (e) {
             setError(toFriendlyError(e));
@@ -179,11 +180,7 @@ export default function MfaSetupScreen({ route, navigation }) {
                             onPress={() => submit()}
                             disabled={loading || code.length !== 6}
                         >
-                            {loading ? (
-                                <ActivityIndicator color="#0B1A13" />
-                            ) : (
-                                <Text className="text-forestDeep text-lg font-bold">Finish setup</Text>
-                            )}
+                            <Text className="text-forestDeep text-lg font-bold">Finish setup</Text>
                         </TouchableOpacity>
                     </View>
                 </ScrollView>

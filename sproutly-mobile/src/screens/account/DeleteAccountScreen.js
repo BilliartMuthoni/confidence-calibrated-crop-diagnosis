@@ -27,7 +27,8 @@ const WHAT_GOES = [
 /**
  * Delete the account and everything in it. Proof first: the password and authenticator code,
  * or for an account made with Google, continuing with Google again (the backend accepts only a
- * Google sign-in from the last 5 minutes). Cannot be undone.
+ * Google sign-in from the last 5 minutes). Grace period (t71): the farmer is signed out at once
+ * and everything is deleted 14 days later; logging in before then keeps the account.
  */
 export default function DeleteAccountScreen({ route, navigation }) {
     const scrollRef = useKeyboardScroll();
@@ -38,10 +39,20 @@ export default function DeleteAccountScreen({ route, navigation }) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
 
-    const finished = async () => {
+    const finished = async (scheduled) => {
         // The session no longer exists on the server: just forget the keys on this phone.
         await clearTokens();
-        showDialog('Account deleted', 'Your account and its data have been deleted.');
+        const when = scheduled?.delete_after
+            ? new Date(`${scheduled.delete_after}Z`.replace(/Z+$/, 'Z')).toLocaleDateString(undefined, {
+                  day: 'numeric',
+                  month: 'long',
+                  year: 'numeric',
+              })
+            : null;
+        showDialog(
+            'Your account will be deleted',
+            `Everything will be deleted${when ? ` on ${when}` : ' in 14 days'}. Changed your mind? Log in before then to keep your account.`
+        );
         await logout();
     };
 
@@ -49,8 +60,7 @@ export default function DeleteAccountScreen({ route, navigation }) {
         setLoading(true);
         setError(null);
         try {
-            await deleteAccount({ token: userToken, password, code });
-            await finished();
+            await finished(await deleteAccount({ token: userToken, password, code }));
         } catch (e) {
             setError(toFriendlyError(e));
             setCode('');
@@ -74,8 +84,7 @@ export default function DeleteAccountScreen({ route, navigation }) {
                 return;
             }
             await login(tokens.access_token, userRoles, tokens.refresh_token); // keep this sign-in if deleting fails
-            await deleteAccount({ token: tokens.access_token });
-            await finished();
+            await finished(await deleteAccount({ token: tokens.access_token }));
         } catch (e) {
             setError(toFriendlyError(e));
             setLoading(false);
@@ -83,7 +92,7 @@ export default function DeleteAccountScreen({ route, navigation }) {
     };
 
     const confirmThen = (action) => () =>
-        showDialog('Delete your account?', 'Everything listed will be deleted for good. This cannot be undone.', [
+        showDialog('Delete your account?', 'You will be logged out now, and everything listed is deleted for good after 14 days. You can log in before then and choose to keep it.', [
             { text: 'Cancel', style: 'cancel' },
             { text: 'Delete', style: 'destructive', onPress: action },
         ]);
@@ -96,7 +105,7 @@ export default function DeleteAccountScreen({ route, navigation }) {
             <KeyboardAvoidingView behavior="padding" className="flex-1">
                 <ScrollView ref={scrollRef} contentContainerClassName="px-5 pb-10" keyboardShouldPersistTaps="handled">
                     <Text className="text-base font-bold mb-2" style={{ color: COLORS.ink }}>
-                        This deletes, for good:
+                        After 14 days, this deletes for good:
                     </Text>
                     {WHAT_GOES.map((line) => (
                         <Text key={line} className="text-base leading-6 mb-1" style={{ color: COLORS.text }}>
@@ -104,7 +113,9 @@ export default function DeleteAccountScreen({ route, navigation }) {
                         </Text>
                     ))}
                     <Text className="text-sm leading-5 mt-3 mb-6" style={{ color: COLORS.muted }}>
-                        Only a note that an account was deleted, and when, is kept, with nothing that identifies you.
+                        You are logged out now and officers stop seeing your cases. Changed your mind? Log in within 14
+                        days to keep your account. Only a note that an account was deleted, and when, is kept, with
+                        nothing that identifies you.
                     </Text>
 
                     {googleOnly ? (

@@ -75,12 +75,16 @@ export async function submitDiagnosis({ token, crop, imageUri, symptoms, sharing
  * Several photos at once. crop is 'maize' | 'tomato' | 'potato' for all photos, or null to
  * let the backend detect each photo's crop. Resolves to { results: [{ index, result, error }] }.
  */
-export async function submitBatch({ token, crop, imageUris, sharing, clientIds }) {
+export async function submitBatch({ token, crop, imageUris, sharing, clientIds, symptoms }) {
     try {
         const formData = new FormData();
         if (crop) formData.append('crop', crop);
         appendSharing(formData, sharing);
         (clientIds || []).forEach((id) => formData.append('client_ids', id));
+        // One description per photo, in the same order ('' for none).
+        if ((symptoms || []).some(Boolean)) {
+            imageUris.forEach((_, i) => formData.append('symptoms_texts', (symptoms[i] || '').trim()));
+        }
         // One at a time: shrinking ten full-size photos at once can run a cheap phone out of memory.
         for (const [i, uri] of imageUris.entries()) {
             formData.append('images', { uri: await shrinkPhoto(uri), name: `leaf-${i + 1}.jpg`, type: 'image/jpeg' });
@@ -115,6 +119,21 @@ export async function correctCrop({ token, diagnosisId, crop }) {
         const { data } = await client.post(
             `/diagnose/${diagnosisId}/crop`,
             { crop },
+            { headers: { Authorization: `Bearer ${token}` } }
+        );
+        return data;
+    } catch (error) {
+        throw fail(error);
+    }
+}
+
+/** A description added to a not-diagnosed photo after the check (batches have no box).
+ *  Reorders the officer's first suggestion; never turns it into a diagnosis. */
+export async function addSymptoms({ token, diagnosisId, text }) {
+    try {
+        const { data } = await client.post(
+            `/diagnose/${diagnosisId}/symptoms`,
+            { text },
             { headers: { Authorization: `Bearer ${token}` } }
         );
         return data;

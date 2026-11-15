@@ -1,5 +1,5 @@
 import React, { useCallback, useContext, useEffect, useRef, useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, RefreshControl } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, RefreshControl, AppState } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect } from '@react-navigation/native';
@@ -14,6 +14,7 @@ import BottomBar from '../../components/BottomBar';
 import CheckRow from '../../components/CheckRow';
 import { COLORS } from '../../constants/theme';
 import { loadSeenReplies } from '../../utils/seenReplies';
+import { needsBackupCodes } from '../../utils/backupCodesReminder';
 import QueueCard from '../../components/QueueCard';
 import SavedCopyNote from '../../components/SavedCopyNote';
 import { loadQueue, removeFromQueue, sendQueue, watchQueue } from '../../utils/offlineQueue';
@@ -32,11 +33,32 @@ export default function FarmerDashboard({ navigation }) {
     // change are asked once. Reading the pages closes the pop-up; agreeing there saves it, and
     // coming back without agreeing asks again.
     const askingTerms = useRef(false);
+
+    // Backup codes (found in testing): after authenticator set-up, offer them once per app start
+    // until they are made, so a lost phone does not lock the farmer out. Never on top of the terms.
+    const offeredCodes = useRef(false);
+    const offerBackupCodes = useCallback(async () => {
+        if (offeredCodes.current || !(await needsBackupCodes())) return;
+        offeredCodes.current = true;
+        showDialog(
+            'Save backup codes',
+            'If you lose your phone, a backup code lets you sign in. Make them now? It takes a minute.',
+            [
+                { text: 'Make them now', onPress: () => navigation.navigate('BackupCodes') },
+                { text: 'Later', style: 'cancel' },
+            ],
+        );
+    }, [navigation]);
+
     const checkTerms = useCallback(async () => {
         if (askingTerms.current) return;
         try {
             const me = await fetchCurrentUser({ token: userToken });
-            if (me.terms_current !== false || askingTerms.current) return;
+            if (askingTerms.current) return;
+            if (me.terms_current !== false) {
+                offerBackupCodes();
+                return;
+            }
             askingTerms.current = true;
             const done = () => { askingTerms.current = false; };
             showDialog(
@@ -51,7 +73,7 @@ export default function FarmerDashboard({ navigation }) {
         } catch {
             // No signal: ask next time Home opens.
         }
-    }, [userToken, navigation]);
+    }, [userToken, navigation, offerBackupCodes]);
 
     const load = useCallback(async () => {
         setError(null);
@@ -106,21 +128,41 @@ export default function FarmerDashboard({ navigation }) {
         if (!(await loadQueue()).some((i) => !i.error)) return;
         setSendingQueue(true);
         try {
-            const { sent } = await sendQueue(sendItem);
-            if (sent) load(); // the new results appear under Recent checks
+            const { sent, results } = await sendQueue(sendItem);
+            if (sent) {
+                load(); // the new results appear under Recent checks
+                // Found in testing: a waiting check was sent with no sign that its result was back.
+                const one = sent === 1 && results[0]?.diagnosis_id;
+                showDialog(
+                    sent === 1 ? 'Your check was sent' : `${sent} checks were sent`,
+                    sent === 1
+                        ? 'The check that was waiting for signal has its result.'
+                        : 'The checks that were waiting for signal have their results under Recent checks.',
+                    one
+                        ? [
+                              { text: 'See the result', onPress: () => navigation.navigate('Result', { diagnosisId: results[0].diagnosis_id }) },
+                              { text: 'Later', style: 'cancel' },
+                          ]
+                        : [{ text: 'OK' }]
+                );
+            }
         } finally {
             setSendingQueue(false);
         }
-    }, [sendItem, load]);
+    }, [sendItem, load, navigation]);
 
     // Reload whenever the home screen comes back into view, e.g. after a new check; while Home is
-    // open, waiting checks are tried again every minute.
+    // open, waiting checks are tried again every 30 seconds and as soon as the app is reopened.
     useFocusEffect(
         useCallback(() => {
             load();
             trySending();
-            const timer = setInterval(trySending, 60000);
-            return () => clearInterval(timer);
+            const timer = setInterval(trySending, 30000);
+            const sub = AppState.addEventListener('change', (state) => state === 'active' && trySending());
+            return () => {
+                clearInterval(timer);
+                sub.remove();
+            };
         }, [load, trySending])
     );
 

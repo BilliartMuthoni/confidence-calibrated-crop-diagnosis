@@ -9,10 +9,9 @@ from app.models.user import User, UserRole
 bearer_scheme = HTTPBearer(auto_error=False)
 
 
-def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
-    db: Session = Depends(get_db),
-) -> User:
+def _user_from_token(credentials: HTTPAuthorizationCredentials, db: Session, deleting: bool) -> User:
+    """The signed-in user. ``deleting``: True only for the account waiting to be deleted (the
+    keep-or-continue choice after signing in during the grace period); every other route refuses it."""
     unauthorized = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Not authenticated",
@@ -31,10 +30,25 @@ def get_current_user(
         raise unauthorized
 
     user = db.query(User).filter(User.user_id == int(user_id)).first()
-    if not user or not user.is_active:
+    # An account waiting to be deleted is signed out everywhere, including keys still in date.
+    if not user or not user.is_active or (user.delete_after is not None) != deleting:
         raise unauthorized
 
     return user
+
+
+def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
+    db: Session = Depends(get_db),
+) -> User:
+    return _user_from_token(credentials, db, deleting=False)
+
+
+def get_user_being_deleted(
+    credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
+    db: Session = Depends(get_db),
+) -> User:
+    return _user_from_token(credentials, db, deleting=True)
 
 
 def get_token_claims(credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme)) -> dict:
