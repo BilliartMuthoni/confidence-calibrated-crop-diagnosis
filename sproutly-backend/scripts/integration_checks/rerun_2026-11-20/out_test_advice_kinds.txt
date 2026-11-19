@@ -1,0 +1,36 @@
+PASS alembic upgrade head
+FAIL head is e6f7a8b9c0d1
+Added 130 entries; 0 were already in the library.
+ 
+PASS import_advice runs
+{<AdviceKind.treatment: 'treatment'>: 30, <AdviceKind.prevention: 'prevention'>: 56, <AdviceKind.about: 'about'>: 37, <AdviceKind.harvest: 'harvest'>: 7}
+PASS 130 entries imported
+PASS about 37, harvest 7
+FAIL result guidance keys unchanged
+PASS result treatment 9, prevention 11
+PASS no about text on the result
+FAIL sources only from result kinds
+About Potato Late Blight (also called barafu): | Harvesting and storing a crop with Potato Late Blight (also called barafu):
+PASS about heading
+PASS harvest heading
+PASS prompt lists about entries
+PASS what_to_know has 3 choices
+About Tomato Late Blight (also called barafu):
+PASS barafu in heading
+Hi! I can help with this result, Potato Late Blight. Ask me what to do now, how to stop it coming back, or what causes it. ['What to do now', 'How to stop it coming back', 'What causes it']
+PASS greeting names result and offers 3 topics
+Hi! I can help with this result, Healthy potato. Ask me how to keep your crop healthy. ['How to keep my crop healthy']
+PASS healthy greeting has 1 topic
+I can only answer questions about Potato Late Blight. For anything else, ask your extension officer.
+PASS off-topic has topic buttons
+PASS someone_hurt: 999, no buttons
+PASS harmful: refusal with topics
+PASS bad option rejected
+PASS tools list has small_talk and safety
+PASS food_safety reply
+PASS downgrade one step
+after downgrade: (86, 0)
+PASS downgrade removed the new kinds only
+PASS upgrade again
+
+22/25 passed

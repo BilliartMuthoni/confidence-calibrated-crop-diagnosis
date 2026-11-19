@@ -1,0 +1,29 @@
+SMS not sent: Africa's Talking answered HTTP 201: UserInBlacklist
+PASS sign-up answers verify_email
+PASS one email sent, via STARTTLS
+PASS code stored only as hash
+PASS resend_in_seconds about 60
+PASS email token is not a setup token
+PASS 4th wrong says 1 try left
+PASS 5th wrong ends the code
+PASS right code refused after 5 wrong
+PASS resend within 60 s refused
+PASS resend after 60 s works
+PASS still exactly 2 emails
+PASS expired code refused
+PASS right code -> setup step
+PASS email_verified_at set
+PASS wrong password -> 401, no email
+PASS unknown email -> 401, no email
+PASS old email account asked to confirm
+PASS second sign-in within 60 s sends no new email
+PASS then the authenticator code step
+PASS used account not replaced
+PASS first unfinished sign-up
+PASS unfinished sign-up taken over
+PASS new password applies
+   (Diagnosis required columns: ['confidence', 'crop', 'image_path', 'user_id'] )
+PASS 10th code of the day still sent
+PASS 11th code refused (daily cap)
+PASS re-sign-up can't dodge the cap
+FAIL phone sign-up asks for the SMS code on a laptop (t22)  [{"detail":"Your phone line is blocking messages like ours. Allow promotional messages on your line, or sign up with your email instead."}]

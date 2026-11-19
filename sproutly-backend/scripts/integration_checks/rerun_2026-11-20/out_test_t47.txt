@@ -1,0 +1,15 @@
+Assistant unavailable (fake): tool 'show_advice' with arguments outside the fixed lists
+PASS upgrade head
+PASS not-diagnosed check now gets an answer (no 409)
+PASS prompt names the crop only, never the stored guess
+PASS no show_advice or refer_to_officer offered
+PASS no advice entries anywhere in the prompt
+PASS send_to_officer before sending -> send button
+PASS don't treat yet message
+PASS greeting lists the three topics
+PASS a tool outside the menu -> unavailable, never advice
+PASS not-diagnosed check sent later as an ordinary case
+PASS after sending: 'already sent', no button
+PASS diagnosed check still uses the disease assistant
+
+12/12 passed

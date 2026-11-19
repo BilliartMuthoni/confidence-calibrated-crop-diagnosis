@@ -1,0 +1,16 @@
+PASS off when SENTRY_DSN is empty
+PASS scrub email
+PASS scrub 07 phone
+PASS scrub +254 phone
+PASS numbers that are not phones stay
+PASS on when SENTRY_DSN is set
+PASS an event was produced
+PASS no email in what is sent
+PASS no phone in what is sent
+PASS no user in what is sent
+PASS error type still reported
+PASS request reduced to method + url without query
+PASS no headers, body or cookies kept
+PASS environment and no tracing
+
+14/14 passed
