@@ -1,0 +1,53 @@
+PASS '0712345678' -> +254712345678
+PASS '0712 345 678' -> +254712345678
+PASS '712345678' -> +254712345678
+PASS '254712345678' -> +254712345678
+PASS '+254712345678' -> +254712345678
+PASS '+254 712-345-678' -> +254712345678
+PASS '00254712345678' -> +254712345678
+PASS '(0712) 345678' -> +254712345678
+PASS 01 numbers -> +2541...
+PASS '+255712345678' refused
+PASS '+1 202 555 0143' refused
+PASS '0202345678' refused
+PASS '07123' refused
+PASS '0712345678901' refused
+PASS 'abc' refused
+PASS '+254' refused
+PASS '0812345678' refused
+PASS shown as 07...
+PASS stored as +254712345678
+PASS log in with +254 finds the 07 account
+PASS log in with 712... finds it too
+PASS same number in another spelling can't sign up twice
+PASS foreign number: clear message
+PASS forgot: token, code sent by SMS to +254
+PASS unknown number: same answer, nothing sent
+PASS unknown number: reset says the code is not right
+PASS no authenticator code: asked for it
+PASS wrong authenticator code: 400
+PASS ...and the sent code is still usable
+PASS wrong sent code: tries left
+PASS new password too short: 422
+PASS right codes: password changed (204)
+PASS every phone signed out, sent code used up
+PASS old password no longer works
+PASS new password works
+PASS the same code can't be used twice
+PASS wrong sent code: backup code NOT used up
+PASS sent code + backup code: changed, backup code used once
+PASS email: code sent by email
+PASS officer: same answer, no code sent
+PASS google: same answer, no code sent
+PASS server without live SMS: phone reset says so (503)
+PASS ...email reset still works
+PASS migrate to the revision before
+PASS upgrade head
+PASS 07 with spaces converted
+PASS already +254 kept
+PASS 254... converted
+PASS same number twice: both left as they were
+PASS foreign number left
+PASS clash and foreign number listed in the log
+PASS downgrade runs
+52 checks passed

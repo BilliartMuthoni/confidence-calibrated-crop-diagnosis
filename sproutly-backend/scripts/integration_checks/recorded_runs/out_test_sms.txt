@@ -1,0 +1,27 @@
+PASS +254 from 0712...
+PASS +254 from 254...
+PASS +254 from 712...
+PASS + kept
+PASS phone sign-up asks for the SMS code
+PASS the screen gets the phone, not an email
+PASS laptop: code written to the log, nothing posted
+PASS code is not stored in plain
+PASS wrong code: tries left
+PASS phone token refused at the email route
+PASS right code: on to the authenticator set-up
+PASS phone marked confirmed
+PASS wrong password: no SMS
+PASS right password, unconfirmed: verify_phone
+PASS confirmed phone: no code asked again
+PASS resend within a minute: wait
+PASS sandbox address
+PASS number in +254 form, message has the code
+PASS live address
+PASS Africa's Talking refuses (no credit): 503, clear message
+PASS server without SMS settings: straight to set-up, as today
+PASS server with only the sandbox: straight to set-up (codes would never arrive)
+PASS server with a live account: SMS code asked
+PASS unconfirmed, unused phone sign-up: taken over
+PASS confirmed phone: 'already exists'
+
+ALL 25 CHECKS PASSED

@@ -1,0 +1,11 @@
+sproutly-backend\scripts\integration_checks\test_other_crop.py:64: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+  expires_at=datetime.utcnow() + timedelta(days=7)))
+sproutly-backend\scripts\integration_checks\test_other_crop.py:65: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+  db.add(SavedTurn(diagnosis_id=d.diagnosis_id, user_id=farmer.user_id, question="q", reply={}, asked_at=datetime.utcnow()))
+PASS upgrade head
+PASS foreign keys enforced
+PASS removed without error
+PASS check gone
+PASS referral gone
+PASS photo file gone after commit
+6/6 passed

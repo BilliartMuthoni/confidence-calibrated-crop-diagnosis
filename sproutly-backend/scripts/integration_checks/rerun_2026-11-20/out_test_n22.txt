@@ -1,0 +1,25 @@
+PASS upgrade head 
+FAIL head is a6b7c8d9e0f1 c8d9e0f1a2b3 (head)
+
+PASS result advice has about 
+PASS harvest stays assistant-only 
+PASS about's source listed 
+PASS about recorded as shown (t42) 
+PASS past check rebuilt with about 
+PASS check from before: no about, not 'updated' 
+PASS not-diagnosed check listed 
+PASS retake made a new check 
+PASS Your checks: old one hidden, new one shown 
+PASS old check still opens directly 
+PASS shared check has a referral 
+PASS retaken but sent to an officer: both stay 
+PASS retake of a diagnosed check -> 400 
+PASS retake of someone else's check -> 404 
+PASS other crop: check removed 
+PASS other crop: photo file deleted 
+PASS shared but not picked up: removed with its referral 
+PASS officer already on it -> 409, kept 
+PASS someone else's check -> 404 
+PASS removing a retaken check unlinks the new one 
+PASS downgrade runs 
+22/23 passed

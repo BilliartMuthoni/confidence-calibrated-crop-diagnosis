@@ -1,0 +1,20 @@
+PASS _check_code is the authenticator check (takes request)
+PASS oauth router uses the same authenticator check
+PASS emailed/SMS code check has its own name
+PASS phone: sign-up asks for the sent code
+PASS phone: right sent code -> authenticator setup
+PASS phone: wrong authenticator code at setup -> 400, not 500
+PASS phone: right authenticator code at setup -> signed in
+PASS phone: next sign-in asks only for the authenticator
+PASS phone: wrong authenticator code at sign-in -> 400, not 500
+PASS phone: right authenticator code at sign-in -> signed in
+PASS phone: backup codes with the authenticator code -> 200, not 500
+PASS email: sign-up asks for the sent code
+PASS email: right sent code -> authenticator setup
+PASS email: wrong authenticator code at setup -> 400, not 500
+PASS email: right authenticator code at setup -> signed in
+PASS email: next sign-in asks only for the authenticator
+PASS email: wrong authenticator code at sign-in -> 400, not 500
+PASS email: right authenticator code at sign-in -> signed in
+PASS email: backup codes with the authenticator code -> 200, not 500
+19 checks passed
