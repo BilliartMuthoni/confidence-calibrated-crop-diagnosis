@@ -3,8 +3,9 @@ import { Link, useNavigate } from 'react-router'
 
 import { listReferrals } from '../api/admin.js'
 import { useAuth } from '../auth/context.js'
-import { Badge, Empty, ErrorBox, Loading, PageHeader, Pagination, SortHeader, TableBox, Tabs, filterClass, inputClass } from '../components/ui.jsx'
-import { COUNTIES, CROPS, judgementName, parseUtc, timeAgo, timeLeft } from '../lib/format.js'
+import { Badge, Empty, ErrorBox, Loading, PageHeader, Pagination, SortHeader, TableBox, Tabs, inputClass } from '../components/ui.jsx'
+import SearchSelect from '../components/SearchSelect.jsx'
+import { CROPS, judgementName, parseUtc, timeAgo, timeLeft, countyOptions } from '../lib/format.js'
 import { useLoad } from '../lib/useLoad.js'
 import { usePaged } from '../lib/usePaged.js'
 
@@ -77,10 +78,8 @@ export default function ReferralsPage() {
           : `Cases from ${user.county}: the model was not sure, or the farmer says a diagnosis doesn't match. Claim one before you answer it.`}
       >
         {isAdmin && (
-          <select className={filterClass} value={county} onChange={(e) => setCounty(e.target.value)} aria-label="County">
-            <option value="">All counties</option>
-            {COUNTIES.map((c) => <option key={c}>{c}</option>)}
-          </select>
+          <SearchSelect className="w-56" label="County" value={county} onChange={setCounty}
+                        options={countyOptions({ value: '', label: 'All counties' })} />
         )}
       </PageHeader>
 

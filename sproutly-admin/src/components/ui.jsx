@@ -159,13 +159,14 @@ export function Field({ label, hint, children }) {
   )
 }
 
-const fieldClass =
+export const fieldClass =
   'rounded-md border border-divider-strong bg-white px-3 py-2 text-sm text-ink accent-primary outline-none focus:border-primary focus:ring-2 focus:ring-primary/15'
 
-// Form fields fill their column; filter dropdowns above a list are only as wide as their text,
-// so several sit on one line. (Adding w-auto to inputClass lost to its w-full.)
+// Form fields fill their column; filter dropdowns above a list grow with their text but are
+// never narrower than 12rem, so they are easy to hit and several still sit on one line.
+// (Adding w-auto to inputClass lost to its w-full.)
 export const inputClass = `w-full ${fieldClass}`
-export const filterClass = `w-auto max-w-full ${fieldClass}`
+export const filterClass = `w-auto min-w-48 max-w-full ${fieldClass}`
 
 export function ErrorBox({ error, onRetry }) {
   if (!error) return null

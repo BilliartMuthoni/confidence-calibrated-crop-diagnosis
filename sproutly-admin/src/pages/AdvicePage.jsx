@@ -3,7 +3,7 @@ import { useCallback, useState } from 'react'
 import { listAdvice, retireAdvice, saveAdvice } from '../api/admin.js'
 import { useAuth } from '../auth/context.js'
 import { Badge, Button, Card, Empty, ErrorBox, Field, Loading, PageHeader, filterClass, inputClass } from '../components/ui.jsx'
-import { DISEASES, diseaseName, formatDate } from '../lib/format.js'
+import { CROPS, CROP_PREFIX, DISEASES, diseaseName, formatDate } from '../lib/format.js'
 import { useLoad } from '../lib/useLoad.js'
 
 const LICENCES = ['CC BY 4.0', 'CC BY-SA 4.0', 'CC BY-SA 3.0', 'CC0', 'Public domain']
@@ -88,7 +88,7 @@ function EntryForm({ initial, onDone, onCancel }) {
         <Field label="Disease">
           <select className={inputClass} value={form.disease} onChange={setDisease} disabled={correcting}>
             <option value="">Choose a result</option>
-            {Object.keys(DISEASES).map((c) => <option key={c} value={c}>{diseaseName(c)}</option>)}
+            <DiseaseOptions />
           </select>
         </Field>
         <Field label="Type">
@@ -200,6 +200,15 @@ function Entry({ entry, isAdmin, editing, onEdit, onEditDone, onEditCancel, onCh
   )
 }
 
+/** The 11 results grouped under their crop, so the list is easy to scan. */
+function DiseaseOptions() {
+  return Object.entries(CROP_PREFIX).map(([crop, prefix]) => (
+    <optgroup key={crop} label={CROPS[crop]}>
+      {Object.keys(DISEASES).filter((c) => c.startsWith(prefix)).map((c) => <option key={c} value={c}>{diseaseName(c)}</option>)}
+    </optgroup>
+  ))
+}
+
 export default function AdvicePage() {
   const { token, user } = useAuth()
   const isAdmin = user.role === 'admin'
@@ -209,9 +218,12 @@ export default function AdvicePage() {
   const [disease, setDisease] = useState('')
   const [kind, setKind] = useState('')
   const [showRetired, setShowRetired] = useState(false)
+  const [search, setSearch] = useState('')
+  const q = search.trim().toLowerCase()
 
   const entries = (data ?? []).filter((a) => !disease || a.disease === disease).filter((a) => !kind || a.kind === kind)
     .filter((a) => showRetired || a.status === 'active')
+    .filter((a) => !q || [diseaseName(a.disease), a.text, a.source_title].some((t) => (t ?? '').toLowerCase().includes(q)))
   const groups = Object.keys(DISEASES).map((cls) => [cls, entries.filter((a) => a.disease === cls)]).filter(([, list]) => list.length)
 
   return (
@@ -234,12 +246,14 @@ export default function AdvicePage() {
       <div className="mb-4 flex flex-wrap items-center gap-4">
         <select className={filterClass} value={disease} onChange={(e) => setDisease(e.target.value)} aria-label="Disease">
           <option value="">All results</option>
-          {Object.keys(DISEASES).map((c) => <option key={c} value={c}>{diseaseName(c)}</option>)}
+          <DiseaseOptions />
         </select>
         <select className={filterClass} value={kind} onChange={(e) => setKind(e.target.value)} aria-label="Type">
           <option value="">All types</option>
           {Object.entries(KINDS).map(([k, [label]]) => <option key={k} value={k}>{label}</option>)}
         </select>
+        <input className={`${inputClass} sm:max-w-72`} type="search" value={search} onChange={(e) => setSearch(e.target.value)}
+               placeholder="Search disease, advice or source" aria-label="Search advice" />
         <label className="flex items-center gap-2 text-sm text-muted">
           <input type="checkbox" checked={showRetired} onChange={(e) => setShowRetired(e.target.checked)} />
           Show retired entries
@@ -247,7 +261,9 @@ export default function AdvicePage() {
       </div>
 
       {loading ? <Loading /> : error ? <ErrorBox error={error} onRetry={reload} /> : groups.length === 0 ? (
-        <Card><Empty title="No advice for this result yet">Until there is, farmers see the support contacts instead.</Empty></Card>
+        <Card>{q ? <Empty title="No advice matches your search" /> : (
+          <Empty title="No advice for this result yet">Until there is, farmers see the support contacts instead.</Empty>
+        )}</Card>
       ) : (
         <div className="space-y-6">
           {groups.map(([cls, list]) => (

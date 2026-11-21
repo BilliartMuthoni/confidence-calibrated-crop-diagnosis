@@ -8,6 +8,11 @@ export const COUNTIES = [
   'Tana River', 'Tharaka-Nithi', 'Trans Nzoia', 'Turkana', 'Uasin Gishu', 'Vihiga', 'Wajir', 'West Pokot',
 ]
 
+/** The counties as options for a SearchSelect, with any extra options (e.g. "All counties") first. */
+export function countyOptions(...extra) {
+  return [...extra, ...COUNTIES.map((c) => ({ value: c, label: c }))]
+}
+
 // The model's 11 classes (PlantVillage folder names) and how people read them.
 export const DISEASES = {
   'Corn_(maize)___Cercospora_leaf_spot Gray_leaf_spot': 'Maize gray leaf spot',
