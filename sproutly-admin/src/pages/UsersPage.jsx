@@ -2,8 +2,9 @@ import { Fragment, useCallback, useState } from 'react'
 
 import { createOfficer, listUsers, resetAuthenticator, resetPassword, setOfficerCounty, setUserActive } from '../api/admin.js'
 import { useAuth } from '../auth/context.js'
-import { Badge, Button, Card, Empty, ErrorBox, Field, Loading, PageHeader, Pagination, SortHeader, filterClass, inputClass } from '../components/ui.jsx'
-import { COUNTIES, parseUtc, timeAgo } from '../lib/format.js'
+import { Badge, Button, Card, Empty, ErrorBox, Field, Loading, PageHeader, Pagination, SortHeader, inputClass } from '../components/ui.jsx'
+import SearchSelect from '../components/SearchSelect.jsx'
+import { parseUtc, timeAgo, countyOptions } from '../lib/format.js'
 import { useLoad } from '../lib/useLoad.js'
 import { usePaged } from '../lib/usePaged.js'
 
@@ -98,9 +99,7 @@ function Manage({ user, onDone }) {
       {user.role === 'officer' && (
         <div className="flex flex-wrap items-end gap-2">
           <Field label="County">
-            <select className={filterClass} value={county} onChange={(e) => setCounty(e.target.value)}>
-              {COUNTIES.map((c) => <option key={c}>{c}</option>)}
-            </select>
+            <SearchSelect className="w-56" label="County" value={county} onChange={setCounty} options={countyOptions()} />
           </Field>
           <Button variant="secondary" busy={busy} disabled={county === user.county}
                   onClick={() => act(null, () => setOfficerCounty(token, user.id, county), `${user.name} now sees ${county}'s referrals.`)}>
@@ -158,10 +157,8 @@ function NewOfficer({ onDone, onCancel }) {
         <Field label="Full name"><input className={inputClass} value={form.name} onChange={set('name')} /></Field>
         <Field label="Work email"><input className={inputClass} type="email" value={form.email} onChange={set('email')} /></Field>
         <Field label="County">
-          <select className={inputClass} value={form.county} onChange={set('county')}>
-            <option value="">Choose a county</option>
-            {COUNTIES.map((c) => <option key={c}>{c}</option>)}
-          </select>
+          <SearchSelect label="County" value={form.county} placeholder="Choose a county"
+                        onChange={(county) => setForm((f) => ({ ...f, county }))} options={countyOptions()} />
         </Field>
       </div>
       <div className="mt-4"><ErrorBox error={error} /></div>

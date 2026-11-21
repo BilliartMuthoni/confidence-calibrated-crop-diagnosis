@@ -2,8 +2,9 @@ import { useCallback, useState } from 'react'
 
 import { listContacts, markContactChecked, saveContact, setContactActive } from '../api/admin.js'
 import { useAuth } from '../auth/context.js'
-import { Badge, Button, Card, Empty, ErrorBox, Field, Loading, PageHeader, Pagination, filterClass, inputClass } from '../components/ui.jsx'
-import { CONTACT_KINDS, COUNTIES, NATIONWIDE, daysSince, parseUtc } from '../lib/format.js'
+import { Badge, Button, Card, Empty, ErrorBox, Field, Loading, PageHeader, Pagination, inputClass } from '../components/ui.jsx'
+import SearchSelect from '../components/SearchSelect.jsx'
+import { CONTACT_KINDS, NATIONWIDE, daysSince, parseUtc, countyOptions } from '../lib/format.js'
 import { useLoad } from '../lib/useLoad.js'
 import { usePaged } from '../lib/usePaged.js'
 
@@ -58,11 +59,9 @@ function ContactForm({ initial, onDone, onCancel }) {
       <h2 className="mb-4 font-semibold text-ink">{initial.id ? 'Edit contact' : 'Add a contact'}</h2>
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="County">
-          <select className={inputClass} value={form.county} onChange={set('county')}>
-            <option value="">Choose a county</option>
-            <option value={NATIONWIDE}>Nationwide (every county)</option>
-            {COUNTIES.map((c) => <option key={c}>{c}</option>)}
-          </select>
+          <SearchSelect label="County" value={form.county} placeholder="Choose a county"
+                        onChange={(county) => setForm((f) => ({ ...f, county }))}
+                        options={countyOptions({ value: NATIONWIDE, label: 'Nationwide (every county)' })} />
         </Field>
         <Field label="Type">
           <select className={inputClass} value={form.kind} onChange={set('kind')}>
@@ -164,11 +163,8 @@ export default function ContactsPage() {
       )}
 
       <div className="mb-4 flex flex-wrap items-center gap-4">
-        <select className={filterClass} value={county} onChange={(e) => setCounty(e.target.value)} aria-label="County">
-          <option value="">All counties</option>
-          <option value={NATIONWIDE}>Nationwide</option>
-          {COUNTIES.map((c) => <option key={c}>{c}</option>)}
-        </select>
+        <SearchSelect className="w-56" label="County" value={county} onChange={setCounty}
+                      options={countyOptions({ value: '', label: 'All counties' }, { value: NATIONWIDE, label: 'Nationwide' })} />
         {isAdmin && stale > 0 && (
           <p className="text-sm font-semibold text-attention-ink">
             {stale} shown {stale === 1 ? 'contact has' : 'contacts have'} not been checked for over 6 months.
