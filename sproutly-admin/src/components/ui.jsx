@@ -15,7 +15,10 @@ export function PageHeader({ title, subtitle, children }) {
 }
 
 export function Card({ children, className = '' }) {
-  return <section className={`rounded-lg border border-divider bg-white p-5 ${className}`}>{children}</section>
+  // A table card passes p-0; both classes in one list let p-5 win, which inset the table's
+  // grey header inside the card, so the default padding is left out when p-0 is asked for.
+  const pad = /(^|\s)p-0(\s|$)/.test(className) ? '' : 'p-5'
+  return <section className={`rounded-lg border border-divider bg-white ${pad} ${className}`}>{children}</section>
 }
 
 const BUTTON = {
