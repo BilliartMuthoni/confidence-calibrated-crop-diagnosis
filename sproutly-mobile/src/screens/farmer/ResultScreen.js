@@ -585,7 +585,8 @@ export default function ResultScreen({ route, navigation }) {
                             ) : (
                                 <ReferralState result={result} past={past} />
                             )}
-                            {result.crop_mismatch && (
+                            {/* Once an officer has answered, "try again or use the contacts" no longer applies. */}
+                            {result.crop_mismatch && !result.officer_reply && (
                                 <Text className="text-base mt-3 leading-6" style={{ color: COLORS.text }}>
                                     We could not diagnose this as <Text className="font-bold">{crop}</Text>. If this is
                                     not a {crop} leaf, choose the correct crop and try again. If it is {crop}, use the
