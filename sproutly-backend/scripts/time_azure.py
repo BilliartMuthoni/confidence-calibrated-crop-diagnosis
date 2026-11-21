@@ -30,6 +30,8 @@ def sign_in(client: httpx.Client) -> str:
     r = client.post(f"{API}/auth/mfa/verify", json={"mfa_token": challenge["mfa_token"], "code": code})
     if r.status_code != 200:
         sys.exit(f"Code rejected ({r.status_code}): {r.text}")
+    if r.json().get("delete_after"):
+        sys.exit("This account is waiting to be deleted; choose Keep my account in the app first, or use another one.")
     return r.json()["access_token"]
 
 

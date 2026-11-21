@@ -123,16 +123,42 @@ function EntryForm({ initial, onDone, onCancel }) {
   )
 }
 
-function Entry({ entry, isAdmin, onEdit, onChanged }) {
+/** Retiring needs a reason, asked on the page itself rather than in a browser pop-up. */
+function RetireBox({ entry, onDone, onCancel }) {
   const { token } = useAuth()
-  const [open, setOpen] = useState(false)
+  const [note, setNote] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState(null)
 
   const retire = async () => {
-    const note = window.prompt('Why is this entry being retired? It stays in the history and is no longer shown to farmers.')
-    if (!note?.trim()) return
-    await retireAdvice(token, entry.id, note.trim())
-    onChanged()
+    setBusy(true)
+    setError(null)
+    try {
+      await retireAdvice(token, entry.id, note.trim())
+      onDone()
+    } catch (e) {
+      setError(e)
+      setBusy(false)
+    }
   }
+
+  return (
+    <div className="mt-3 rounded-lg border border-divider bg-surface p-4">
+      <Field label="Why is this entry being retired?" hint="It stays in the history and is no longer shown to farmers.">
+        <input className={inputClass} value={note} onChange={(e) => setNote(e.target.value)} autoFocus />
+      </Field>
+      <div className="mt-3"><ErrorBox error={error} /></div>
+      <div className="mt-3 flex gap-2">
+        <Button onClick={retire} busy={busy} disabled={note.trim().length < 5}>Retire entry</Button>
+        <Button variant="secondary" onClick={onCancel}>Cancel</Button>
+      </div>
+    </div>
+  )
+}
+
+function Entry({ entry, isAdmin, editing, onEdit, onEditDone, onEditCancel, onChanged }) {
+  const [open, setOpen] = useState(false)
+  const [retiring, setRetiring] = useState(false)
 
   return (
     <li className="px-5 py-4">
@@ -149,13 +175,20 @@ function Entry({ entry, isAdmin, onEdit, onChanged }) {
         <button type="button" className="font-semibold text-muted underline" onClick={() => setOpen(!open)}>
           {open ? 'Hide history' : 'History'}
         </button>
-        {isAdmin && entry.status === 'active' && (
+        {isAdmin && entry.status === 'active' && !editing && !retiring && (
           <>
             <button type="button" className="font-semibold text-primary underline" onClick={() => onEdit(entry)}>Correct</button>
-            <button type="button" className="font-semibold text-attention-ink underline" onClick={retire}>Retire</button>
+            <button type="button" className="font-semibold text-attention-ink underline" onClick={() => setRetiring(true)}>Retire</button>
           </>
         )}
       </div>
+      {editing && (
+        <div className="mt-3"><EntryForm initial={entry} onDone={onEditDone} onCancel={onEditCancel} /></div>
+      )}
+      {retiring && (
+        <RetireBox entry={entry} onCancel={() => setRetiring(false)}
+                   onDone={() => { setRetiring(false); onChanged() }} />
+      )}
       {open && (
         <ul className="mt-2 space-y-1 border-l-2 border-divider pl-3 text-xs text-muted">
           {entry.history.map((h, i) => (
@@ -190,8 +223,9 @@ export default function AdvicePage() {
         {isAdmin && !editing && <Button onClick={() => setEditing(BLANK)}>Add an entry</Button>}
       </PageHeader>
 
-      {editing && (
-        <EntryForm key={editing.id ?? 'new'} initial={editing} onCancel={() => setEditing(null)}
+      {/* A new entry is added at the top; a correction opens under the entry itself. */}
+      {editing && !editing.id && (
+        <EntryForm key="new" initial={editing} onCancel={() => setEditing(null)}
                    onDone={() => { setEditing(null); reload() }} />
       )}
 
@@ -221,7 +255,9 @@ export default function AdvicePage() {
               <h2 className="border-b border-divider px-5 py-3 font-semibold text-ink">{diseaseName(cls)}</h2>
               <ul className="divide-y divide-divider">
                 {list.map((entry) => (
-                  <Entry key={entry.id} entry={entry} isAdmin={isAdmin} onEdit={setEditing} onChanged={reload} />
+                  <Entry key={entry.id} entry={entry} isAdmin={isAdmin} editing={editing?.id === entry.id}
+                         onEdit={setEditing} onEditCancel={() => setEditing(null)}
+                         onEditDone={() => { setEditing(null); reload() }} onChanged={reload} />
                 ))}
               </ul>
             </Card>
