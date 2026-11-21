@@ -495,7 +495,8 @@ export default function DiagnosisScreen({ navigation, route }) {
                                     <Text className="text-sm font-bold" style={{ color: COLORS.ink }}>
                                         For a good result
                                     </Text>
-                                    {['One leaf filling the photo', 'In daylight, not in shade', 'Hold still so it is sharp'].map((tip) => (
+                                    {['One leaf filling the photo', 'In daylight, not in shade', 'Hold still so it is sharp',
+                                        `Up to ${MAX_PHOTOS} photos at once, one leaf in each`].map((tip) => (
                                         <Text key={tip} className="text-sm leading-5 mt-1" style={{ color: COLORS.text }}>
                                             {`•  ${tip}`}
                                         </Text>
