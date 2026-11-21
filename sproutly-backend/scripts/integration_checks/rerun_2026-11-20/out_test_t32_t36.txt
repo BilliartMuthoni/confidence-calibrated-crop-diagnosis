@@ -1,0 +1,11 @@
+Assistant unavailable (groq): HTTP 401: {"error":{"message":"Invalid API Key","type":"invalid_request_error","code":"invalid_api_key"}}
+
+PASS database created
+PASS referral opened as new
+PASS T32: unanswered referral is closed as expired
+PASS T32: the check reports it as expired to the app
+PASS T36: the reply is the fixed 'unavailable' message
+PASS T36: no advice entries are given
+    message: The assistant isn't available right now. The advice on this page is for this result; for anything else, ask your extension officer.
+
+6/6 passed
