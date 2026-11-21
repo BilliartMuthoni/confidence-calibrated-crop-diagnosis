@@ -104,7 +104,7 @@ export default function CountyPicker({ value, onChange, asRow = false }) {
                         className="flex-row items-center self-start mt-2.5 py-1"
                     >
                         {/* The same icon as in the county list (row style), so both read alike. */}
-                        <Ionicons name="navigate-outline" size={16} color={COLORS.brand} />
+                        <Ionicons name="locate-outline" size={16} color={COLORS.brand} />
                         <Text className="ml-1.5 text-sm font-bold" style={{ color: COLORS.brand }}>
                             Use my location
                         </Text>
@@ -129,7 +129,7 @@ export default function CountyPicker({ value, onChange, asRow = false }) {
                                 accessibilityHint="Your location is used once to find your county and is not kept"
                                 className="flex-row items-center py-2"
                             >
-                                <Ionicons name="navigate-outline" size={18} color={COLORS.brand} />
+                                <Ionicons name="locate-outline" size={18} color={COLORS.brand} />
                                 <Text className="ml-2 text-base font-bold" style={{ color: COLORS.brand }}>
                                     {locating ? 'Finding your county...' : 'Use my location'}
                                 </Text>
