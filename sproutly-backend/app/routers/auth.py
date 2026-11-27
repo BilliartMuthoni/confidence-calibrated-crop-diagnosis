@@ -855,7 +855,7 @@ def set_staff_password(request: Request, payload: StaffPasswordRequest, db: Sess
     link.used_at = utcnow()
     user.hashed_password = hash_password(payload.password)
     register_success(user)
-    audit.record(db, user, "password_set", user.user_email or "", f"From a {link.purpose} link", request)
+    audit.record(db, user, "password_set", user.user_email or "", f"From {'an' if link.purpose[:1] in 'aeiou' else 'a'} {link.purpose} link", request)
     db.commit()
 
 

@@ -84,6 +84,7 @@ export const AUDIT_ACTIONS = {
   google_connected: 'Connected Google',
   google_disconnected: 'Disconnected Google',
   photos_deleted: 'Old photos deleted (automatic)',
+  report_download: 'Downloaded a report',
 }
 
 // The API sends UTC times without a zone marker; read them as UTC (same rule as the mobile app).

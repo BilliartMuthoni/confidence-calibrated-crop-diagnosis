@@ -1,9 +1,9 @@
-import { useCallback } from 'react'
+import { useCallback, useState } from 'react'
 import { Link, useNavigate } from 'react-router'
 
-import { getOverview, listReferrals } from '../api/admin.js'
+import { downloadReport, getOverview, listReferrals } from '../api/admin.js'
 import { useAuth } from '../auth/context.js'
-import { Badge, BarList, ErrorBox, Loading, PageHeader, TableBox } from '../components/ui.jsx'
+import { Badge, BarList, Button, ErrorBox, Loading, PageHeader, TableBox } from '../components/ui.jsx'
 import { CROPS, diseaseName, parseUtc, percent, timeAgo, timeLeft } from '../lib/format.js'
 import { useLoad } from '../lib/useLoad.js'
 
@@ -50,6 +50,56 @@ function ReferredConfidence({ bins }) {
           <span key={low} className="flex-1 text-center text-xs tabular-nums text-muted">{percent(low)}</span>
         ))}
       </div>
+    </div>
+  )
+}
+
+const REPORTS = [
+  {
+    name: 'disease-frequency',
+    title: 'Disease frequency',
+    text: 'Diseases found per county and month. An officer\'s judgement counts ahead of the model\'s result; counts under 5 show as "<5".',
+  },
+  {
+    name: 'referral-performance',
+    title: 'Referral performance',
+    text: 'Cases received, answered, answered before the deadline and expired per county and month, with the median days to reply.',
+  },
+]
+
+/** CSV downloads of counts only: no names, phone numbers, photos or symptom descriptions. */
+function Reports() {
+  const { token } = useAuth()
+  const [busy, setBusy] = useState('')
+  const [error, setError] = useState('')
+
+  async function download(name) {
+    setBusy(name)
+    setError('')
+    try {
+      await downloadReport(token, name)
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setBusy('')
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      {REPORTS.map((r) => (
+        <div key={r.name} className="flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0 max-w-2xl">
+            <p className="text-sm font-semibold text-ink">{r.title}</p>
+            <p className="text-sm text-muted">{r.text}</p>
+          </div>
+          <Button variant="secondary" busy={busy === r.name} disabled={busy !== '' && busy !== r.name}
+                  onClick={() => download(r.name)}>
+            Download CSV
+          </Button>
+        </div>
+      ))}
+      {error && <p role="alert" className="text-sm text-attention-ink">{error}</p>}
     </div>
   )
 }
@@ -148,6 +198,10 @@ export default function OverviewPage() {
         </Panel>
         <Panel title="How sure the model was on referred cases" className="lg:col-span-2">
           <ReferredConfidence bins={data.referred_confidence} />
+        </Panel>
+        <Panel title="Reports" aside={<span className="text-xs text-muted">Counts only, no farmer details</span>}
+               className="lg:col-span-2">
+          <Reports />
         </Panel>
       </div>
     </>
