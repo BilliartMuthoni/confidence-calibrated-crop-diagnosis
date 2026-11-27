@@ -3,7 +3,7 @@
 Every route checks the caller's role on the server. Officers claim, judge and answer referrals
 from their own county only (anything else answers 404, so the queue never confirms other
 counties' cases). Admins see the whole queue read-only and can release an abandoned claim;
-everything else here (overview, users, audit, model) is for admins only.
+everything else here (overview, reports, users, audit, model) is for admins only.
 """
 
 import os
@@ -12,11 +12,11 @@ from datetime import timedelta
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
-from app.core import audit, symptom_text
+from app.core import audit, reports, symptom_text
 from app.core.classifier import model_paths, model_version
 from app.core.leaf_check import load_leaf_check
 from app.core.phone import local_form
@@ -367,6 +367,49 @@ def overview(db: Session = Depends(get_db), user: User = Depends(admin_only)):
         expiring_soon=sum(1 for r in open_ if r.expires_at < now + timedelta(days=2)),
         officer_agreement=Agreement(agreed=sum(1 for j, top in judged if j == top), judged=len(judged)),
     )
+
+
+# ----------------------------------------------------------------------------- reports
+
+def _csv_download(content: str, name: str) -> Response:
+    filename = f"{name}-{utcnow():%Y-%m-%d}.csv"
+    return Response(content=content, media_type="text/csv; charset=utf-8",
+                    headers={"Content-Disposition": f'attachment; filename="{filename}"'})
+
+
+@router.get("/reports/disease-frequency")
+def disease_frequency_report(request: Request, db: Session = Depends(get_db), user: User = Depends(admin_only)):
+    """Diseases found per county and month, as counts only (see app/core/reports.py)."""
+    query = (
+        db.query(Diagnosis.created_at, Diagnosis.crop, Diagnosis.is_referred, Diagnosis.predicted_disease,
+                 Referral.status, Referral.judgement, Referral.county, User.county)
+        .outerjoin(Referral, Referral.diagnosis_id == Diagnosis.diagnosis_id)
+        .outerjoin(User, User.user_id == Diagnosis.user_id)
+    )
+    rows = []
+    for created_at, crop, is_referred, predicted, ref_status, judgement, ref_county, user_county in query.all():
+        # Only an answered case has a final judgement; it is counted in the county it was referred from.
+        judged = judgement if ref_status == ReferralStatus.answered else None
+        rows.append(reports.CheckRow(county=ref_county if judged else user_county, created_at=created_at,
+                                     crop=crop.value, is_referred=is_referred, predicted_disease=predicted,
+                                     judgement=judged))
+    audit.record(db, user, "report_download", "Disease frequency", "Counts by county and month", request)
+    db.commit()
+    return _csv_download(reports.disease_frequency_csv(rows), "disease-frequency")
+
+
+@router.get("/reports/referral-performance")
+def referral_performance_report(request: Request, db: Session = Depends(get_db), user: User = Depends(admin_only)):
+    """Referrals received, answered and expired per county and month (see app/core/reports.py)."""
+    expire_overdue(db)
+    rows = [
+        reports.ReferralRow(county=r.county, created_at=r.created_at, status=r.status.value,
+                            expires_at=r.expires_at, replied_at=r.replied_at)
+        for r in db.query(Referral).all()
+    ]
+    audit.record(db, user, "report_download", "Referral performance", "Counts by county and month", request)
+    db.commit()
+    return _csv_download(reports.referral_performance_csv(rows), "referral-performance")
 
 
 # ------------------------------------------------------------------------------- users

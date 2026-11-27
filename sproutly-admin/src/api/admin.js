@@ -2,7 +2,7 @@
 // admin_content.py and auth.py). The backend checks the role, and an officer's county,
 // on every request; the portal only hides what a role cannot use.
 
-import { API_URL, apiFetch, ApiError } from './client.js'
+import { API_URL, apiFetch, ApiError, SESSION_ENDED } from './client.js'
 
 const post = (body) => ({ method: 'POST', body: JSON.stringify(body) })
 
@@ -65,6 +65,24 @@ export function makeBackupCodes(token, code) {
 
 export function getOverview(token) {
   return apiFetch('/admin/overview', { token })
+}
+
+// ------------------------------------------------------------------------- reports
+
+// A CSV of counts only (no names, phones, photos or symptom text); the backend records each
+// download in the audit log. It needs the sign-in token, so it is fetched and saved from here.
+export async function downloadReport(token, name) {
+  const response = await fetch(`${API_URL}/admin/reports/${name}`, { headers: { Authorization: `Bearer ${token}` } })
+  if (!response.ok) {
+    if (response.status === 401) window.dispatchEvent(new Event(SESSION_ENDED))
+    throw new ApiError(response.status, 'The report could not be made')
+  }
+  const url = URL.createObjectURL(await response.blob())
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `${name}-${new Date().toISOString().slice(0, 10)}.csv`
+  link.click()
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
 // ----------------------------------------------------------------------- referrals
