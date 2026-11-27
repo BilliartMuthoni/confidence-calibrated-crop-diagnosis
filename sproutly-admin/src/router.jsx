@@ -15,6 +15,7 @@ import PrivacyPage from './pages/PrivacyPage.jsx'
 import ReferralDetailPage from './pages/ReferralDetailPage.jsx'
 import ReferralsPage from './pages/ReferralsPage.jsx'
 import ReplyReviewPage from './pages/ReplyReviewPage.jsx'
+import ReportsPage from './pages/ReportsPage.jsx'
 import SetPasswordPage from './pages/SetPasswordPage.jsx'
 import UsersPage from './pages/UsersPage.jsx'
 
@@ -39,6 +40,7 @@ export const router = createBrowserRouter([
       { path: 'model', element: <Guard roles={ADMIN}><ModelSettingsPage /></Guard> },
       { path: 'audit', element: <Guard roles={ADMIN}><AuditPage /></Guard> },
       { path: 'replies', element: <Guard roles={ADMIN}><ReplyReviewPage /></Guard> },
+      { path: 'reports', element: <Guard roles={ADMIN}><ReportsPage /></Guard> },
       { path: 'account', element: <AccountPage /> },
       { path: '*', element: <NotFoundPage /> },
     ],
