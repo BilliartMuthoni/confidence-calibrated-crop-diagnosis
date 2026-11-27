@@ -72,7 +72,6 @@ export default function ReportsPage() {
       </div>
 
       {error && <p role="alert" className="mt-4 text-sm text-attention-ink">{error}</p>}
-      <p className="mt-6 text-xs text-muted">Each download is recorded in the audit log.</p>
     </>
   )
 }
